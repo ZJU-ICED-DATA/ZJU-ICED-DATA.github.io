@@ -156,45 +156,42 @@ window.SITE_CONTENT = {
   /* 「我们做什么」页面：以 C1 化学为主线的研究框架图 */
   whatWeDo: {
     title: '我们做什么',
-    lead: '以 C1 化学为核心，贯通污染物控制 → C1 转化 → 产物工程三个环节，围绕氢、氨、醇的绿色制取与高值转化开展研究。',
+    lead: '以 C1 化学为核心，把工业、废弃物与生物质来源的 C1 小分子（NH3、CH4、CO2）转化为氢、醇、酸与烯烃，再进一步做成绿色燃料和高值化学品。',
     diagramTitle: 'Integrated Research on Hydrogen-Ammonia-Alcohol based on C1 Chemistry',
     columns: [
+      { name: '污染物控制', en: 'Pollutant Control', color: '#e8710a' },
+      { name: 'C1 化学', en: 'C1 Chemistry', color: '#f0b400' },
+      { name: '产物工程', en: 'Product Engineering', color: '#2b5fb0' }
+    ],
+    /* 每一行是一条转化链：来源 ──(C1 原料)──▶ 反应 ──(产物)──▶ 应用 */
+    flows: [
       {
-        id: 'pollution',
-        name: '污染物控制',
-        en: 'Pollutant Control',
-        color: '#e8710a',
-        blocks: [
-          { title: '传统工业', en: 'Traditional Industries', items: ['石化', '发电', '钢铁', '纺织'] },
-          { title: '废气与固废资源化', en: 'Waste Gas & Solid Waste Valorization', items: [] },
-          { title: '生物制造', en: 'Biomanufacturing', items: ['发酵', '气化', '热解', '焚烧'] },
-          { title: '治理技术', en: 'Abatement', items: ['DeSOx / DeNOx', '碳捕集'] }
-        ]
+        source: { title: '传统工业', en: 'Traditional Industries', items: ['石化', '发电', '钢铁', '纺织'] },
+        link: 'NH3',
+        mid: { title: '氨分解', en: 'Ammonia Decomposition' },
+        link2: 'H2',
+        end: { title: '绿色燃料', en: 'Green Fuels', items: ['航空煤油', '绿色甲醇', '生物天然气'] }
       },
       {
-        id: 'c1',
-        name: 'C1 化学',
-        en: 'C1 Chemistry',
-        color: '#f0b400',
-        blocks: [
-          { title: 'C1 原料', en: 'C1 Feedstocks', chips: ['NH3', 'CH4', 'CO2'] },
-          { title: '转化路径', en: 'Reactions', chips: ['氨分解', '选择性氧化', '催化燃烧', '干重整', '选择性还原'] },
-          { title: '合成气', en: 'Syngas', chips: ['CO + H2'] },
-          { title: '平台化学品', en: 'Platform Chemicals', chips: ['H2', 'CH3OH', 'HCOOH', 'C2H5OH', 'C2H4', 'CH3COOH'] }
-        ]
+        source: { title: '废气与固废资源化', en: 'Waste Gas & Solid Waste', items: ['脱硫脱硝', '碳捕集'] },
+        link: 'CO2 / CH4',
+        mid: { title: '干重整 · 选择性氧化', en: 'Dry Reforming / Selective Oxidation' },
+        link2: 'CO + H2 / CH3OH',
+        end: { title: '高值化学品', en: 'High-Value Chemicals', items: ['α-烯烃', '高级醇', '碳酸酯', '酰胺', '碳纤维'] }
       },
       {
-        id: 'product',
-        name: '产物工程',
-        en: 'Product Engineering',
-        color: '#2b5fb0',
-        blocks: [
-          { title: '绿色燃料', en: 'Green Fuels', items: ['航空煤油', '绿色甲醇', '生物天然气'] },
-          { title: '转化工艺', en: 'Processes', items: ['加氢 / 脱氧', '烯烃聚合', '羰基化', '热裂解'] },
-          { title: '高值化学品', en: 'High-Value Chemicals', items: ['α-烯烃', '高级醇', '碳酸酯', '酰胺', '碳纤维'] }
-        ]
+        source: { title: '生物制造', en: 'Biomanufacturing', items: ['发酵', '气化', '热解', '焚烧'] },
+        link: 'CH4 / CO2',
+        mid: { title: '催化燃烧 · 选择性还原', en: 'Catalytic Combustion / Selective Reduction' },
+        link2: 'H2 / C2H4 / CH3COOH',
+        end: { title: '转化工艺', en: 'Processes', items: ['加氢 / 脱氧', '羰基化', '热裂解', '烯烃聚合'] }
       }
     ],
+    platform: {
+      title: '平台化学品',
+      en: 'Platform Chemicals',
+      items: ['H2', 'CH3OH', 'HCOOH', 'C2H5OH', 'C2H4', 'CH3COOH', 'CO + H2']
+    },
     keyTech: {
       title: '关键技术',
       items: ['人工智能', '长时储能', 'PEM', '新型催化材料']

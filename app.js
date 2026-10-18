@@ -1177,30 +1177,53 @@
   function renderWhatWeDo() {
     const c = C.whatWeDo || {};
     const cols = c.columns || [];
-    const kt = c.keyTech || {};
+    const flows = c.flows || [];
+    const colorAt = function (i) { return (cols[i] && cols[i].color) || '#2b7ac4'; };
 
-    const pillars = cols.map(function (col) {
-      const blocks = (col.blocks || []).map(function (b) {
-        const chips = (b.chips || []).map(function (x) {
-          return '<span class="flow-chip strong">' + esc(x) + '</span>';
-        }).join('');
-        const items = (b.items || []).map(function (x) {
-          return '<span class="flow-chip">' + esc(x) + '</span>';
-        }).join('');
-        const body = chips || items;
-        return '<div class="flow-block">' +
-          '<div class="fb-title">' + esc(b.title) + '</div>' +
-          (b.en ? '<div class="fb-en">' + esc(b.en) + '</div>' : '') +
-          (body ? '<div class="fb-chips">' + body + '</div>' : '') +
-          '</div>';
+    function nodeHtml(n, color) {
+      if (!n) return '<div class="flow-node empty"></div>';
+      const items = (n.items || []).map(function (x) {
+        return '<span class="fn-item">' + esc(x) + '</span>';
       }).join('');
+      return '<div class="flow-node" style="--pc:' + esc(color) + '">' +
+        '<div class="fn-title">' + esc(n.title) + '</div>' +
+        (n.en ? '<div class="fn-en">' + esc(n.en) + '</div>' : '') +
+        (items ? '<div class="fn-items">' + items + '</div>' : '') +
+        '</div>';
+    }
 
-      return '<div class="pillar" style="--pc:' + esc(col.color || '#2b7ac4') + '">' +
-        '<div class="pillar-head"><div class="ph-name">' + esc(col.name) + '</div>' +
-        (col.en ? '<div class="ph-en">' + esc(col.en) + '</div>' : '') + '</div>' +
-        '<div class="pillar-body">' + blocks + '</div></div>';
+    function arrowHtml(label) {
+      return '<div class="flow-arrow">' +
+        '<span class="fa-label">' + esc(label || '') + '</span>' +
+        '<span class="fa-line"></span></div>';
+    }
+
+    /* 表头行：三栏对齐到 1 / 3 / 5 列 */
+    const headCells = [];
+    cols.forEach(function (col, i) {
+      if (i > 0) headCells.push('<div></div>');
+      headCells.push('<div class="flow-head" style="--pc:' + esc(col.color || '#2b7ac4') + '">' +
+        '<span class="fh-name">' + esc(col.name) + '</span>' +
+        '<span class="fh-en">' + esc(col.en) + '</span></div>');
+    });
+
+    /* 每条转化链一行：来源 →（C1 原料）→ 反应 →（产物）→ 应用 */
+    const rows = flows.map(function (f) {
+      return '<div class="flow-row">' +
+        '<div class="flow-cell">' + nodeHtml(f.source, colorAt(0)) + '</div>' +
+        '<div class="flow-cell arrow">' + arrowHtml(f.link) + '</div>' +
+        '<div class="flow-cell">' + nodeHtml(f.mid, colorAt(1)) + '</div>' +
+        '<div class="flow-cell arrow">' + arrowHtml(f.link2) + '</div>' +
+        '<div class="flow-cell">' + nodeHtml(f.end, colorAt(2)) + '</div>' +
+        '</div>';
     }).join('');
 
+    const plat = c.platform || {};
+    const platChips = (plat.items || []).map(function (x) {
+      return '<span class="plat-chip">' + esc(x) + '</span>';
+    }).join('');
+
+    const kt = c.keyTech || {};
     const ktChips = (kt.items || []).map(function (x) {
       return '<span class="kt-chip">' + esc(x) + '</span>';
     }).join('');
@@ -1212,7 +1235,13 @@
 
       '<div class="flow-diagram">' +
       '<div class="fd-title">' + esc(c.diagramTitle || '') + '</div>' +
-      '<div class="pillars">' + pillars + '</div>' +
+      '<div class="flow-head-row">' + headCells.join('') + '</div>' +
+      rows +
+      (platChips
+        ? '<div class="platform-band"><span class="pb-label">' + esc(plat.title || '平台化学品') +
+          (plat.en ? '<i>' + esc(plat.en) + '</i>' : '') + '</span>' +
+          '<div class="pb-chips">' + platChips + '</div></div>'
+        : '') +
       (ktChips ? '<div class="keytech"><span class="kt-label">' + esc(kt.title || '关键技术') + '</span>' +
         '<div class="kt-chips">' + ktChips + '</div></div>' : '') +
       '</div>';
