@@ -40,6 +40,11 @@ window.SITE_CONTENT = {
     ],
     photoCaption: '课题组合影（莫干山）',
     photo: 'assets/group-photo.jpg',
+    portrait: {
+      image: 'assets/xie-pengfei.jpg',
+      name: '谢鹏飞',
+      title: '求是特聘教授 / 长聘教授 · 博士生导师'
+    },
     contactTitle: '联系方式',
     contact: {
       leader: '谢鹏飞 教授',

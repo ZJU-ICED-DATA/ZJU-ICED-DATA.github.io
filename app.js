@@ -974,14 +974,24 @@
       return '<div class="contact-row"><span class="ck">' + esc(k) + '</span><span class="cv">' + val + '</span></div>';
     };
 
+    const p = a.portrait || {};
+    const portraitHtml = p.image
+      ? '<div class="panel about-portrait"><div class="panel-body">' +
+        '<img src="' + esc(p.image) + '" alt="' + esc(p.name || '课题组负责人') + '" loading="lazy" />' +
+        (p.name ? '<div class="p-name">' + esc(p.name) + '</div>' : '') +
+        (p.title ? '<div class="p-title">' + esc(p.title) + '</div>' : '') +
+        '</div></div>'
+      : '';
+
     $('#view').innerHTML =
       '<div class="page-head">' +
       '<div class="page-head-row"><h1 class="page-title">' + esc(a.title || '关于我们') + '</h1></div>' +
       '<p class="page-desc">' + esc(a.lead || '') + '</p></div>' +
 
-      '<div class="about-grid">' +
+      '<div class="about-grid' + (portraitHtml ? ' with-portrait' : '') + '">' +
       '<div class="panel"><div class="panel-head"><div class="panel-title">课题组简介</div></div>' +
       '<div class="panel-body"><div class="about-text">' + intro + '</div></div></div>' +
+      portraitHtml +
       '<div class="panel"><div class="panel-head"><div class="panel-title">' + esc(a.contactTitle || '联系方式') + '</div></div>' +
       '<div class="panel-body"><div class="contact-list">' +
       row('负责人', c.leader) +
@@ -1143,6 +1153,9 @@
       '<div class="panel-body admin-body">' +
       '<div class="form-grid2">' + fieldInput('about.title', '页面标题') + fieldInput('about.lead', '副标题') + '</div>' +
       '<div class="form-grid2">' + fieldInput('about.photo', '合影图片路径') + fieldInput('about.photoCaption', '合影说明') + '</div>' +
+      '<div class="section-label">负责人照片（放在简介与联系方式之间）</div>' +
+      '<div class="form-grid2">' + fieldInput('about.portrait.image', '照片路径') + fieldInput('about.portrait.name', '姓名') + '</div>' +
+      fieldInput('about.portrait.title', '职称 / 头衔') +
       '<div class="section-label">课题组简介（空行分段）</div>' +
       '<div class="form-row"><textarea data-about-intro rows="8" placeholder="每段之间空一行">' + esc(intro) + '</textarea></div>' +
       '<div class="section-label">研究方向（可增删行）</div>' +
