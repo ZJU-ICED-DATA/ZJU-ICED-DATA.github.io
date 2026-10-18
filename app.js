@@ -393,6 +393,34 @@
   }
 
   function structureOf(d) { return d && d.structure ? d.structure : null; }
+
+  /* 一条记录归属于某个「催化剂」，一个催化剂可以包含多个结构。
+     老数据没有 catalyst 字段时，退回用结构名称（formula）当催化剂名。 */
+  function catalystOf(d) {
+    if (!d) return '未命名';
+    return d.catalyst || d.formula || ('未命名结构');
+  }
+
+  function catalystNames() {
+    const set = {};
+    allRecords().forEach(function (d) {
+      const c = catalystOf(d);
+      if (c && c !== '未命名结构') set[c] = 1;
+    });
+    return Object.keys(set).sort();
+  }
+
+  function catalystDatalist(id) {
+    return '<datalist id="' + esc(id) + '">' + catalystNames().map(function (n) {
+      return '<option value="' + esc(n) + '"></option>';
+    }).join('') + '</datalist>';
+  }
+
+  function distinctCatalystCount(rows) {
+    const set = {};
+    rows.forEach(function (d) { set[catalystOf(d)] = 1; });
+    return Object.keys(set).length;
+  }
   function outcarOf(d) { return d && d.outcar ? d.outcar : null; }
   function totalAtomsOf(d) { const s = structureOf(d); return s && isNum(s.totalAtoms) ? s.totalAtoms : null; }
 
@@ -428,9 +456,11 @@
 
   function overallStats(rows) {
     const formulas = {};
+    const catalysts = {};
     let energies = 0, structures = 0, outcars = 0;
     rows.forEach(function (d) {
       if (d.formula) formulas[d.formula] = 1;
+      catalysts[catalystOf(d)] = 1;
       if (isNum(d.dftEnergy)) energies++;
       if (structureOf(d)) structures++;
       if (outcarOf(d)) outcars++;
@@ -438,6 +468,7 @@
     return {
       total: rows.length,
       uniqueFormulas: Object.keys(formulas).length,
+      catalysts: Object.keys(catalysts).length,
       energies: energies,
       structures: structures,
       outcars: outcars,
@@ -717,7 +748,8 @@
   function columnsForView() {
     return [
       { key: 'id', label: 'ID' },
-      { key: 'formula', label: '化学式', cls: 'formula' },
+      { key: 'catalyst', label: '催化剂', cls: 'formula', render: function (d) { return esc(catalystOf(d)); } },
+      { key: 'formula', label: '结构', render: function (d) { return esc(d.formula || '—'); } },
       { key: 'metal', label: '金属', render: function (d) { return d.metal ? '<span class="badge">' + esc(d.metal) + '</span>' : '<span class="muted">—</span>'; } },
       { key: 'support', label: '载体' },
       { key: 'reaction', label: '反应体系', render: function (d) {
@@ -738,6 +770,7 @@
 
   function sortValue(d, key) {
     if (key === 'totalAtoms') { const t = totalAtomsOf(d); return isNum(t) ? t : -Infinity; }
+    if (key === 'catalyst') return catalystOf(d);
     if (NUMERIC_KEYS[key]) return isNum(d[key]) ? d[key] : -Infinity;
     return String(d[key] === undefined || d[key] === null ? '' : d[key]);
   }
@@ -1038,7 +1071,7 @@
     const kpi = cget('dashboard.kpi', {}) || {};
 
     const kpiHtml = '<div class="kpi-grid four">' +
-      kpiCard(s.uniqueFormulas, (kpi.catalysts || {}).label || '催化剂体系', (kpi.catalysts || {}).sub || '', '#2b7ac4', '🧪') +
+      kpiCard(s.catalysts, (kpi.catalysts || {}).label || '催化剂体系', (kpi.catalysts || {}).sub || '', '#2b7ac4', '🧪') +
       kpiCard(s.energies, (kpi.energies || {}).label || 'DFT 总能', (kpi.energies || {}).sub || '', '#7b5ea7', '⚡') +
       kpiCard(s.structures, (kpi.structures || {}).label || '结构模型', (kpi.structures || {}).sub || '', '#31a354', '🧬') +
       kpiCard(isNum(s.barrier.avg) ? s.barrier.avg.toFixed(2) + ' eV' : '—', (kpi.barriers || {}).label || '平均能垒', (kpi.barriers || {}).sub ? (kpi.barriers || {}).sub + '（' + s.barrier.n + ' 条）' : '', '#e8710a', '📈') +
@@ -1070,13 +1103,13 @@
       const vals = list.filter(function (d) {
         return DFT_KEYS.some(function (k) { return isNum(d[k]); });
       }).length;
-      const structs = list.filter(function (d) { return structureOf(d); }).length;
+      const cats = distinctCatalystCount(list);
       return '<div class="ws-card" data-go="#/db/' + esc(r.id) + '">' +
         '<div class="ws-name"><span>' + esc(r.icon || '◆') + ' ' + esc(t.name || r.id) + '</span>' +
         '<span class="pill ' + (counts[r.id] ? 'pill-ok' : 'pill-idle') + '">' + (counts[r.id] ? '已入库' : '待录入') + '</span></div>' +
         '<div class="ws-en">' + esc(t.en || '') + '</div>' +
-        '<div class="ws-stat"><span><b>' + (counts[r.id] || 0) + '</b> 催化剂</span>' +
-        '<span><b>' + structs + '</b> 结构</span>' +
+        '<div class="ws-stat"><span><b>' + cats + '</b> 催化剂</span>' +
+        '<span><b>' + list.length + '</b> 结构</span>' +
         '<span><b>' + vals + '</b> DFT 数值</span></div>' +
         '</div>';
     }).join('');
@@ -1142,10 +1175,10 @@
       '<p class="page-desc">' + esc(t.summary || '') + '</p></div>' +
 
       '<div class="kpi-grid four">' +
-      kpiCard(rows.length, '催化剂体系', r.reaction, '#2b7ac4', '🧪') +
+      kpiCard(distinctCatalystCount(rows), '催化剂', rows.length + ' 个结构', '#2b7ac4', '🧪') +
       kpiCard(isNum(ea.avg) ? ea.avg.toFixed(2) + ' eV' : '—', '平均活化能 Ea', ea.n + ' 条有效数据', '#e8710a', '📈') +
       kpiCard(isNum(eads.avg) ? eads.avg.toFixed(2) + ' eV' : '—', '平均吸附能 Eads', eads.n + ' 条有效数据', '#7b5ea7', '🧲') +
-      kpiCard(structs, '结构模型', 'CIF 已解析', '#31a354', '🧬') +
+      kpiCard(structs, '已解析结构', 'CIF 已解析', '#31a354', '🧬') +
       '</div>' +
 
       '<div class="meta-grid">' +
@@ -1772,7 +1805,8 @@
       return '<tr data-id="' + esc(d.id) + '">' +
         '<td class="sel-cell"><input type="checkbox" class="row-check" data-src="' + source + '" data-id="' + esc(d.id) + '"' + checked + ' /></td>' +
         '<td>' + esc(d.id) + '</td>' +
-        '<td class="formula">' + esc(d.formula || '—') + '</td>' +
+        '<td class="formula">' + esc(catalystOf(d)) + '</td>' +
+        '<td>' + esc(d.formula || '—') + '</td>' +
         '<td>' + (d.metal ? '<span class="badge">' + esc(d.metal) + '</span>' : '<span class="muted">—</span>') + '</td>' +
         '<td>' + esc(d.support || '—') + '</td>' +
         '<td>' + esc(reactionNameOf(d.reaction)) + '</td>' +
@@ -1809,7 +1843,7 @@
       '</div>' +
       (records.length
         ? '<div class="table-wrap"><table class="manage-table"><thead><tr>' +
-          '<th class="sel-cell"></th><th>ID</th><th>化学式</th><th>金属</th><th>载体</th><th>反应体系</th>' +
+          '<th class="sel-cell"></th><th>ID</th><th>催化剂</th><th>结构</th><th>金属</th><th>载体</th><th>反应体系</th>' +
           '<th>元素</th><th>原子数</th><th>总能 (eV)</th><th>来源</th><th></th>' +
           '</tr></thead><tbody>' + manageRows(records, source) + '</tbody></table></div>'
         : '<div class="empty" style="padding:26px 0">暂无数据</div>') +
@@ -1985,6 +2019,8 @@
       REACTIONS.map(function (r) {
         return '<option value="' + esc(r.reaction) + '">' + esc(reactionText(r).name || r.id) + '</option>';
       }).join('') + '</select></div>' +
+      '<div class="form-row"><label>归属催化剂（改这一项可把多条结构归到同一催化剂）</label>' +
+      '<input id="bCatalyst" list="catalystOptions" placeholder="不修改" />' + catalystDatalist('catalystOptions') + '</div>' +
       '<div class="form-grid2">' +
       '<div class="form-row"><label>活性金属</label><input id="bMetal" placeholder="不修改" /></div>' +
       '<div class="form-row"><label>载体</label><input id="bSupport" placeholder="不修改" /></div>' +
@@ -2009,6 +2045,7 @@
 
     $('#bApply').onclick = async function () {
       const patch = {
+        catalyst: valueOf('bCatalyst'),
         reaction: valueOf('bReaction'),
         metal: valueOf('bMetal'),
         support: valueOf('bSupport'),
@@ -2016,13 +2053,15 @@
         note: valueOf('bNote'),
         energy: readNum('bEnergy')
       };
-      const changed = patch.reaction || patch.metal || patch.support || patch.ref || patch.note || isNum(patch.energy);
+      const changed = patch.catalyst || patch.reaction || patch.metal || patch.support ||
+        patch.ref || patch.note || isNum(patch.energy);
       if (!changed) { showToast('没有填写要修改的内容'); return; }
 
       const rows = isCloud ? curated() : loadDrafts();
       const updated = rows.map(function (d) {
         if (ids.indexOf(d.id) < 0) return d;
         const c = JSON.parse(JSON.stringify(d));
+        if (patch.catalyst) c.catalyst = patch.catalyst;
         if (patch.reaction) c.reaction = patch.reaction;
         if (patch.metal) c.metal = patch.metal;
         if (patch.support) c.support = patch.support;
@@ -2093,6 +2132,8 @@
       '<button class="close-btn" id="drawerClose">×</button></div>' +
       '<div class="drawer-body">' +
       '<div class="field-grid">' +
+      fieldHtml('催化剂', esc(catalystOf(d))) +
+      fieldHtml('结构', esc(d.formula || '—')) +
       fieldHtml('金属', d.metal ? '<span class="badge">' + esc(d.metal) + '</span>' : '—') +
       fieldHtml('载体', esc(d.support || '—')) +
       fieldHtml(ed('barrier'), numText(d.barrier) + ' eV') +
@@ -2501,6 +2542,7 @@
     const g = structure ? guessFrom(structure) : { metal: '', support: '' };
     return {
       name: name,
+      catalyst: '',
       dir: dir || '',
       structure: structure,
       outcar: outcar,
@@ -2745,11 +2787,15 @@
       (st ? '<div class="viewer3d" id="uploadViewer" style="height:280px"></div>' : '') +
       '</div>' +
       '<div>' +
-      '<div class="form-row"><label>化学式 / 催化剂名称 *</label>' +
+      '<div class="form-row"><label>归属催化剂 *</label>' +
+      '<input id="fCatalyst" list="catalystOptions" value="' + esc(it.catalyst || '') + '" placeholder="选择已有催化剂，或直接输入新建（如 Co3O4）" />' +
+      catalystDatalist('catalystOptions') +
+      '<div class="form-hint">一个催化剂可以包含多个结构；留空则用下面的结构名称</div></div>' +
+      '<div class="form-row"><label>结构名称 *</label>' +
       '<input id="fFormula" value="' + esc(it.name) + '" placeholder="默认取文件名或文件夹名" /></div>' +
       '<div class="form-grid2">' +
       '<div class="form-row"><label>活性金属</label><input id="fMetal" value="' + esc(it.metal) + '" /></div>' +
-      '<div class="form-row"><label>载体</label><input id="fSupport" value="' + esc(it.support) + '" /></div>' +
+      '<div class="form-row"><label>载体</label><input id="fSupport" value="' + esc(it.support) + '" placeholder="如 Co3O4" /></div>' +
       '</div>' +
       '<div class="form-row"><label>反应体系</label><select id="fReaction">' + reactionOptionsHtml() + '</select></div>' +
       '<div class="form-grid2">' +
@@ -2820,10 +2866,18 @@
       '<span class="muted">名称默认取文件名或文件夹名，可直接在表格里改</span>' +
       '</div>' +
       '<div class="batch-wrap"><table class="batch-table">' +
-      '<thead><tr><th>名称 / 文件夹</th><th>化学式 *</th><th>金属</th><th>载体</th>' +
+      '<thead><tr><th>名称 / 文件夹</th><th>结构名称 *</th><th>金属</th><th>载体</th>' +
       '<th>Ea (eV)</th><th>Eads (eV)</th><th>总能 (eV)</th><th>元素</th><th>原子</th><th></th></tr></thead>' +
       '<tbody id="batchBody">' + rows + '</tbody></table></div>' +
       '<div class="form-grid3" style="margin-top:16px">' +
+      '<div class="form-row"><label>归属催化剂（应用到全部）</label>' +
+      '<input id="batchCatalyst" list="catalystOptions" placeholder="如 Co3O4；也可新建" />' + catalystDatalist('catalystOptions') + '</div>' +
+      '<div class="form-row"><label>载体（一键填写到全部）</label>' +
+      '<input id="batchSupport" placeholder="如 Co3O4；留空保留每行值" /></div>' +
+      '<div class="form-row"><label>活性金属（应用到全部）</label>' +
+      '<input id="batchMetal" placeholder="留空保留自动推测值" /></div>' +
+      '</div>' +
+      '<div class="form-grid3">' +
       '<div class="form-row"><label>反应体系（应用到全部）</label><select id="batchReaction">' + reactionOptionsHtml() + '</select></div>' +
       '<div class="form-row"><label>数据来源</label><input id="batchRef" placeholder="计算任务编号 / 文献" /></div>' +
       '<div class="form-row"><label>备注</label><input id="batchNote" placeholder="可选，应用到全部" /></div>' +
@@ -2885,6 +2939,7 @@
     const st = it.structure;
     return {
       id: f.id,
+      catalyst: f.catalyst || f.formula,
       formula: f.formula,
       metal: f.metal,
       support: f.support,
@@ -2945,12 +3000,14 @@
     const formulaEl = document.getElementById('fFormula');
     const formula = formulaEl ? String(formulaEl.value || '').trim() : '';
     if (!formula) {
-      showToast('请填写化学式');
+      showToast('请填写结构名称');
       if (formulaEl) formulaEl.focus();
       return null;
     }
+    const catalyst = valueOf('fCatalyst');
     return makeRecord(it, {
       id: 'CAT-' + String(maxIdNumber() + 1).padStart(3, '0'),
+      catalyst: catalyst || formula,
       formula: formula,
       metal: valueOf('fMetal'),
       support: valueOf('fSupport'),
@@ -2977,6 +3034,10 @@
     const reaction = valueOf('batchReaction');
     const ref = valueOf('batchRef');
     const note = valueOf('batchNote');
+    /* 一键填写：留空则保留每行自己的值 */
+    const sharedCatalyst = valueOf('batchCatalyst');
+    const sharedSupport = valueOf('batchSupport');
+    const sharedMetal = valueOf('batchMetal');
 
     const records = [];
     let startId = maxIdNumber();
@@ -3003,9 +3064,10 @@
       startId++;
       records.push(makeRecord(it, {
         id: 'CAT-' + String(startId).padStart(3, '0'),
+        catalyst: sharedCatalyst || formula,
         formula: formula,
-        metal: get('metal'),
-        support: get('support'),
+        metal: sharedMetal || get('metal'),
+        support: sharedSupport || get('support'),
         reaction: reaction,
         ref: ref,
         note: note,
@@ -3099,12 +3161,12 @@
   function exportCsv() {
     const rows = allRecords();
     if (!rows.length) { showToast('暂无数据可导出'); return; }
-    const head = ['id', 'formula', 'metal', 'support', 'reaction', 'elements', 'totalAtoms',
+    const head = ['id', 'catalyst', 'formula', 'metal', 'support', 'reaction', 'elements', 'totalAtoms',
       'barrier_eV', 'eads_eV', 'reactionEnergy_eV', 'dftEnergy_eV', 'outcar', 'ref', 'note'];
     function q(v) { return '"' + String(v === undefined || v === null ? '' : v).replace(/"/g, '""') + '"'; }
     const lines = [head.map(q).join(',')].concat(rows.map(function (d) {
       const s = structureOf(d);
-      return [d.id, d.formula, d.metal, d.support, d.reaction,
+      return [d.id, catalystOf(d), d.formula, d.metal, d.support, d.reaction,
         s ? (s.elements || []).join(' ') : '', s ? s.totalAtoms : '',
         d.barrier, d.eads, d.reactionEnergy, d.dftEnergy,
         d.outcar ? d.outcar.file : '', d.ref, d.note].map(q).join(',');
