@@ -48,6 +48,104 @@
     cur[parts[parts.length - 1]] = value;
   }
 
+  /* ============================ 口令校验 ============================ */
+  const AUTH = window.SITE_AUTH || {};
+  const AUTH_KEY = 'iced-db:auth:v1';
+  const MAX_FAILS = AUTH.maxFails || 5;
+  const LOCK_MS = AUTH.lockMs || 30000;
+
+  const SHA256_K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ];
+
+  function utf8Bytes(str) {
+    const out = [];
+    for (let i = 0; i < str.length; i++) {
+      let code = str.charCodeAt(i);
+      if (code < 0x80) {
+        out.push(code);
+      } else if (code < 0x800) {
+        out.push(0xc0 | (code >> 6), 0x80 | (code & 63));
+      } else if (code >= 0xd800 && code < 0xdc00 && i + 1 < str.length) {
+        const next = str.charCodeAt(++i);
+        const cp = 0x10000 + ((code - 0xd800) << 10) + (next - 0xdc00);
+        out.push(0xf0 | (cp >> 18), 0x80 | ((cp >> 12) & 63), 0x80 | ((cp >> 6) & 63), 0x80 | (cp & 63));
+      } else {
+        out.push(0xe0 | (code >> 12), 0x80 | ((code >> 6) & 63), 0x80 | (code & 63));
+      }
+    }
+    return out;
+  }
+
+  function rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
+
+  function sha256Hex(str) {
+    const bytes = utf8Bytes(String(str));
+    const bitLen = bytes.length * 8;
+    const buf = bytes.slice();
+    buf.push(0x80);
+    while (buf.length % 64 !== 56) buf.push(0);
+    const hi = Math.floor(bitLen / 4294967296);
+    const lo = bitLen >>> 0;
+    buf.push((hi >>> 24) & 255, (hi >>> 16) & 255, (hi >>> 8) & 255, hi & 255);
+    buf.push((lo >>> 24) & 255, (lo >>> 16) & 255, (lo >>> 8) & 255, lo & 255);
+
+    let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
+    let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+    const w = new Array(64);
+
+    for (let i = 0; i < buf.length; i += 64) {
+      for (let j = 0; j < 16; j++) {
+        w[j] = ((buf[i + j * 4] << 24) | (buf[i + j * 4 + 1] << 16) | (buf[i + j * 4 + 2] << 8) | buf[i + j * 4 + 3]) | 0;
+      }
+      for (let j = 16; j < 64; j++) {
+        const s0 = rotr(w[j - 15], 7) ^ rotr(w[j - 15], 18) ^ (w[j - 15] >>> 3);
+        const s1 = rotr(w[j - 2], 17) ^ rotr(w[j - 2], 19) ^ (w[j - 2] >>> 10);
+        w[j] = (w[j - 16] + s0 + w[j - 7] + s1) | 0;
+      }
+      let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, hh = h7;
+      for (let j = 0; j < 64; j++) {
+        const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+        const ch = (e & f) ^ (~e & g);
+        const t1 = (hh + S1 + ch + SHA256_K[j] + w[j]) | 0;
+        const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+        const maj = (a & b) ^ (a & c) ^ (b & c);
+        const t2 = (S0 + maj) | 0;
+        hh = g; g = f; f = e; e = (d + t1) | 0;
+        d = c; c = b; b = a; a = (t1 + t2) | 0;
+      }
+      h0 = (h0 + a) | 0; h1 = (h1 + b) | 0; h2 = (h2 + c) | 0; h3 = (h3 + d) | 0;
+      h4 = (h4 + e) | 0; h5 = (h5 + f) | 0; h6 = (h6 + g) | 0; h7 = (h7 + hh) | 0;
+    }
+    return [h0, h1, h2, h3, h4, h5, h6, h7].map(function (x) {
+      return ('00000000' + (x >>> 0).toString(16)).slice(-8);
+    }).join('');
+  }
+
+  function authHash(input) {
+    return sha256Hex(String(AUTH.salt || '') + ':' + String(input || ''));
+  }
+
+  function isAuthed() {
+    try { return sessionStorage.getItem(AUTH_KEY) === 'ok'; } catch (e) { return false; }
+  }
+  function setAuthed() {
+    try { sessionStorage.setItem(AUTH_KEY, 'ok'); } catch (e) { /* 忽略 */ }
+  }
+  function clearAuth() {
+    try { sessionStorage.removeItem(AUTH_KEY); } catch (e) { /* 忽略 */ }
+  }
+
+  let loginFails = 0;
+  let loginLockUntil = 0;
+
   /* ============================ 常量 ============================ */
   const DRAFT_KEY = 'iced-db:drafts:v1';
   const CONTENT_KEY = 'iced-db:content:v1';
@@ -811,6 +909,68 @@
       '</div></div>';
   }
 
+  function renderLogin() {
+    const now = Date.now();
+    const locked = now < loginLockUntil;
+    const lockLeft = locked ? Math.ceil((loginLockUntil - now) / 1000) : 0;
+
+    $('#view').innerHTML =
+      '<div class="login-wrap"><div class="login-card">' +
+      '<div class="login-head"><div class="logo-mark">ICED</div>' +
+      '<h2>' + esc(cget('admin.title', '内容管理')) + '</h2>' +
+      '<p>请输入管理账号后继续</p></div>' +
+      '<form id="loginForm">' +
+      '<div class="form-row"><label>账户</label><input id="loginUser" autocomplete="username"' + (locked ? ' disabled' : '') + ' /></div>' +
+      '<div class="form-row"><label>密码</label><input id="loginPass" type="password" autocomplete="current-password"' + (locked ? ' disabled' : '') + ' /></div>' +
+      '<div class="login-error" id="loginError">' + (locked ? '尝试次数过多，请 ' + lockLeft + ' 秒后再试' : '') + '</div>' +
+      '<button class="btn btn-primary login-submit" type="submit"' + (locked ? ' disabled' : '') + '>登录</button>' +
+      '</form>' +
+      '<p class="login-note">登录状态仅在当前标签页有效，关闭后需重新登录。<br />内容修改只保存在本浏览器。</p>' +
+      '</div></div>';
+
+    const form = $('#loginForm');
+    if (form) form.addEventListener('submit', function (e) { e.preventDefault(); doLogin(); });
+    const pass = $('#loginPass');
+    if (pass && !locked) pass.focus();
+  }
+
+  function doLogin() {
+    const errEl = $('#loginError');
+    const now = Date.now();
+    if (now < loginLockUntil) {
+      if (errEl) errEl.textContent = '尝试次数过多，请 ' + Math.ceil((loginLockUntil - now) / 1000) + ' 秒后再试';
+      return;
+    }
+
+    const user = valueOf('loginUser').trim();
+    const pass = valueOf('loginPass');
+    const okUser = user === String(AUTH.username || 'admin');
+    const okPass = !!AUTH.hash && authHash(pass) === AUTH.hash;
+
+    if (okUser && okPass) {
+      loginFails = 0;
+      setAuthed();
+      showToast('登录成功');
+      render();
+      return;
+    }
+
+    loginFails++;
+    const left = MAX_FAILS - loginFails;
+    if (left <= 0) {
+      loginLockUntil = Date.now() + LOCK_MS;
+      loginFails = 0;
+      if (errEl) errEl.textContent = '尝试次数过多，请 ' + Math.ceil(LOCK_MS / 1000) + ' 秒后再试';
+      const btn = $('#loginForm .login-submit');
+      if (btn) btn.disabled = true;
+      setTimeout(function () {
+        if (state.view === 'admin' && !isAuthed()) render();
+      }, LOCK_MS + 200);
+      return;
+    }
+    if (errEl) errEl.textContent = '账户或密码不正确（还可尝试 ' + left + ' 次）';
+  }
+
   function renderAdmin() {
     const reactionPanels = REACTIONS.map(reactionEditor).join('');
     const descPanels = DFT_KEYS.map(function (k) {
@@ -828,7 +988,8 @@
     $('#view').innerHTML =
       '<div class="page-head">' +
       '<div class="page-head-row"><h1 class="page-title">' + esc(cget('admin.title', '内容管理')) + '</h1>' +
-      '<span class="pill ' + (hasLocalContent() ? 'pill-warn' : 'pill-idle') + '">' + (hasLocalContent() ? '有本地修改' : '与仓库一致') + '</span></div>' +
+      '<span class="pill ' + (hasLocalContent() ? 'pill-warn' : 'pill-idle') + '">' + (hasLocalContent() ? '有本地修改' : '与仓库一致') + '</span>' +
+      '<div class="head-actions"><button class="btn" id="adminLogout">退出登录</button></div></div>' +
       '<p class="page-desc">' + esc(cget('admin.desc', '')) + '</p></div>' +
       localNote +
       '<form id="adminForm">' +
@@ -893,6 +1054,13 @@
       });
     });
     $$('[data-remove-cond]').forEach(bindRemoveCond);
+
+    const logout = $('#adminLogout');
+    if (logout) logout.addEventListener('click', function () {
+      clearAuth();
+      showToast('已退出登录');
+      render();
+    });
 
     const save = $('#adminSave');
     if (save) save.addEventListener('click', function () {
@@ -1515,7 +1683,8 @@
     disposeCharts();
 
     if (state.view === 'admin') {
-      renderAdmin();
+      if (isAuthed()) renderAdmin();
+      else renderLogin();
     } else if (state.view === 'reaction') {
       const r = reactionById(state.reactionId);
       if (r) renderReactionView(r);

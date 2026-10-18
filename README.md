@@ -33,6 +33,23 @@
 - 计算设置可以增删行，例如把「泛函 / 色散」改成别的文字
 - 修改先保存在浏览器本地；点「导出 content.js」下载后覆盖仓库同名文件并提交，才对所有访问者生效
 
+### 登录
+
+内容管理页需要登录后才能编辑：
+
+- 账户：`admin`
+- 密码：见课题组内部记录。仓库里不保存明文，只保存加盐 SHA-256 哈希（`auth.js`）
+- 登录状态存在 sessionStorage，只在当前标签页有效，关闭浏览器后需重新登录
+- 连续输错 5 次锁定 30 秒
+
+改密码：算出新哈希后替换 `auth.js` 的 `hash` 字段（盐值在 `salt` 字段）：
+
+```bash
+python -c "import hashlib;print(hashlib.sha256(b'iced-a3f7c9e1d2b4:新密码').hexdigest())"
+```
+
+> **安全边界**：这是纯静态站点，前端校验只能挡住随手点开的人——能看到源码的人都能绕过，也能直接改自己浏览器里的 localStorage。好消息是管理页的改动本来就只写进访问者自己的浏览器，不会影响别人看到的站点内容，所以这层门禁的定位是「防误操作」。若需要真正的权限控制（多人账号、操作审计），必须把鉴权放到后端（Cloudflare Worker 或 Supabase）。
+
 ## 目录结构
 
 ```
@@ -40,6 +57,7 @@ index.html        页面骨架
 styles.css        样式
 app.js            路由、视图、图表、上传、导出
 content.js        全站文案（可在管理页编辑）
+auth.js           内容管理页的登录门禁（盐 + 哈希）
 reactions.js      反应体系结构定义（id / reaction / 配色）
 data.js           DFT 数据
 cif-parser.js     CIF 解析器（纯前端）
