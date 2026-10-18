@@ -100,6 +100,8 @@ window.CATALYST_DATA = [
 | `id` | 唯一编号 | — |
 | `catalyst` | **归属催化剂**（一个催化剂可含多个结构；统计"催化剂数"按它去重，缺省回落为结构名称） | — |
 | `formula` | 结构名称（上传时默认取 CIF/POSCAR 文件名） | — |
+| `structure.atoms` | 结构坐标 `[[元素, x, y, z], …]`，详情页据此重建 3D 模型 | Å / 分数坐标 |
+| `structure.coord` | 坐标类型：`frac`（CIF 分数坐标）或 `cart`（POSCAR 笛卡尔坐标） | — |
 | `metal` / `support` | 活性金属 / 载体 | — |
 | `reaction` | 反应体系，须与 `reactions.js` 一致 | — |
 | `dftEnergy` | 总能 E_total（来自 OUTCAR） | eV |

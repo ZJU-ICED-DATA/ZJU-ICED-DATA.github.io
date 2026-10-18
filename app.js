@@ -421,6 +421,64 @@
     rows.forEach(function (d) { set[catalystOf(d)] = 1; });
     return Object.keys(set).length;
   }
+
+  /* ---------- 结构坐标 ----------
+     发布时只保留坐标数组（比分整份 CIF 小很多），详情页用它现场重建 3D。 */
+  function round4(v) { return isFinite(v) ? Math.round(v * 1e4) / 1e4 : v; }
+
+  function compactStructure(st) {
+    const info = (st && st.info) || {};
+    const raw = info.atoms || [];
+    const coord = st && st.kind === 'poscar' ? 'cart' : 'frac';
+    const atoms = [];
+    for (let i = 0; i < raw.length; i++) {
+      const a = raw[i];
+      const x = round4(a.x), y = round4(a.y), z = round4(a.z);
+      if (!a.symbol || !isFinite(x) || !isFinite(y) || !isFinite(z)) continue;
+      atoms.push([a.symbol, x, y, z]);
+    }
+    return { atoms: atoms, coord: coord };
+  }
+
+  /* 把记录里的结构还原成 3Dmol 能读的文本 */
+  function structureToText(s) {
+    if (!s) return null;
+    if (s.cif) return { text: s.cif, format: s.format === 'poscar' ? 'poscar' : 'cif' };
+
+    const atoms = s.atoms || [];
+    if (!atoms.length) return null;
+
+    if (s.coord === 'cart') {
+      const lines = [String(atoms.length), String(s.formula || s.file || 'structure')];
+      atoms.forEach(function (a) { lines.push(a[0] + ' ' + a[1] + ' ' + a[2] + ' ' + a[3]); });
+      return { text: lines.join('\n') + '\n', format: 'xyz' };
+    }
+
+    const c = s.cell || {};
+    const g = function (v, d) { return isFinite(v) && v ? v : d; };
+    const out = [
+      'data_' + String(s.file || 'structure').replace(/[^A-Za-z0-9_]+/g, '_'),
+      '_cell_length_a    ' + g(c.a, 1),
+      '_cell_length_b    ' + g(c.b, 1),
+      '_cell_length_c    ' + g(c.c, 1),
+      '_cell_angle_alpha ' + g(c.alpha, 90),
+      '_cell_angle_beta  ' + g(c.beta, 90),
+      '_cell_angle_gamma ' + g(c.gamma, 90),
+      "_symmetry_space_group_name_H-M   'P 1'",
+      'loop_',
+      '_atom_site_label',
+      '_atom_site_type_symbol',
+      '_atom_site_fract_x',
+      '_atom_site_fract_y',
+      '_atom_site_fract_z'
+    ];
+    const seen = {};
+    atoms.forEach(function (a) {
+      seen[a[0]] = (seen[a[0]] || 0) + 1;
+      out.push(a[0] + seen[a[0]] + ' ' + a[0] + ' ' + a[1] + ' ' + a[2] + ' ' + a[3]);
+    });
+    return { text: out.join('\n') + '\n', format: 'cif' };
+  }
   function outcarOf(d) { return d && d.outcar ? d.outcar : null; }
   function totalAtomsOf(d) { const s = structureOf(d); return s && isNum(s.totalAtoms) ? s.totalAtoms : null; }
 
@@ -1941,6 +1999,7 @@
       '<h1 class="page-title">数据管理</h1>' +
       '<span class="pill pill-ok">云端 ' + cloud.length + ' 条</span>' +
       '<span class="pill pill-idle">本地 ' + drafts.length + ' 条</span>' +
+      '<button class="btn btn-mini" id="manageBackfill">补传结构</button>' +
       '<button class="btn btn-mini" id="manageRefresh" style="margin-left:auto">从仓库重新拉取</button>' +
       '</div><p class="page-desc">云端数据来自仓库 data.js，修改与删除会提交到仓库，约 1 分钟后全站生效；本地草稿只存在当前浏览器，可随时清空。</p></div>' +
       managePanel('cloud', cloud) +
@@ -1949,7 +2008,87 @@
     bindManage();
   }
 
+  /* 补传结构：选一批 CIF/POSCAR，按文件名匹配到已有记录，只补坐标、不新建记录 */
+  function openBackfill() {
+    const cloud = curated();
+    if (!cloud.length) { showToast('云端还没有数据'); return; }
+
+    const input = document.createElement('input');
+    input.id = 'backfillInput';
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = '.cif,.mcif,POSCAR,CONTCAR';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    input.addEventListener('change', async function () {
+      const files = Array.prototype.slice.call(input.files || []);
+      if (!files.length) return;
+      showToast('正在解析 ' + files.length + ' 个文件…');
+
+      const byKey = {};
+      cloud.forEach(function (d) {
+        const s = structureOf(d);
+        [matchKey(s && s.file), matchKey(d.formula), matchKey(d.id)].forEach(function (k) {
+          if (!k) return;
+          (byKey[k] = byKey[k] || []).push(d);
+        });
+      });
+
+      const picked = {};
+      const missed = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        const text = await readText(f);
+        const kind = STRUCT_NAMES.test(f.name) ? 'poscar' : 'cif';
+        const parsed = parseStructureFile(kind, text, f.name);
+        if (parsed.error) { missed.push(f.name); continue; }
+
+        const bucket = byKey[matchKey(f.name)];
+        if (!bucket || !bucket.length) { missed.push(f.name); continue; }
+
+        const rec = bucket.shift();
+        picked[rec.id] = parsed.structure;
+      }
+
+      const ids = Object.keys(picked);
+      if (!ids.length) { showToast('没有文件名能对上现有记录'); return; }
+
+      const updated = cloud.map(function (d) {
+        const st = picked[d.id];
+        if (!st) return d;
+        const cs = compactStructure(st);
+        const c = JSON.parse(JSON.stringify(d));
+        c.structure = Object.assign({}, c.structure || {}, {
+          file: st.file,
+          format: st.kind,
+          formula: st.info.formula || (c.structure && c.structure.formula) || '',
+          elements: st.info.elements.slice(),
+          atomCounts: st.info.atomCounts,
+          totalAtoms: st.info.totalAtoms,
+          cell: st.info.cell,
+          spaceGroup: st.info.spaceGroup || '',
+          atoms: cs.atoms,
+          coord: cs.coord
+        });
+        c.updatedAt = new Date().toISOString();
+        return c;
+      });
+
+      await applyCloud(updated, '补传 ' + ids.length + ' 条结构坐标');
+      showToast('已补传 ' + ids.length + ' 条' + (missed.length ? '，' + missed.length + ' 个文件未匹配' : ''));
+      render();
+      input.remove();
+    });
+
+    input.click();
+  }
+
   function bindManage() {
+    const bf = $('#manageBackfill');
+    if (bf) bf.addEventListener('click', openBackfill);
+
     const rf = $('#manageRefresh');
     if (rf) rf.addEventListener('click', async function () {
       rf.disabled = true;
@@ -2185,6 +2324,7 @@
     if (!drawer) return;
 
     const s = structureOf(d);
+    const model3d = structureToText(s);
     const oc = outcarOf(d);
     const r = REACTIONS.filter(function (x) { return x.reaction === d.reaction; })[0];
     const rname = r ? (reactionText(r).name || r.id) : (d.reaction || '未分类');
@@ -2238,7 +2378,10 @@
         (cell ? '<div class="field" style="margin-bottom:10px"><div class="k">晶胞参数</div><div class="v" style="font-weight:500;font-size:12px">' + esc(cell) + '</div></div>' : '') +
         (s.spaceGroup ? '<div class="field" style="margin-bottom:10px"><div class="k">空间群</div><div class="v">' + esc(s.spaceGroup) + '</div></div>' : '') +
         '<table class="el-table"><tbody>' + elRows + '</tbody></table>' +
-        '<div class="section-label">三维结构</div><div class="viewer3d" id="viewer3d"></div>'
+        '<div class="section-label">三维结构</div>' +
+        (model3d
+          ? '<div class="viewer3d" id="viewer3d"></div>'
+          : '<div class="viewer-note">该记录没有坐标数据（早期上传的记录未保存坐标）。可在「内容管理 → 数据管理 → 补传结构」重新挂上 CIF。</div>')
         : '<p class="muted">此条目没有结构文件。</p>') +
 
       (d.note ? '<div class="section-label">标注 / 备注</div><p style="font-size:13px;color:#475569">' + esc(d.note) + '</p>' : '') +
@@ -2264,7 +2407,7 @@
       render();
     });
 
-    if (s && s.cif) render3D($('#viewer3d'), s.cif, s.format);
+    if (s && model3d) render3D($('#viewer3d'), model3d.text, model3d.format);
   }
 
   function render3D(container, text, format) {
@@ -2273,7 +2416,7 @@
 
     /* POSCAR 先转成 XYZ 再交给 3Dmol */
     let modelText = text;
-    let modelFormat = 'cif';
+    let modelFormat = format === 'xyz' ? 'xyz' : 'cif';
     if (format === 'poscar') {
       const parsed = window.PoscarParser ? window.PoscarParser.parse(text) : null;
       if (!parsed || !parsed.ok) {
@@ -3015,6 +3158,7 @@
 
   function makeRecord(it, f) {
     const st = it.structure;
+    const cs = st ? compactStructure(st) : null;
     return {
       id: f.id,
       catalyst: f.catalyst || f.formula,
@@ -3039,7 +3183,9 @@
         cell: st.info.cell,
         spaceGroup: st.info.spaceGroup || '',
         z: isNum(st.info.z) ? st.info.z : null,
-        cif: st.text
+        cif: st.text,
+        atoms: cs.atoms,
+        coord: cs.coord
       } : null,
       outcar: it.outcar ? {
         file: it.outcar.file,
