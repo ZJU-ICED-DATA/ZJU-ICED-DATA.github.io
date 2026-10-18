@@ -228,6 +228,8 @@ a { color: var(--primary); }
 /* ---------------- 图表 ---------------- */
 .charts { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; margin-bottom: 16px; }
 .charts-right { display: flex; flex-direction: column; gap: 16px; }
+/* 网格/弹性容器内由 gap 控制间距，去掉面板自带的 margin 以免叠加 */
+.charts > .panel, .charts-right > .panel, .meta-grid > .panel { margin-bottom: 0; }
 .chart { width: 100%; }
 .chart-lg { height: 400px; }
 .chart-sm { height: 175px; }
