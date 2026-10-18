@@ -131,10 +131,53 @@ GitHub Pages，`main` 分支根目录，推送后约 1 分钟生效。
 
 ## 数据流说明
 
-这是纯静态站点：
+这是纯静态站点，上传默认只写入当前浏览器的 localStorage（本地草稿）。要让所有人看到，有两条路：
 
-- 上传、管理页修改都只存在**当前浏览器**（localStorage）
-- 要固化为站点数据：上传页 → 右上角「导出 → 导出 data.js」；管理页 → 「导出 content.js」
-- 把导出的文件覆盖仓库同名文件并提交，所有访问者即可看到
+### 方式一：手动（默认，无需任何服务）
 
-如果需要多人共享、服务端持久化（谁上传都能看到），需要接后端（Cloudflare Worker + R2/KV 或 Supabase）。
+上传 → 右上角「导出 → 导出 data.js」→ 用下载的文件覆盖仓库 `data.js` → 提交 → 约 1 分钟生效。
+
+### 方式二：配置 Cloudflare Worker 后一键发布（推荐）
+
+配置之后，上传界面会多出「保存并发布」按钮，点一下直接提交到仓库。GitHub 令牌只存在 Worker 服务端，网页端只有可随时更换的发布密钥。
+
+**1. 生成 GitHub 令牌**
+
+GitHub → Settings → Developer settings → Fine-grained tokens → 新建：
+- Repository access：只选 `ZJU-ICED-DATA.github.io`
+- Permissions → Repository permissions → **Contents: Read and write**
+- 复制生成的令牌（`github_pat_...`）
+
+**2. 创建 Worker**
+
+<https://dash.cloudflare.com> → Workers & Pages → Create → Worker → 命名（如 `iced-publish`）→ Deploy，
+然后用仓库中 [`worker/worker.js`](worker/worker.js) 的代码整段覆盖默认代码。
+
+**3. 配置变量与密钥**
+
+Worker → Settings → Variables and Secrets：
+
+| 名称 | 类型 | 值 |
+| --- | --- | --- |
+| `GITHUB_TOKEN` | Secret | 第 1 步的令牌 |
+| `PUBLISH_KEY` | Secret | 自定义长随机串（网页端填同一个） |
+| `REPO` | Text | `njustzhangmj/ZJU-ICED-DATA.github.io` |
+| `BRANCH` | Text | `main` |
+| `DATA_PATH` | Text | `data.js` |
+| `ALLOWED_ORIGIN` | Text | `https://njustzhangmj.github.io` |
+
+保存后重新 Deploy，记下 Worker 地址（形如 `https://iced-publish.xxx.workers.dev`）。
+
+**4. 在网站上填写**
+
+内容管理（需登录）→「发布设置」→ 填 Worker 地址与发布密钥 → 保存 → 「测试连接」确认。
+
+之后上传任意结构，底部就会出现「保存并发布」。
+
+**注意**
+
+- 提交到仓库的记录会剥离 CIF 原文（只保留元素、原子数、晶胞等元信息），避免 `data.js` 过大；因此已发布条目没有 3D 预览，本地草稿才有
+- 发布密钥只存在管理员自己的浏览器；怀疑泄露时在 Cloudflare 改 `PUBLISH_KEY` 即可全部作废
+- Worker 免费额度为每天 10 万次请求，课题组用量完全够用
+
+如需多人共享或保存 CIF 原文，可在这个 Worker 上继续接 D1/R2。

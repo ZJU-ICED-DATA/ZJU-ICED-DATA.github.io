@@ -146,6 +146,78 @@
   let loginFails = 0;
   let loginLockUntil = 0;
 
+  /* ============================ 发布配置 ============================ */
+  /* Worker 地址与发布密钥只存在本机浏览器；GitHub 令牌保存在 Worker 服务端 */
+  const PUBLISH_STORE = 'iced-db:publish:v1';
+
+  function loadPublish() {
+    try {
+      const raw = localStorage.getItem(PUBLISH_STORE);
+      const cfg = raw ? JSON.parse(raw) : null;
+      return cfg && cfg.url && cfg.key ? cfg : null;
+    } catch (e) { return null; }
+  }
+
+  function savePublish(cfg) {
+    try {
+      localStorage.setItem(PUBLISH_STORE, JSON.stringify(cfg));
+      return true;
+    } catch (e) {
+      showToast('本地存储空间不足，发布设置未保存');
+      return false;
+    }
+  }
+
+  function publishBase(cfg) {
+    return String(cfg.url || '').replace(/\/+$/, '');
+  }
+
+  async function publishHealth(cfg) {
+    const res = await fetch(publishBase(cfg) + '/api/health', {
+      headers: { 'Authorization': 'Bearer ' + cfg.key }
+    });
+    const data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+  }
+
+  async function publishRecords(records, message) {
+    const cfg = loadPublish();
+    if (!cfg) throw new Error('未配置发布地址');
+    const res = await fetch(publishBase(cfg) + '/api/records', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + cfg.key
+      },
+      body: JSON.stringify({ records: records, message: message })
+    });
+    const data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+  }
+
+  /* 提交到仓库；成功后把记录并入内存数据，当前页面立刻可见 */
+  async function publishFromUpload(records) {
+    if (!records || !records.length) return false;
+    try {
+      showToast('正在提交到仓库…');
+      const payload = records.map(stripForExport);
+      const res = await publishRecords(payload, '新增 ' + records.length + ' 条催化剂记录（网页上传）');
+      if (Array.isArray(window.CATALYST_DATA)) {
+        window.CATALYST_DATA = window.CATALYST_DATA.concat(records);
+      }
+      const added = (res && res.added) || records.length;
+      const skipped = (res && res.skipped) || 0;
+      showToast('已提交 ' + added + ' 条' + (skipped ? '（跳过已存在 ' + skipped + ' 条）' : '') + '，约 1 分钟后全站可见');
+      render();
+      return true;
+    } catch (e) {
+      showToast('发布失败：' + e.message);
+      return false;
+    }
+  }
+
   /* ============================ 常量 ============================ */
   const DRAFT_KEY = 'iced-db:drafts:v1';
   const CONTENT_KEY = 'iced-db:content:v1';
@@ -1025,6 +1097,25 @@
     if (errEl) errEl.textContent = '账户或密码不正确（还可尝试 ' + left + ' 次）';
   }
 
+  function publishPanelHtml() {
+    const cfg = loadPublish() || { url: '', key: '' };
+    return '<div class="panel"><div class="panel-head"><div class="panel-title">发布设置（Cloudflare Worker）</div>' +
+      '<span class="pill ' + (loadPublish() ? 'pill-ok' : 'pill-idle') + '">' + (loadPublish() ? '已配置' : '未配置') + '</span></div>' +
+      '<div class="panel-body admin-body">' +
+      '<p class="muted" style="margin-bottom:10px">配置后，上传的记录可以直接提交到仓库，无需手动导出 data.js。GitHub 令牌保存在 Worker 服务端，这里只填 Worker 地址与发布密钥。</p>' +
+      '<div class="form-grid2">' +
+      '<div class="form-row"><label>Worker 地址</label><input id="pubUrl" value="' + esc(cfg.url || '') + '" placeholder="https://xxx.workers.dev" /></div>' +
+      '<div class="form-row"><label>发布密钥</label><input id="pubKey" type="password" value="' + esc(cfg.key || '') + '" placeholder="PUBLISH_KEY" /></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;align-items:center;margin-top:4px">' +
+      '<button type="button" class="btn btn-primary" id="pubSave">保存设置</button>' +
+      '<button type="button" class="btn" id="pubTest">测试连接</button>' +
+      '<span class="muted" id="pubStatus">' + (loadPublish() ? '已配置' : '尚未配置') + '</span>' +
+      '</div>' +
+      '<p class="muted" style="margin-top:8px;font-size:11.5px">密钥只保存在本浏览器；若怀疑泄露，在 Cloudflare 控制台改 PUBLISH_KEY 即可作废。</p>' +
+      '</div></div>';
+  }
+
   function aboutEditor() {
     const a = C.about || {};
     const intro = (a.intro || []).join('\n\n');
@@ -1082,6 +1173,7 @@
       fieldInput('site.footer', '页脚文字') +
       '</div></div>' +
 
+      publishPanelHtml() +
       aboutEditor() +
 
       '<div class="panel"><div class="panel-head"><div class="panel-title">数据总览页文案</div></div>' +
@@ -1159,6 +1251,35 @@
       clearAuth();
       showToast('已退出登录');
       render();
+    });
+
+    const pubSave = $('#pubSave');
+    if (pubSave) pubSave.addEventListener('click', function () {
+      const url = valueOf('pubUrl').trim();
+      const key = valueOf('pubKey').trim();
+      if (!url || !key) { showToast('请填写 Worker 地址与发布密钥'); return; }
+      if (!/^https?:\/\//i.test(url)) { showToast('Worker 地址需要以 https:// 开头'); return; }
+      if (savePublish({ url: url, key: key })) {
+        showToast('发布设置已保存，上传时会多出「保存并发布」');
+        render();
+      }
+    });
+
+    const pubTest = $('#pubTest');
+    if (pubTest) pubTest.addEventListener('click', async function () {
+      const url = valueOf('pubUrl').trim();
+      const key = valueOf('pubKey').trim();
+      const st = $('#pubStatus');
+      if (!url || !key) { showToast('请先填写地址与密钥'); return; }
+      if (st) st.textContent = '正在测试…';
+      try {
+        const info = await publishHealth({ url: url, key: key });
+        if (st) st.textContent = '连接正常：' + (info.repo || '') + ' @ ' + (info.branch || '');
+        showToast('连接正常');
+      } catch (e) {
+        if (st) st.textContent = '连接失败：' + e.message;
+        showToast('连接失败：' + e.message);
+      }
     });
 
     const save = $('#adminSave');
@@ -1886,11 +2007,15 @@
       '</div></div>';
 
     const footEl = $('#uploadFoot');
+    const canPublish = !!loadPublish();
     if (footEl) {
       footEl.innerHTML = '<button class="btn" id="uploadBack">重新选择</button>' +
-        '<div style="display:flex;gap:8px">' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+        (canPublish ? '' : '<span class="muted" style="font-size:11.5px">想让所有人看到？先在内容管理里配置发布地址</span>') +
         '<button class="btn" id="uploadAgain">保存并继续</button>' +
-        '<button class="btn btn-primary" id="uploadSave">保存到本地草稿</button></div>';
+        '<button class="btn" id="uploadSave">存入本地草稿</button>' +
+        (canPublish ? '<button class="btn btn-primary" id="uploadPublish">保存并发布</button>' : '') +
+        '</div>';
     }
 
     if (st) render3D($('#uploadViewer'), st.text, st.kind);
@@ -1901,6 +2026,8 @@
     if (again) again.addEventListener('click', function () { if (saveUpload()) { uploadState = { items: [], unmatched: [], skipped: [] }; uploadStep1(); } });
     const save = $('#uploadSave');
     if (save) save.addEventListener('click', function () { if (saveUpload()) closeUpload(); });
+    const pub = $('#uploadPublish');
+    if (pub) pub.addEventListener('click', function () { publishSingle(it).then(function (ok) { if (ok) closeUpload(); }); });
   }
 
   function renderBatch() {
@@ -1944,11 +2071,14 @@
       '</div>';
 
     const footEl = $('#uploadFoot');
+    const canPublish = !!loadPublish();
     if (footEl) {
       footEl.innerHTML = '<button class="btn" id="uploadBack">重新选择</button>' +
-        '<div style="display:flex;gap:8px">' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
         '<span class="muted" style="align-self:center">将保存 ' + items.length + ' 条记录</span>' +
-        '<button class="btn btn-primary" id="uploadSaveAll">全部保存到本地草稿</button></div>';
+        '<button class="btn" id="uploadSaveAll">存入本地草稿</button>' +
+        (canPublish ? '<button class="btn btn-primary" id="uploadPublishAll">全部保存并发布</button>' : '') +
+        '</div>';
     }
 
     $$('#batchBody [data-remove-item]').forEach(function (btn) {
@@ -1965,6 +2095,8 @@
     if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [], skipped: [] }; uploadStep1(); });
     const saveAll = $('#uploadSaveAll');
     if (saveAll) saveAll.addEventListener('click', function () { if (saveBatch()) closeUpload(); });
+    const pubAll = $('#uploadPublishAll');
+    if (pubAll) pubAll.addEventListener('click', function () { publishBatch().then(function (ok) { if (ok) closeUpload(); }); });
   }
 
   function readNum(id) {
@@ -2036,15 +2168,29 @@
   }
 
   function saveSingle(it) {
+    const record = buildSingleRecord(it);
+    if (!record) return false;
+
+    const drafts = loadDrafts();
+    drafts.push(record);
+    if (!saveDrafts(drafts)) return false;
+
+    showToast('已保存到本地草稿：' + record.formula +
+      (isNum(record.dftEnergy) ? ' · 总能 ' + record.dftEnergy.toFixed(4) + ' eV' : '') +
+      (record.structure ? ' · ' + record.structure.elements.length + ' 种元素' : ''));
+    render();
+    return true;
+  }
+
+  function buildSingleRecord(it) {
     const formulaEl = document.getElementById('fFormula');
     const formula = formulaEl ? String(formulaEl.value || '').trim() : '';
     if (!formula) {
       showToast('请填写化学式');
       if (formulaEl) formulaEl.focus();
-      return false;
+      return null;
     }
-
-    const record = makeRecord(it, {
+    return makeRecord(it, {
       id: 'CAT-' + String(maxIdNumber() + 1).padStart(3, '0'),
       formula: formula,
       metal: valueOf('fMetal'),
@@ -2057,21 +2203,17 @@
       eads: readNum('fEads'),
       reactionEnergy: readNum('fRxn')
     });
-
-    const drafts = loadDrafts();
-    drafts.push(record);
-    if (!saveDrafts(drafts)) return false;
-
-    showToast('已保存：' + record.formula +
-      (isNum(record.dftEnergy) ? ' · 总能 ' + record.dftEnergy.toFixed(4) + ' eV' : '') +
-      (record.structure ? ' · ' + record.structure.elements.length + ' 种元素' : ''));
-    render();
-    return true;
   }
 
-  function saveBatch() {
+  async function publishSingle(it) {
+    const record = buildSingleRecord(it);
+    if (!record) return false;
+    return publishFromUpload([record]);
+  }
+
+  function buildBatchRecords() {
     const rows = $$('#batchBody tr[data-item]');
-    if (!rows.length) { showToast('没有可保存的结构'); return false; }
+    if (!rows.length) return { records: [], firstBad: null, empty: true };
 
     const reaction = valueOf('batchReaction');
     const ref = valueOf('batchRef');
@@ -2115,20 +2257,40 @@
       }));
     }
 
-    if (firstBad) {
+    return { records: records, firstBad: firstBad, empty: false };
+  }
+
+  function saveBatch() {
+    const built = buildBatchRecords();
+    if (built.empty) { showToast('没有可保存的结构'); return false; }
+    if (built.firstBad) {
       showToast('有行未填写化学式，请补全后再保存');
-      const input = firstBad.querySelector('[data-field="formula"]');
+      const input = built.firstBad.querySelector('[data-field="formula"]');
       if (input) input.focus();
       return false;
     }
+    if (!built.records.length) { showToast('没有可保存的结构'); return false; }
 
     const drafts = loadDrafts();
-    records.forEach(function (r) { drafts.push(r); });
+    built.records.forEach(function (r) { drafts.push(r); });
     if (!saveDrafts(drafts)) return false;
 
-    showToast('已保存 ' + records.length + ' 条记录');
+    showToast('已保存 ' + built.records.length + ' 条到本地草稿');
     render();
     return true;
+  }
+
+  async function publishBatch() {
+    const built = buildBatchRecords();
+    if (built.empty) { showToast('没有可发布的结构'); return false; }
+    if (built.firstBad) {
+      showToast('有行未填写化学式，请补全后再发布');
+      const input = built.firstBad.querySelector('[data-field="formula"]');
+      if (input) input.focus();
+      return false;
+    }
+    if (!built.records.length) { showToast('没有可发布的结构'); return false; }
+    return publishFromUpload(built.records);
   }
 
   /* ============================ 导出 ============================ */
