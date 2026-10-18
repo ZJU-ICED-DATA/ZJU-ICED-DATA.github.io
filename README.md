@@ -2,7 +2,7 @@
 
 浙江大学 ICED 课题组的催化剂 **DFT 计算**数据库网站。
 
-**在线访问：** <https://njustzhangmj.github.io/ZJU-ICED-DATA.github.io/>
+**在线访问：** <https://zju-iced-data.github.io/>
 
 ## 功能
 
@@ -127,8 +127,8 @@ python -m http.server 8000
 
 GitHub Pages，`main` 分支根目录，推送后约 1 分钟生效。
 
-- 仓库：<https://github.com/njustzhangmj/ZJU-ICED-DATA.github.io>
-- 站点：<https://njustzhangmj.github.io/ZJU-ICED-DATA.github.io/>
+- 仓库：<https://github.com/ZJU-ICED-DATA/ZJU-ICED-DATA.github.io>
+- 站点：<https://zju-iced-data.github.io/>
 
 ## 数据流说明
 
@@ -162,10 +162,10 @@ Worker → Settings → Variables and Secrets：
 | --- | --- | --- |
 | `GITHUB_TOKEN` | Secret | 第 1 步的令牌 |
 | `PUBLISH_KEY` | Secret | 自定义长随机串（网页端填同一个） |
-| `REPO` | Text | `njustzhangmj/ZJU-ICED-DATA.github.io` |
+| `REPO` | Text | `ZJU-ICED-DATA/ZJU-ICED-DATA.github.io` |
 | `BRANCH` | Text | `main` |
 | `DATA_PATH` | Text | `data.js` |
-| `ALLOWED_ORIGIN` | Text | `https://njustzhangmj.github.io` |
+| `ALLOWED_ORIGIN` | Text | `https://zju-iced-data.github.io` |
 
 保存后重新 Deploy，记下 Worker 地址（形如 `https://iced-publish.xxx.workers.dev`）。
 

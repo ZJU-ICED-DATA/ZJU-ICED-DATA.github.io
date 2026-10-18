@@ -14,10 +14,10 @@
    需要配置的环境变量 / 密钥：
      GITHUB_TOKEN    (Secret)  fine-grained PAT，仅需该仓库 Contents: Read and write
      PUBLISH_KEY     (Secret)  网页端填的发布密钥，自己定一个长随机串
-     REPO            变量      例如 njustzhangmj/ZJU-ICED-DATA.github.io
+     REPO            变量      例如 ZJU-ICED-DATA/ZJU-ICED-DATA.github.io
      BRANCH          变量      main
      DATA_PATH       变量      data.js
-     ALLOWED_ORIGIN  变量      https://njustzhangmj.github.io
+     ALLOWED_ORIGIN  变量      https://zju-iced-data.github.io
    ========================================================================= */
 
 const JSON_HEADERS = { 'Content-Type': 'application/json;charset=utf-8' };
