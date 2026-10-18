@@ -22,5 +22,11 @@ window.REACTIONS = [
     reaction: 'Ethane Combustion',
     icon: '🔥',
     accent: '#d64550'
+  },
+  {
+    id: 'co2-hydrogenation',
+    reaction: 'CO2 Hydrogenation',
+    icon: '♻️',
+    accent: '#31a354'
   }
 ];

@@ -126,6 +126,24 @@ window.SITE_CONTENT = {
         '常用描述符：C2H5 与 C2H4 的吸附能、过渡态能垒。',
         '高温下乙烯会进一步深度氧化，计算中需同时比较脱氢与氧化两条路径。'
       ]
+    },
+    'co2-hydrogenation': {
+      name: 'CO2 加氢',
+      en: 'CO2 Hydrogenation',
+      summary: 'CO2 加氢制甲醇、CO 或甲烷的 DFT 研究体系，核心是 CO2 的活化方式（HCOO* 与 COOH* 两条路径）以及加氢步骤的能垒。',
+      conditions: [
+        { label: '泛函 / 色散', value: 'PBE + D3(BJ)' },
+        { label: '截断能', value: '450 eV' },
+        { label: 'k 点网格', value: '3×3×1' },
+        { label: '收敛标准', value: 'EDIFF 1×10⁻⁵ eV，力 < 0.03 eV/Å' },
+        { label: '真空层', value: '15 Å' }
+      ],
+      notes: [
+        'CO2 分子呈直线型且热力学稳定，第一步活化（弯曲为 CO2δ⁻）通常是能垒控制步；氧化物表面的氧空位可显著降低该能垒。',
+        'HCOO* 路径主要通向甲醇，COOH* 路径主要经 CO* 通向 CO 或甲烷；两条路径的相对稳定性决定产物选择性。',
+        'Cu/ZnO/Al2O3 是甲醇合成的经典体系；Ni、Ru 等金属上 CO2 更易深度加氢生成 CH4。',
+        '常用描述符：CO2 吸附能、H 吸附能、HCOO* 与 CO* 的结合能。'
+      ]
     }
   },
 
