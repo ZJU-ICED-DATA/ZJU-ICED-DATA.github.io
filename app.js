@@ -451,6 +451,8 @@
     reactionId: null,
     search: '',
     metal: '',
+    elements: [],
+    elementMode: 'all',
     sortKey: 'id',
     sortDir: 'asc',
     page: 1
@@ -468,6 +470,7 @@
       return { view: 'admin', reactionId: null };
     }
     if (parts[0] === 'about') return { view: 'about', reactionId: null };
+    if (parts[0] === 'whatwedo') return { view: 'whatWeDo', reactionId: null };
     return { view: 'dashboard', reactionId: null };
   }
 
@@ -501,6 +504,7 @@
 
     parts.push('<div class="nav-section">' + esc(cget('site.navWorkspace', '工作区')) + '</div>');
     parts.push(navItem('#/', '◧', cget('dashboard.title', '数据总览'), rows.length, state.view === 'dashboard'));
+    parts.push(navItem('#/whatwedo', '◈', cget('whatWeDo.title', '我们做什么'), null, state.view === 'whatWeDo'));
 
     parts.push('<div class="nav-section">' + esc(cget('site.navReactions', '反应体系')) + '</div>');
     REACTIONS.forEach(function (r) {
@@ -752,6 +756,17 @@
     const q = state.search.trim().toLowerCase();
     const rows = baseRows().filter(function (d) {
       if (state.metal && d.metal !== state.metal) return false;
+
+      /* 元素组合筛选：默认要求包含全部所选元素 */
+      if (state.elements.length) {
+        const st = structureOf(d);
+        const els = (st && Array.isArray(st.elements)) ? st.elements : [];
+        const hit = state.elementMode === 'any'
+          ? state.elements.some(function (x) { return els.indexOf(x) >= 0; })
+          : state.elements.every(function (x) { return els.indexOf(x) >= 0; });
+        if (!hit) return false;
+      }
+
       if (q) {
         const s = structureOf(d);
         const hay = [
@@ -840,6 +855,122 @@
     });
   }
 
+  function elementPickerHtml() {
+    const n = state.elements.length;
+    return '<div class="el-picker">' +
+      '<button type="button" class="btn el-btn' + (n ? ' active' : '') + '" id="elBtn">元素' +
+      (n ? ' · ' + n : '') + ' ▾</button>' +
+      '<div class="el-pop" id="elPop" hidden>' +
+      '<div class="el-pop-head">' +
+      '<span class="el-pop-title">按元素筛选（可多选组合）</span>' +
+      '<div class="el-mode">' +
+      '<button type="button" data-emode="all" class="' + (state.elementMode === 'all' ? 'on' : '') + '">包含全部</button>' +
+      '<button type="button" data-emode="any" class="' + (state.elementMode === 'any' ? 'on' : '') + '">包含任一</button>' +
+      '</div>' +
+      '<button type="button" class="btn btn-mini" id="elClear">清空</button>' +
+      '</div>' +
+      '<div class="ptable" id="ptable"></div>' +
+      '<div class="el-pop-foot"><span id="elSummary" class="muted"></span></div>' +
+      '</div></div>';
+  }
+
+  function renderPeriodicTable() {
+    const host = $('#ptable');
+    if (!host) return;
+    const list = Array.isArray(window.ELEMENTS) ? window.ELEMENTS : [];
+    const sel = {};
+    state.elements.forEach(function (s) { sel[s] = true; });
+
+    let html = list.map(function (el) {
+      return '<button type="button" class="el" data-el="' + esc(el.s) + '"' +
+        ' style="grid-row:' + el.p + ';grid-column:' + el.g + '"' +
+        ' title="' + esc(el.s) + '"' +
+        (sel[el.s] ? ' data-on="1"' : '') + '>' + esc(el.s) + '</button>';
+    }).join('');
+
+    /* 镧系 / 锕系的占位格 */
+    html += '<div class="el-ph" style="grid-row:6;grid-column:3">57-71</div>';
+    html += '<div class="el-ph" style="grid-row:7;grid-column:3">89-103</div>';
+
+    host.innerHTML = html;
+
+    const sum = $('#elSummary');
+    if (sum) {
+      sum.textContent = state.elements.length
+        ? ('已选：' + state.elements.join(' + ') + '（' + (state.elementMode === 'all' ? '需全部包含' : '任一即可') + '）')
+        : '未选择元素';
+    }
+  }
+
+  function updateElButton() {
+    const btn = $('#elBtn');
+    if (!btn) return;
+    const n = state.elements.length;
+    btn.textContent = '元素' + (n ? ' · ' + n : '') + ' ▾';
+    btn.classList.toggle('active', n > 0);
+  }
+
+  function bindElementPicker() {
+    const btn = $('#elBtn');
+    const pop = $('#elPop');
+    if (!btn || !pop) return;
+
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      pop.hidden = !pop.hidden;
+      if (!pop.hidden) renderPeriodicTable();
+    });
+
+    document.addEventListener('click', function closeEl(ev) {
+      if (pop.hidden) return;
+      if (pop.contains(ev.target) || ev.target === btn) return;
+      pop.hidden = true;
+      document.removeEventListener('click', closeEl);
+    });
+
+    const table = $('#ptable');
+    if (table) {
+      table.addEventListener('click', function (e) {
+        const cell = e.target.closest('.el');
+        if (!cell) return;
+        const s = cell.getAttribute('data-el');
+        const i = state.elements.indexOf(s);
+        if (i >= 0) { state.elements.splice(i, 1); cell.removeAttribute('data-on'); }
+        else { state.elements.push(s); cell.setAttribute('data-on', '1'); }
+        state.page = 1;
+        updateElButton();
+        const sum = $('#elSummary');
+        if (sum) {
+          sum.textContent = state.elements.length
+            ? ('已选：' + state.elements.join(' + ') + '（' + (state.elementMode === 'all' ? '需全部包含' : '任一即可') + '）')
+            : '未选择元素';
+        }
+        refreshTable();
+      });
+    }
+
+    $$('.el-mode [data-emode]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        state.elementMode = b.getAttribute('data-emode');
+        $$('.el-mode [data-emode]').forEach(function (x) { x.classList.toggle('on', x === b); });
+        state.page = 1;
+        if (!pop.hidden) renderPeriodicTable();
+        refreshTable();
+      });
+    });
+
+    const clr = $('#elClear');
+    if (clr) clr.addEventListener('click', function () {
+      state.elements = [];
+      state.page = 1;
+      renderPeriodicTable();
+      updateElButton();
+      refreshTable();
+    });
+
+    renderPeriodicTable();
+  }
+
   function filtersHtml() {
     const set = {};
     baseRows().forEach(function (d) { if (d.metal) set[d.metal] = 1; });
@@ -848,6 +979,7 @@
     }).join('');
     return '<div class="filters">' +
       '<input id="searchInput" type="search" placeholder="搜索化学式、元素、金属、载体、来源…" value="' + esc(state.search) + '" />' +
+      elementPickerHtml() +
       '<select id="metalFilter"><option value="">全部金属</option>' + opts + '</select>' +
       '<button class="btn" id="resetBtn">重置</button>' +
       '</div>';
@@ -871,9 +1003,11 @@
     if (metal) metal.addEventListener('change', function (e) { state.metal = e.target.value; state.page = 1; refreshTable(); });
     const reset = $('#resetBtn');
     if (reset) reset.addEventListener('click', function () {
-      state.search = ''; state.metal = ''; state.page = 1;
+      state.search = ''; state.metal = ''; state.elements = []; state.page = 1;
       const s = $('#searchInput'); if (s) s.value = '';
       const m = $('#metalFilter'); if (m) m.value = '';
+      updateElButton();
+      renderPeriodicTable();
       refreshTable();
     });
     const prev = $('#prevBtn');
@@ -883,6 +1017,8 @@
       const totalPages = Math.max(1, Math.ceil(filteredRows().length / PAGE_SIZE));
       if (state.page < totalPages) { state.page++; refreshTable(); }
     });
+
+    bindElementPicker();
   }
 
   function refreshTable() { renderTable(filteredRows()); }
@@ -1035,6 +1171,51 @@
     reactionCharts(rows);
     bindTableEvents();
     refreshTable();
+  }
+
+  /* ============================ 视图：我们做什么 ============================ */
+  function renderWhatWeDo() {
+    const c = C.whatWeDo || {};
+    const cols = c.columns || [];
+    const kt = c.keyTech || {};
+
+    const pillars = cols.map(function (col) {
+      const blocks = (col.blocks || []).map(function (b) {
+        const chips = (b.chips || []).map(function (x) {
+          return '<span class="flow-chip strong">' + esc(x) + '</span>';
+        }).join('');
+        const items = (b.items || []).map(function (x) {
+          return '<span class="flow-chip">' + esc(x) + '</span>';
+        }).join('');
+        const body = chips || items;
+        return '<div class="flow-block">' +
+          '<div class="fb-title">' + esc(b.title) + '</div>' +
+          (b.en ? '<div class="fb-en">' + esc(b.en) + '</div>' : '') +
+          (body ? '<div class="fb-chips">' + body + '</div>' : '') +
+          '</div>';
+      }).join('');
+
+      return '<div class="pillar" style="--pc:' + esc(col.color || '#2b7ac4') + '">' +
+        '<div class="pillar-head"><div class="ph-name">' + esc(col.name) + '</div>' +
+        (col.en ? '<div class="ph-en">' + esc(col.en) + '</div>' : '') + '</div>' +
+        '<div class="pillar-body">' + blocks + '</div></div>';
+    }).join('');
+
+    const ktChips = (kt.items || []).map(function (x) {
+      return '<span class="kt-chip">' + esc(x) + '</span>';
+    }).join('');
+
+    $('#view').innerHTML =
+      '<div class="page-head">' +
+      '<div class="page-head-row"><h1 class="page-title">' + esc(c.title || '我们做什么') + '</h1></div>' +
+      '<p class="page-desc">' + esc(c.lead || '') + '</p></div>' +
+
+      '<div class="flow-diagram">' +
+      '<div class="fd-title">' + esc(c.diagramTitle || '') + '</div>' +
+      '<div class="pillars">' + pillars + '</div>' +
+      (ktChips ? '<div class="keytech"><span class="kt-label">' + esc(kt.title || '关键技术') + '</span>' +
+        '<div class="kt-chips">' + ktChips + '</div></div>' : '') +
+      '</div>';
   }
 
   /* ============================ 视图：关于我们 ============================ */
@@ -2984,6 +3165,8 @@
       crumb.innerHTML = esc(cget('dashboard.title', '数据总览')) + ' / ' + esc(cget('admin.title', '内容管理')) + ' / <b>数据管理</b>';
     } else if (state.view === 'about') {
       crumb.innerHTML = '<b>' + esc(cget('about.title', '关于我们')) + '</b>';
+    } else if (state.view === 'whatWeDo') {
+      crumb.innerHTML = '<b>' + esc(cget('whatWeDo.title', '我们做什么')) + '</b>';
     } else {
       crumb.innerHTML = '<b>' + esc(cget('dashboard.title', '数据总览')) + '</b>';
     }
@@ -3002,6 +3185,8 @@
       else renderDashboard();
     } else if (state.view === 'about') {
       renderAbout();
+    } else if (state.view === 'whatWeDo') {
+      renderWhatWeDo();
     } else {
       renderDashboard();
     }
