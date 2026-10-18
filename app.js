@@ -209,7 +209,8 @@
       }
       const added = (res && res.added) || records.length;
       const skipped = (res && res.skipped) || 0;
-      showToast('已提交 ' + added + ' 条' + (skipped ? '（跳过已存在 ' + skipped + ' 条）' : '') + '，约 1 分钟后全站可见');
+      showToast('已提交 ' + added + ' 条' + (skipped ? '（跳过已存在 ' + skipped + ' 条）' : '') +
+        '；GitHub Pages 重建约需 1 分钟，之后刷新即可全站可见');
       render();
       return true;
     } catch (e) {
@@ -304,6 +305,35 @@
 
   function curated() { return Array.isArray(window.CATALYST_DATA) ? window.CATALYST_DATA : []; }
   function allRecords() { return loadDrafts().concat(curated()); }
+
+  /* GitHub Pages 给 data.js 设了 10 分钟缓存，普通刷新可能拿到旧数据。
+     这里绕过缓存重新拉一次，只有内容真的变了才重渲染。 */
+  async function refreshDataFromNetwork(options) {
+    const opts = options || {};
+    try {
+      const res = await fetch('data.js?t=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) return false;
+      const text = await res.text();
+      if (text.indexOf('CATALYST_DATA') < 0) return false;
+
+      let parsed;
+      try {
+        parsed = new Function('window', text + '\nreturn window.CATALYST_DATA;')({});
+      } catch (e) {
+        return false;
+      }
+      if (!Array.isArray(parsed)) return false;
+
+      const before = JSON.stringify(window.CATALYST_DATA || []);
+      if (JSON.stringify(parsed) === before) return false;
+
+      window.CATALYST_DATA = parsed;
+      if (opts.rerender !== false) render();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
   function reactionById(id) {
     for (let i = 0; i < REACTIONS.length; i++) if (REACTIONS[i].id === id) return REACTIONS[i];
@@ -1490,6 +1520,7 @@
       '<h1 class="page-title">数据管理</h1>' +
       '<span class="pill pill-ok">云端 ' + cloud.length + ' 条</span>' +
       '<span class="pill pill-idle">本地 ' + drafts.length + ' 条</span>' +
+      '<button class="btn btn-mini" id="manageRefresh" style="margin-left:auto">从仓库重新拉取</button>' +
       '</div><p class="page-desc">云端数据来自仓库 data.js，修改与删除会提交到仓库，约 1 分钟后全站生效；本地草稿只存在当前浏览器，可随时清空。</p></div>' +
       managePanel('cloud', cloud) +
       managePanel('draft', drafts);
@@ -1498,6 +1529,17 @@
   }
 
   function bindManage() {
+    const rf = $('#manageRefresh');
+    if (rf) rf.addEventListener('click', async function () {
+      rf.disabled = true;
+      rf.textContent = '拉取中…';
+      const changed = await refreshDataFromNetwork({ rerender: false });
+      rf.disabled = false;
+      rf.textContent = '从仓库重新拉取';
+      if (changed) { showToast('已拉取到最新数据'); render(); }
+      else showToast('没有新数据（刚发布的话，GitHub Pages 重建约需 1 分钟）');
+    });
+
     $$('[data-all]').forEach(function (box) {
       box.addEventListener('change', function () {
         const source = box.getAttribute('data-all');
@@ -2841,6 +2883,9 @@
 
     if (!location.hash) history.replaceState(null, '', '#/');
     render();
+
+    /* 后台再校验一次最新数据，绕过 GitHub Pages 对 data.js 的 10 分钟缓存 */
+    setTimeout(function () { refreshDataFromNetwork(); }, 400);
   }
 
   if (document.readyState === 'loading') {
