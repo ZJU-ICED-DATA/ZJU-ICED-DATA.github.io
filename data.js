@@ -67,7 +67,6 @@
    ========================================================================= */
 
 window.CATALYST_DATA = [
-  {"id":"TEST-0000","formula":"__publish_test__","metal":"","support":"","reaction":"Methane Combustion","ref":"worker-selftest","note":"自动测试，稍后删除","dftEnergy":null,"barrier":null,"eads":null,"reactionEnergy":null,"evac":null,"structure":null,"outcar":null,"addedAt":"2026-10-18T07:05:02.038032Z"},
   // ↓↓↓ 在这里逐条追加，每行一个对象，用英文逗号分隔 ↓↓↓
 
   // ↑↑↑ 上面的模板替换成真实数据后去掉行首的 // ↑↑↑
