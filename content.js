@@ -18,7 +18,37 @@ window.SITE_CONTENT = {
     footer: '© 2025 ZJU-ICED 课题组 · 全部数据来自 DFT 计算，仅供科研参考',
     navWorkspace: '工作区',
     navReactions: '反应体系',
-    navAdmin: '内容管理'
+    navAdmin: '内容管理',
+    navAbout: '关于我们'
+  },
+
+  about: {
+    title: '关于我们',
+    lead: '浙江大学 ICED 课题组',
+    intro: [
+      'ICED 课题组依托浙江大学化学工程与生物工程学院，围绕能源与环境催化中的关键科学问题，开展催化剂设计、反应机理与工程应用研究。课题组以密度泛函理论（DFT）计算与实验表征相结合的方式，从分子与电子层面理解催化过程，并以此指导新催化材料的开发。',
+      '本数据库系统整理课题组在甲烷减排与高效转化、二氧化碳捕集与利用、绿醇与绿氨高效利用、大气污染物复合控制等方向上的 DFT 计算结果，逐条记录催化剂模型的结构信息、总能、活化能与吸附能，供组内成员检索比对，也供同行参考。',
+      '数据库中的每一条记录都可以追溯到具体的 CIF 结构文件与 VASP 计算输出，便于复核与复现。'
+    ],
+    directionsTitle: '研究方向',
+    directions: [
+      { name: '甲烷减排与高效转化', desc: '研究 CH₄ 的活化与定向转化路径，通过催化剂设计降低关键步骤的活化能垒。' },
+      { name: '二氧化碳捕集与利用', desc: '面向 CO₂ 的捕集材料与催化转化过程，将其转化为高值化学品与燃料。' },
+      { name: '绿醇、绿氨高效利用', desc: '围绕绿色燃料的合成与利用过程，研究相关催化反应的选择性与稳定性。' },
+      { name: '大气污染物复合控制', desc: '针对多污染物共存场景，开展协同催化消除与反应机理研究。' },
+      { name: '新催化材料智能开发', desc: '结合 DFT 计算与数据驱动方法，加速候选催化材料的筛选与设计。' }
+    ],
+    photoCaption: '课题组合影（莫干山）',
+    photo: 'assets/group-photo.jpg',
+    contactTitle: '联系方式',
+    contact: {
+      leader: '谢鹏飞 教授',
+      affiliation: '浙江大学 化学工程与生物工程学院',
+      email: 'pfxie@zju.edu.cn',
+      address: '浙江大学紫金港校区化工大楼',
+      homepage: 'https://person.zju.edu.cn/pfxie'
+    },
+    sourceNote: '课题组与负责人信息整理自浙江大学个人主页（person.zju.edu.cn/pfxie），如有更新以主页为准。'
   },
 
   dashboard: {

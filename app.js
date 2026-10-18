@@ -310,6 +310,7 @@
     const parts = raw.split('/').filter(Boolean);
     if (parts[0] === 'db' && parts[1]) return { view: 'reaction', reactionId: parts[1] };
     if (parts[0] === 'admin') return { view: 'admin', reactionId: null };
+    if (parts[0] === 'about') return { view: 'about', reactionId: null };
     return { view: 'dashboard', reactionId: null };
   }
 
@@ -343,6 +344,7 @@
 
     parts.push('<div class="nav-section">' + esc(cget('site.navWorkspace', '工作区')) + '</div>');
     parts.push(navItem('#/', '◧', cget('dashboard.title', '数据总览'), rows.length, state.view === 'dashboard'));
+    parts.push(navItem('#/about', '◉', cget('site.navAbout', '关于我们'), null, state.view === 'about'));
     parts.push(navItem('#/admin', '⚙', cget('site.navAdmin', '内容管理'), null, state.view === 'admin'));
 
     parts.push('<div class="nav-section">' + esc(cget('site.navReactions', '反应体系')) + '</div>');
@@ -868,6 +870,58 @@
     refreshTable();
   }
 
+  /* ============================ 视图：关于我们 ============================ */
+  function renderAbout() {
+    const a = C.about || {};
+    const intro = (a.intro || []).map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('')
+      || '<p class="muted">尚未填写课题组简介，可在「内容管理」中补充。</p>';
+
+    const dirs = (a.directions || []).map(function (d) {
+      return '<div class="dir-card"><div class="dn">' + esc(d.name) + '</div>' +
+        '<div class="dd">' + esc(d.desc) + '</div></div>';
+    }).join('');
+
+    const c = a.contact || {};
+    const row = function (k, v, href) {
+      if (!v) return '';
+      const val = href
+        ? '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(v) + '</a>'
+        : esc(v);
+      return '<div class="contact-row"><span class="ck">' + esc(k) + '</span><span class="cv">' + val + '</span></div>';
+    };
+
+    $('#view').innerHTML =
+      '<div class="page-head">' +
+      '<div class="page-head-row"><h1 class="page-title">' + esc(a.title || '关于我们') + '</h1></div>' +
+      '<p class="page-desc">' + esc(a.lead || '') + '</p></div>' +
+
+      '<div class="about-grid">' +
+      '<div class="panel"><div class="panel-head"><div class="panel-title">课题组简介</div></div>' +
+      '<div class="panel-body"><div class="about-text">' + intro + '</div></div></div>' +
+      '<div class="panel"><div class="panel-head"><div class="panel-title">' + esc(a.contactTitle || '联系方式') + '</div></div>' +
+      '<div class="panel-body"><div class="contact-list">' +
+      row('负责人', c.leader) +
+      row('单位', c.affiliation) +
+      row('邮箱', c.email, c.email ? 'mailto:' + c.email : '') +
+      row('地址', c.address) +
+      row('主页', c.homepage, c.homepage) +
+      '</div></div></div>' +
+      '</div>' +
+
+      (dirs
+        ? '<div class="panel"><div class="panel-head"><div class="panel-title">' + esc(a.directionsTitle || '研究方向') + '</div></div>' +
+          '<div class="panel-body"><div class="dir-grid">' + dirs + '</div></div></div>'
+        : '') +
+
+      '<div class="panel"><div class="panel-head"><div class="panel-title">课题组合影</div></div>' +
+      '<div class="panel-body">' +
+      '<img class="about-photo" src="' + esc(a.photo || 'assets/group-photo.jpg') + '" alt="' + esc(a.photoCaption || '课题组合影') + '" loading="lazy" />' +
+      (a.photoCaption ? '<div class="photo-cap">' + esc(a.photoCaption) + '</div>' : '') +
+      '</div></div>' +
+
+      (a.sourceNote ? '<p class="about-note">' + esc(a.sourceNote) + '</p>' : '');
+  }
+
   /* ============================ 视图：内容管理 ============================ */
   function fieldInput(path, label, opts) {
     opts = opts || {};
@@ -971,6 +1025,35 @@
     if (errEl) errEl.textContent = '账户或密码不正确（还可尝试 ' + left + ' 次）';
   }
 
+  function aboutEditor() {
+    const a = C.about || {};
+    const intro = (a.intro || []).join('\n\n');
+    const dirs = (a.directions || []).map(function (d) {
+      return '<div class="cond-edit-row dir-edit-row">' +
+        '<input class="dir-name" value="' + esc(d.name) + '" placeholder="方向名称" />' +
+        '<input class="dir-desc" value="' + esc(d.desc) + '" placeholder="一句话说明" />' +
+        '<button type="button" class="icon-btn" data-remove-dir>×</button></div>';
+    }).join('');
+
+    return '<div class="panel" data-about>' +
+      '<div class="panel-head"><div class="panel-title">关于我们</div></div>' +
+      '<div class="panel-body admin-body">' +
+      '<div class="form-grid2">' + fieldInput('about.title', '页面标题') + fieldInput('about.lead', '副标题') + '</div>' +
+      '<div class="form-grid2">' + fieldInput('about.photo', '合影图片路径') + fieldInput('about.photoCaption', '合影说明') + '</div>' +
+      '<div class="section-label">课题组简介（空行分段）</div>' +
+      '<div class="form-row"><textarea data-about-intro rows="8" placeholder="每段之间空一行">' + esc(intro) + '</textarea></div>' +
+      '<div class="section-label">研究方向（可增删行）</div>' +
+      '<div class="cond-edit-list" data-dir-list>' + dirs + '</div>' +
+      '<button type="button" class="btn btn-mini" data-add-dir>+ 添加方向</button>' +
+      '<div class="section-label">联系方式</div>' +
+      '<div class="form-grid2">' + fieldInput('about.contact.leader', '负责人') + fieldInput('about.contact.affiliation', '单位') + '</div>' +
+      '<div class="form-grid2">' + fieldInput('about.contact.email', '邮箱') + fieldInput('about.contact.address', '地址') + '</div>' +
+      fieldInput('about.contact.homepage', '个人主页') +
+      '<div class="form-grid2">' + fieldInput('about.directionsTitle', '研究方向标题') + fieldInput('about.contactTitle', '联系方式标题') + '</div>' +
+      fieldInput('about.sourceNote', '底部来源说明') +
+      '</div></div>';
+  }
+
   function renderAdmin() {
     const reactionPanels = REACTIONS.map(reactionEditor).join('');
     const descPanels = DFT_KEYS.map(function (k) {
@@ -998,6 +1081,8 @@
       '<div class="form-grid2">' + fieldInput('site.name', '站点名称') + fieldInput('site.subtitle', '副标题') + '</div>' +
       fieldInput('site.footer', '页脚文字') +
       '</div></div>' +
+
+      aboutEditor() +
 
       '<div class="panel"><div class="panel-head"><div class="panel-title">数据总览页文案</div></div>' +
       '<div class="panel-body admin-body">' +
@@ -1055,6 +1140,20 @@
     });
     $$('[data-remove-cond]').forEach(bindRemoveCond);
 
+    const addDir = $('[data-add-dir]');
+    if (addDir) addDir.addEventListener('click', function () {
+      const list = $('[data-dir-list]');
+      if (!list) return;
+      const row = document.createElement('div');
+      row.className = 'cond-edit-row dir-edit-row';
+      row.innerHTML = '<input class="dir-name" placeholder="方向名称" />' +
+        '<input class="dir-desc" placeholder="一句话说明" />' +
+        '<button type="button" class="icon-btn" data-remove-dir>×</button>';
+      list.appendChild(row);
+      bindRemoveDir(row.querySelector('[data-remove-dir]'));
+    });
+    $$('[data-remove-dir]').forEach(bindRemoveDir);
+
     const logout = $('#adminLogout');
     if (logout) logout.addEventListener('click', function () {
       clearAuth();
@@ -1099,6 +1198,14 @@
     });
   }
 
+  function bindRemoveDir(btn) {
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      const row = btn.closest('.dir-edit-row');
+      if (row) row.remove();
+    });
+  }
+
   function collectAdmin() {
     const next = deepClone(C);
     $$('#adminForm [data-path]').forEach(function (el) {
@@ -1121,6 +1228,21 @@
       next.reactions[r.id].conditions = conds;
       next.reactions[r.id].notes = notes;
     });
+
+    const aboutPanel = document.querySelector('[data-about]');
+    if (aboutPanel) {
+      if (!next.about) next.about = {};
+      const introEl = aboutPanel.querySelector('[data-about-intro]');
+      next.about.intro = introEl
+        ? introEl.value.split(/\n\s*\n/).map(function (s) { return s.trim(); }).filter(Boolean)
+        : [];
+      next.about.directions = $$('.dir-edit-row', aboutPanel).map(function (row) {
+        const n = row.querySelector('.dir-name');
+        const d = row.querySelector('.dir-desc');
+        return { name: n ? n.value : '', desc: d ? d.value : '' };
+      }).filter(function (x) { return x.name.trim() || x.desc.trim(); });
+    }
+
     return next;
   }
 
@@ -1676,6 +1798,8 @@
         : esc(cget('dashboard.title', '数据总览'));
     } else if (state.view === 'admin') {
       crumb.innerHTML = esc(cget('dashboard.title', '数据总览')) + ' / <b>' + esc(cget('admin.title', '内容管理')) + '</b>';
+    } else if (state.view === 'about') {
+      crumb.innerHTML = '<b>' + esc(cget('about.title', '关于我们')) + '</b>';
     } else {
       crumb.innerHTML = '<b>' + esc(cget('dashboard.title', '数据总览')) + '</b>';
     }
@@ -1689,6 +1813,8 @@
       const r = reactionById(state.reactionId);
       if (r) renderReactionView(r);
       else renderDashboard();
+    } else if (state.view === 'about') {
+      renderAbout();
     } else {
       renderDashboard();
     }
