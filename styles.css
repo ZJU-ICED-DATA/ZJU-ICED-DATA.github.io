@@ -686,6 +686,13 @@ td.formula { font-weight: 650; }
 }
 .batch-summary b { color: var(--primary-dark); }
 
+/* -------- 上传方式选择 -------- */
+.upload-choices {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  margin-top: 14px;
+}
+.upload-choices .muted { font-size: 12px; }
+
 /* -------- 登录门禁 -------- */
 .head-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 .login-wrap {

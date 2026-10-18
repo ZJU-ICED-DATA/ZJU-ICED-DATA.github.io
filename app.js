@@ -1347,18 +1347,32 @@
       render();
     });
 
-    if (s && s.cif) render3D($('#viewer3d'), s.cif);
+    if (s && s.cif) render3D($('#viewer3d'), s.cif, s.format);
   }
 
-  function render3D(container, cifText) {
+  function render3D(container, text, format) {
     if (!container) return;
     if (!HAS_3DMOL) { container.innerHTML = '<div class="viewer-note">3D 预览不可用（3Dmol 未加载）</div>'; return; }
+
+    /* POSCAR 先转成 XYZ 再交给 3Dmol */
+    let modelText = text;
+    let modelFormat = 'cif';
+    if (format === 'poscar') {
+      const parsed = window.PoscarParser ? window.PoscarParser.parse(text) : null;
+      if (!parsed || !parsed.ok) {
+        container.innerHTML = '<div class="viewer-note">POSCAR 无法转换为 3D 模型</div>';
+        return;
+      }
+      modelText = window.PoscarParser.toXyz(parsed);
+      modelFormat = 'xyz';
+    }
+
     try {
       if (currentViewer) { try { currentViewer.clear(); } catch (e) { /* 忽略 */ } currentViewer = null; }
       container.innerHTML = '';
       const viewer = $3Dmol.createViewer(container, { backgroundColor: 'white' });
       if (!viewer) throw new Error('viewer 创建失败');
-      viewer.addModel(cifText, 'cif');
+      viewer.addModel(modelText, modelFormat);
       viewer.setStyle({}, { stick: { radius: 0.14 }, sphere: { scale: 0.26 } });
       viewer.zoomTo();
       viewer.render();
@@ -1370,13 +1384,19 @@
   }
 
   /* ============================ 上传 ============================ */
-  /* 一次可上传多个 CIF；同名的 OUTCAR 会自动与对应结构配对 */
-  let uploadState = { items: [], unmatched: [] };
+  /* 支持三种输入：
+       · 单个/多个 CIF 文件（散选，可选配同名 OUTCAR）
+       · 单个文件夹（含 POSCAR/CIF + OUTCAR）
+       · 多个文件夹（一次选中包含多个计算目录的父目录）
+     文件夹上传时，用文件夹名作为记录名称。 */
+  let uploadState = { items: [], unmatched: [], skipped: [] };
+
+  const STRUCT_NAMES = /^(poscar|contcar)/i;
 
   function openUpload() {
     const modal = $('#uploadModal');
     if (!modal) return;
-    uploadState = { items: [], unmatched: [] };
+    uploadState = { items: [], unmatched: [], skipped: [] };
     modal.classList.add('open');
     uploadStep1();
   }
@@ -1384,7 +1404,7 @@
   function closeUpload() {
     const modal = $('#uploadModal');
     if (modal) modal.classList.remove('open');
-    uploadState = { items: [], unmatched: [] };
+    uploadState = { items: [], unmatched: [], skipped: [] };
     if (currentViewer) { try { currentViewer.clear(); } catch (e) { /* 忽略 */ } currentViewer = null; }
   }
 
@@ -1398,35 +1418,50 @@
     return baseName(name).replace(/\.[^.\\/]+$/, '');
   }
 
-  /* 归一化文件名用于 CIF ↔ OUTCAR 配对：去掉扩展名、outcar 字样与非字母数字 */
   function matchKey(name) {
     return stripExt(name).toLowerCase().replace(/outcar/g, '').replace(/[^a-z0-9]/g, '');
   }
 
+  function isOutcarName(name) {
+    const b = baseName(name).toLowerCase();
+    return /outcar/.test(b) || /\.out$/.test(b);
+  }
+  function isCifName(name) {
+    return /\.(cif|mcif)$/i.test(baseName(name));
+  }
+
+  /* ---------------- 第一步：选择 ---------------- */
   function uploadStep1() {
     const body = $('#uploadBody');
     const foot = $('#uploadFoot');
     if (!body) return;
+
     body.innerHTML =
       '<div class="dropzone" id="dropzone">' +
       '<div class="dz-icon">🧪</div>' +
-      '<div class="dz-title">拖拽 CIF 结构文件到这里，或点击选择</div>' +
-      '<div class="dz-sub">支持一次选择多个结构；把同名 OUTCAR 一起放进来会自动配对读取总能</div>' +
-      '<div class="dz-formats">CIF：.cif / .mcif　·　OUTCAR：文件名含 OUTCAR 或 .out　·　全部在浏览器本地解析</div>' +
-      '<input type="file" id="fileInput" accept=".cif,.mcif,.out,.txt,OUTCAR" multiple hidden />' +
-      '</div>';
+      '<div class="dz-title">拖拽文件或文件夹到这里</div>' +
+      '<div class="dz-sub">文件夹里放 POSCAR / CIF 与 OUTCAR，会按文件夹名逐条建立记录</div>' +
+      '<div class="dz-formats">CIF：.cif / .mcif　·　结构：POSCAR / CONTCAR　·　能量：OUTCAR　·　全部在浏览器本地解析</div>' +
+      '</div>' +
+      '<div class="upload-choices">' +
+      '<button type="button" class="btn" id="pickFiles">选择文件</button>' +
+      '<button type="button" class="btn" id="pickFolder">选择文件夹</button>' +
+      '<span class="muted">可多选；选文件夹时里面的子目录会各自成为一条记录</span>' +
+      '</div>' +
+      '<input type="file" id="fileInput" accept=".cif,.mcif,.out,.txt,POSCAR,CONTCAR,OUTCAR" multiple hidden />' +
+      '<input type="file" id="dirInput" webkitdirectory directory multiple hidden />';
+
     if (foot) {
       foot.innerHTML = '<span class="muted">' + esc(cget('upload.desc', '')) + '</span>' +
         '<button class="btn" id="uploadCancel">取消</button>';
     }
 
     const dz = $('#dropzone');
-    const input = $('#fileInput');
-    if (dz && input) {
-      dz.addEventListener('click', function () { input.click(); });
-      input.addEventListener('change', function () {
-        if (input.files && input.files.length) handleFiles(input.files);
-      });
+    const fileInput = $('#fileInput');
+    const dirInput = $('#dirInput');
+
+    if (dz && fileInput) {
+      dz.addEventListener('click', function () { fileInput.click(); });
       ['dragenter', 'dragover'].forEach(function (ev) {
         dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('drag'); });
       });
@@ -1434,13 +1469,107 @@
         dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('drag'); });
       });
       dz.addEventListener('drop', function (e) {
-        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) handleFiles(e.dataTransfer.files);
+        e.preventDefault();
+        handleDrop(e.dataTransfer);
       });
     }
+
+    if (fileInput) {
+      fileInput.addEventListener('change', function () {
+        if (fileInput.files && fileInput.files.length) handleInputs(normalizeFiles(fileInput.files));
+      });
+    }
+
+    if (dirInput) {
+      dirInput.setAttribute('webkitdirectory', '');
+      dirInput.setAttribute('directory', '');
+      dirInput.addEventListener('change', function () {
+        if (dirInput.files && dirInput.files.length) handleInputs(normalizeFiles(dirInput.files));
+      });
+    }
+
+    const pf = $('#pickFiles');
+    if (pf) pf.addEventListener('click', function (e) { e.stopPropagation(); fileInput.click(); });
+    const pd = $('#pickFolder');
+    if (pd) pd.addEventListener('click', function (e) { e.stopPropagation(); dirInput.click(); });
+
     const cancel = $('#uploadCancel');
     if (cancel) cancel.addEventListener('click', closeUpload);
   }
 
+  function normalizeFiles(list) {
+    return Array.prototype.slice.call(list).map(function (f) {
+      return { file: f, path: f.webkitRelativePath || f.name || 'file' };
+    });
+  }
+
+  /* ---------------- 拖拽（含文件夹） ---------------- */
+  function handleDrop(dt) {
+    if (!dt) return;
+
+    const entries = [];
+    if (dt.items && dt.items.length) {
+      for (let i = 0; i < dt.items.length; i++) {
+        const item = dt.items[i];
+        if (item.kind === 'file' && typeof item.webkitGetAsEntry === 'function') {
+          const entry = item.webkitGetAsEntry();
+          if (entry) entries.push(entry);
+        }
+      }
+    }
+
+    if (entries.length) {
+      collectEntries(entries).then(function (inputs) {
+        if (inputs.length) handleInputs(inputs);
+        else showToast('没有读到可用文件');
+      }, function () {
+        showToast('读取文件夹失败，请改用「选择文件夹」');
+      });
+      return;
+    }
+
+    if (dt.files && dt.files.length) handleInputs(normalizeFiles(dt.files));
+  }
+
+  function readEntriesBatch(reader) {
+    return new Promise(function (resolve, reject) {
+      reader.readEntries(function (batch) { resolve(batch); }, reject);
+    });
+  }
+
+  function walkEntry(entry, prefix, out) {
+    return new Promise(function (resolve) {
+      if (entry.isFile) {
+        entry.file(function (file) {
+          out.push({ file: file, path: prefix + entry.name });
+          resolve();
+        }, function () { resolve(); });
+        return;
+      }
+      if (!entry.isDirectory) { resolve(); return; }
+      const reader = entry.createReader();
+      const step = function () {
+        readEntriesBatch(reader).then(function (batch) {
+          if (!batch.length) { resolve(); return; }
+          let chain = Promise.resolve();
+          batch.forEach(function (child) {
+            chain = chain.then(function () { return walkEntry(child, prefix + entry.name + '/', out); });
+          });
+          chain.then(step);
+        }, function () { resolve(); });
+      };
+      step();
+    });
+  }
+
+  function collectEntries(entries) {
+    const out = [];
+    let chain = Promise.resolve();
+    entries.forEach(function (e) { chain = chain.then(function () { return walkEntry(e, '', out); }); });
+    return chain.then(function () { return out; });
+  }
+
+  /* ---------------- 第二步：解析与分组 ---------------- */
   function readText(file) {
     return new Promise(function (resolve, reject) {
       const fr = new FileReader();
@@ -1450,63 +1579,154 @@
     });
   }
 
-  function isOutcarName(name) {
-    return /outcar/i.test(name) || /\.out$/i.test(name);
-  }
-  function isCifName(name) {
-    return /\.(cif|mcif)$/i.test(name);
-  }
-
-  async function handleFiles(fileList) {
-    const files = Array.prototype.slice.call(fileList);
-    if (!files.length) return;
-
-    const cifs = [];
-    const outcars = [];
-
+  function pickStructure(files) {
     for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      const name = f.name || 'file';
+      if (isCifName(files[i].path)) return { kind: 'cif', file: files[i].file, path: files[i].path };
+    }
+    for (let i = 0; i < files.length; i++) {
+      if (STRUCT_NAMES.test(baseName(files[i].path))) return { kind: 'poscar', file: files[i].file, path: files[i].path };
+    }
+    return null;
+  }
+
+  function pickOutcar(files) {
+    for (let i = 0; i < files.length; i++) {
+      if (isOutcarName(files[i].path)) return { kind: 'outcar', file: files[i].file, path: files[i].path };
+    }
+    return null;
+  }
+
+  function parseStructureFile(kind, text, file) {
+    if (kind === 'cif') {
+      const info = window.CIFParser ? window.CIFParser.parse(text) : null;
+      if (!info || !info.ok) return { error: (info && info.error) || 'CIF 解析失败' };
+      return { structure: { kind: 'cif', file: baseName(file), text: text, info: info } };
+    }
+    const info = window.PoscarParser ? window.PoscarParser.parse(text) : null;
+    if (!info || !info.ok) return { error: (info && info.error) || 'POSCAR 解析失败' };
+    return { structure: { kind: 'poscar', file: baseName(file), text: text, info: info } };
+  }
+
+  function guessFrom(structure) {
+    const counts = structure.info.atomCounts || {};
+    const ci = window.CIFParser;
+    const pi = window.PoscarParser;
+    return {
+      metal: (ci && ci.guessMetal ? ci.guessMetal(counts) : '') || (pi && pi.guessMetal ? pi.guessMetal(counts) : ''),
+      support: (ci && ci.guessSupport ? ci.guessSupport(counts) : '') || (pi && pi.guessSupport ? pi.guessSupport(counts) : '')
+    };
+  }
+
+  function makeItem(name, structure, outcar, dir) {
+    const g = structure ? guessFrom(structure) : { metal: '', support: '' };
+    return {
+      name: name,
+      dir: dir || '',
+      structure: structure,
+      outcar: outcar,
+      metal: g.metal,
+      support: g.support,
+      energy: outcar && isNum(outcar.info.totalEnergy) ? outcar.info.totalEnergy : null
+    };
+  }
+
+  async function handleInputs(inputs) {
+    if (!inputs || !inputs.length) return;
+
+    /* 按所在目录分组：每个目录 = 一条记录 */
+    const groups = new Map();
+    const flat = [];
+    inputs.forEach(function (inp) {
+      const idx = inp.path.lastIndexOf('/');
+      if (idx < 0) { flat.push(inp); return; }
+      const dir = inp.path.slice(0, idx);
+      if (!groups.has(dir)) groups.set(dir, []);
+      groups.get(dir).push(inp);
+    });
+
+    const items = [];
+    const skipped = [];
+    const unmatched = [];
+
+    /* ---- 文件夹 ---- */
+    const dirs = Array.from(groups.keys());
+    for (let i = 0; i < dirs.length; i++) {
+      const dir = dirs[i];
+      const files = groups.get(dir);
+      const name = dir.split('/').pop();
+      const picked = pickStructure(files);
+      if (!picked) { skipped.push(name); continue; }
       try {
-        if (isOutcarName(name)) {
-          if (f.size > 60 * 1024 * 1024) { showToast('OUTCAR 超过 60 MB，已跳过：' + name); continue; }
-          const text = await readText(f);
-          const info = window.OutcarParser ? window.OutcarParser.parse(text) : null;
-          if (!info || !info.ok) { uploadError(name, (info && info.error) || 'OUTCAR 解析失败'); return; }
-          outcars.push({ file: name, text: text, info: info });
-        } else if (isCifName(name) || (f.size < 8 * 1024 * 1024 && !isOutcarName(name))) {
-          if (f.size > 8 * 1024 * 1024) { showToast('文件超过 8 MB，已跳过：' + name); continue; }
-          const text = await readText(f);
-          const info = window.CIFParser ? window.CIFParser.parse(text) : null;
-          if (!info || !info.ok) { uploadError(name, (info && info.error) || 'CIF 解析失败'); return; }
-          cifs.push({ file: name, text: text, info: info });
+        const text = await readText(picked.file);
+        const parsed = parseStructureFile(picked.kind, text, picked.path);
+        if (parsed.error) { uploadError(baseName(picked.path), parsed.error); return; }
+
+        let outcar = null;
+        const oc = pickOutcar(files);
+        if (oc) {
+          const otext = await readText(oc.file);
+          const oinfo = window.OutcarParser ? window.OutcarParser.parse(otext) : null;
+          if (oinfo && oinfo.ok) outcar = { file: baseName(oc.path), text: otext, info: oinfo };
+          else unmatched.push(baseName(oc.path));
         }
-      } catch (err) {
+        items.push(makeItem(name, parsed.structure, outcar, dir));
+      } catch (e) {
         uploadError(name, '文件读取失败');
         return;
       }
     }
 
-    if (!cifs.length && !outcars.length) { showToast('没有识别到可解析的文件'); return; }
+    /* ---- 散选文件 ---- */
+    if (flat.length) {
+      const cifs = [];
+      const outcars = [];
+      for (let i = 0; i < flat.length; i++) {
+        const inp = flat[i];
+        const nm = inp.path;
+        try {
+          if (isOutcarName(nm)) {
+            if (inp.file.size > 60 * 1024 * 1024) { showToast('OUTCAR 超过 60 MB，已跳过：' + nm); continue; }
+            const text = await readText(inp.file);
+            const info = window.OutcarParser ? window.OutcarParser.parse(text) : null;
+            if (!info || !info.ok) { uploadError(nm, (info && info.error) || 'OUTCAR 解析失败'); return; }
+            outcars.push({ file: nm, text: text, info: info });
+          } else {
+            if (inp.file.size > 8 * 1024 * 1024) { showToast('文件超过 8 MB，已跳过：' + nm); continue; }
+            const text = await readText(inp.file);
+            const parsed = parseStructureFile(isCifName(nm) ? 'cif' : 'poscar', text, nm);
+            if (parsed.error) {
+              if (isCifName(nm) || STRUCT_NAMES.test(baseName(nm))) { uploadError(nm, parsed.error); return; }
+              continue;
+            }
+            cifs.push({ file: nm, text: text, info: parsed.structure.info });
+          }
+        } catch (e) {
+          uploadError(nm, '文件读取失败');
+          return;
+        }
+      }
+      const paired = pairOutcars(cifs, outcars);
+      paired.items.forEach(function (it) { items.push(it); });
+      paired.unmatched.forEach(function (n) { unmatched.push(n); });
+    }
 
-    const paired = pairOutcars(cifs, outcars);
-    uploadState.items = paired.items;
-    uploadState.unmatched = paired.unmatched;
+    if (!items.length) {
+      showToast(skipped.length ? '没有在文件夹里找到 POSCAR 或 CIF 结构文件' : '没有识别到可解析的文件');
+      return;
+    }
 
+    uploadState.items = items;
+    uploadState.unmatched = unmatched;
+    uploadState.skipped = skipped;
     uploadStep2();
   }
 
-  /* 配对规则：先按归一化文件名匹配，剩下的若恰好各一个则直接配对 */
+  /* 散选文件时：CIF 按文件名配对 OUTCAR */
   function pairOutcars(cifs, outcars) {
     const items = cifs.map(function (c) {
-      return {
-        cif: c,
-        outcar: null,
-        formula: stripExt(c.file),
-        metal: window.CIFParser ? window.CIFParser.guessMetal(c.info.atomCounts) : '',
-        support: window.CIFParser ? window.CIFParser.guessSupport(c.info.atomCounts) : '',
-        energy: null
-      };
+      const base = baseName(c.file);
+      const st = { kind: 'cif', file: base, text: c.text, info: c.info };
+      return makeItem(stripExt(base), st, null, '');
     });
     const used = items.map(function () { return false; });
     const leftovers = [];
@@ -1516,7 +1736,7 @@
       let hit = -1;
       if (key) {
         for (let i = 0; i < items.length; i++) {
-          if (!used[i] && matchKey(items[i].cif.file) === key) { hit = i; break; }
+          if (!used[i] && matchKey(items[i].structure.file) === key) { hit = i; break; }
         }
       }
       if (hit >= 0) {
@@ -1528,31 +1748,21 @@
       }
     });
 
-    /* 只有一个结构、一个 OUTCAR 时，即使名字对不上也视为同一组计算 */
-    const unmatchedIdx = [];
-    for (let i = 0; i < items.length; i++) if (!used[i]) unmatchedIdx.push(i);
-    const unmatched = [];
-    while (leftovers.length && unmatchedIdx.length === 1 && leftovers.length === 1) {
-      const idx = unmatchedIdx.shift();
+    const free = [];
+    for (let i = 0; i < items.length; i++) if (!used[i]) free.push(i);
+    while (leftovers.length === 1 && free.length === 1) {
+      const idx = free.shift();
       const o = leftovers.shift();
       items[idx].outcar = o;
       items[idx].energy = isNum(o.info.totalEnergy) ? o.info.totalEnergy : null;
     }
-    leftovers.forEach(function (o) { unmatched.push(o.file); });
 
-    /* 没有 CIF 但有 OUTCAR：允许只存能量 */
+    const unmatched = leftovers.map(function (o) { return o.file; });
+
     if (!items.length && outcars.length) {
-      items.push({
-        cif: null,
-        outcar: outcars[0],
-        formula: '',
-        metal: '',
-        support: '',
-        energy: isNum(outcars[0].info.totalEnergy) ? outcars[0].info.totalEnergy : null
-      });
+      items.push(makeItem('', null, outcars[0], ''));
       for (let i = 1; i < outcars.length; i++) unmatched.push(outcars[i].file);
     }
-
     return { items: items, unmatched: unmatched };
   }
 
@@ -1561,16 +1771,29 @@
     if (!body) return;
     body.innerHTML =
       '<div class="error-box">解析 <b>' + esc(name) + '</b> 失败：' + esc(msg) + '</div>' +
-      '<div class="dropzone" id="dropzone"><div class="dz-icon">↺</div><div class="dz-title">重新选择文件</div>' +
-      '<input type="file" id="fileInput" multiple hidden /></div>';
-    const dz = $('#dropzone');
-    const input = $('#fileInput');
-    if (dz && input) {
-      dz.addEventListener('click', function () { input.click(); });
-      input.addEventListener('change', function () { if (input.files && input.files.length) handleFiles(input.files); });
+      '<div class="dropzone" id="dropzone"><div class="dz-icon">↺</div><div class="dz-title">重新选择文件或文件夹</div></div>' +
+      '<div class="upload-choices">' +
+      '<button type="button" class="btn" id="retryFiles">选择文件</button>' +
+      '<button type="button" class="btn" id="retryFolder">选择文件夹</button></div>' +
+      '<input type="file" id="fileInput" multiple hidden />' +
+      '<input type="file" id="dirInput" webkitdirectory directory multiple hidden />';
+
+    const fi = $('#fileInput');
+    const di = $('#dirInput');
+    if (di) { di.setAttribute('webkitdirectory', ''); di.setAttribute('directory', ''); }
+    if (fi) {
+      fi.addEventListener('change', function () { if (fi.files && fi.files.length) handleInputs(normalizeFiles(fi.files)); });
+      const dz = $('#dropzone');
+      if (dz) dz.addEventListener('click', function () { fi.click(); });
     }
+    if (di) di.addEventListener('change', function () { if (di.files && di.files.length) handleInputs(normalizeFiles(di.files)); });
+    const rf = $('#retryFiles');
+    if (rf) rf.addEventListener('click', function () { if (fi) fi.click(); });
+    const rd = $('#retryFolder');
+    if (rd) rd.addEventListener('click', function () { if (di) di.click(); });
   }
 
+  /* ---------------- 第三步：预览与保存 ---------------- */
   function reactionOptionsHtml(selected) {
     const def = selected !== undefined ? selected : (state.view === 'reaction' && state.reactionId
       ? (reactionById(state.reactionId) || { reaction: '' }).reaction
@@ -1582,11 +1805,12 @@
     }).join('');
   }
 
-  function cifCardHtml(c) {
-    if (!c) return '';
-    const info = c.info;
-    return '<div class="parse-summary"><div class="parse-head"><span class="parse-title">✓ ' + esc(baseName(c.file)) + '</span>' +
-      '<span class="muted">' + esc(info.dataBlock || '') + '</span></div>' +
+  function structureCardHtml(st) {
+    if (!st) return '<div class="warn-box">未提供结构文件，本条记录将只有能量数据。</div>';
+    const info = st.info;
+    return '<div class="parse-summary"><div class="parse-head">' +
+      '<span class="parse-title">✓ ' + esc(st.file) + '</span>' +
+      '<span class="muted">' + esc(st.kind === 'cif' ? (info.dataBlock || 'CIF') : 'POSCAR') + '</span></div>' +
       '<div class="parse-stats"><div class="parse-stat"><b>' + info.elements.length + '</b>元素种类</div>' +
       '<div class="parse-stat"><b>' + info.totalAtoms + '</b>总原子数</div>' +
       '<div class="parse-stat"><b>' + esc(info.formula || '—') + '</b>化学式</div></div>' +
@@ -1601,7 +1825,7 @@
         '<div class="parse-desc">可稍后手动填写总能，或重新上传 OUTCAR 自动解析。</div></div>';
     }
     const info = o.info;
-    return '<div class="parse-summary"><div class="parse-head"><span class="parse-title">✓ ' + esc(baseName(o.file)) + '</span>' +
+    return '<div class="parse-summary"><div class="parse-head"><span class="parse-title">✓ ' + esc(o.file) + '</span>' +
       '<span class="muted">OUTCAR</span></div>' +
       '<div class="parse-stats"><div class="parse-stat"><b>' + numText(info.totalEnergy, 4) + '</b>总能 (eV)</div>' +
       '<div class="parse-stat"><b>' + esc(String(info.ionicSteps || '—')) + '</b>离子步</div>' +
@@ -1610,36 +1834,39 @@
       '</div>';
   }
 
+  function noticesHtml() {
+    let html = '';
+    if (uploadState.skipped.length) {
+      html += '<div class="warn-box">以下文件夹里没有找到 POSCAR 或 CIF，已跳过：' +
+        esc(uploadState.skipped.join('、')) + '</div>';
+    }
+    if (uploadState.unmatched.length) {
+      html += '<div class="warn-box">以下 OUTCAR 没能匹配到结构，未写入记录：' +
+        esc(uploadState.unmatched.join('、')) + '</div>';
+    }
+    return html;
+  }
+
   function uploadStep2() {
-    const body = $('#uploadBody');
-    if (!body) return;
     if (!uploadState.items.length) { uploadStep1(); return; }
     if (uploadState.items.length === 1) renderSingle(uploadState.items[0]);
     else renderBatch();
   }
 
-  function unmatchedHtml() {
-    if (!uploadState.unmatched.length) return '';
-    return '<div class="warn-box">以下 OUTCAR 没能匹配到对应的 CIF，未写入记录：' +
-      esc(uploadState.unmatched.join('、')) + '</div>';
-  }
-
-  /* ---- 单个结构：保留详细预览 ---- */
   function renderSingle(it) {
-    const cinfo = it.cif ? it.cif.info : null;
-    const oinfo = it.outcar ? it.outcar.info : null;
+    const st = it.structure;
 
     $('#uploadBody').innerHTML =
       '<div class="upload-grid">' +
       '<div>' +
-      (it.cif ? cifCardHtml(it.cif) : '<div class="warn-box">未提供 CIF 结构文件，本条记录将只有能量数据。</div>') +
+      structureCardHtml(st) +
       outcarCardHtml(it.outcar) +
-      unmatchedHtml() +
-      (it.cif ? '<div class="viewer3d" id="uploadViewer" style="height:280px"></div>' : '') +
+      noticesHtml() +
+      (st ? '<div class="viewer3d" id="uploadViewer" style="height:280px"></div>' : '') +
       '</div>' +
       '<div>' +
       '<div class="form-row"><label>化学式 / 催化剂名称 *</label>' +
-      '<input id="fFormula" value="' + esc(it.formula) + '" placeholder="默认取 CIF 文件名" /></div>' +
+      '<input id="fFormula" value="' + esc(it.name) + '" placeholder="默认取文件名或文件夹名" /></div>' +
       '<div class="form-grid2">' +
       '<div class="form-row"><label>活性金属</label><input id="fMetal" value="' + esc(it.metal) + '" /></div>' +
       '<div class="form-row"><label>载体</label><input id="fSupport" value="' + esc(it.support) + '" /></div>' +
@@ -1666,28 +1893,27 @@
         '<button class="btn btn-primary" id="uploadSave">保存到本地草稿</button></div>';
     }
 
-    if (it.cif) render3D($('#uploadViewer'), it.cif.text);
+    if (st) render3D($('#uploadViewer'), st.text, st.kind);
 
     const back = $('#uploadBack');
-    if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [] }; uploadStep1(); });
+    if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [], skipped: [] }; uploadStep1(); });
     const again = $('#uploadAgain');
-    if (again) again.addEventListener('click', function () { if (saveUpload()) { uploadState = { items: [], unmatched: [] }; uploadStep1(); } });
+    if (again) again.addEventListener('click', function () { if (saveUpload()) { uploadState = { items: [], unmatched: [], skipped: [] }; uploadStep1(); } });
     const save = $('#uploadSave');
     if (save) save.addEventListener('click', function () { if (saveUpload()) closeUpload(); });
   }
 
-  /* ---- 多个结构：表格批量编辑 ---- */
   function renderBatch() {
     const items = uploadState.items;
-    const withCif = items.filter(function (x) { return x.cif; }).length;
+    const withStruct = items.filter(function (x) { return x.structure; }).length;
     const withEnergy = items.filter(function (x) { return isNum(x.energy); }).length;
 
     const rows = items.map(function (it, idx) {
-      const info = it.cif ? it.cif.info : null;
-      const name = it.cif ? it.cif.file : (it.outcar ? it.outcar.file : '—');
+      const info = it.structure ? it.structure.info : null;
       return '<tr data-item="' + idx + '">' +
-        '<td class="fname" title="' + esc(name) + '">' + esc(stripExt(name)) + '</td>' +
-        '<td><input class="cell-in" data-field="formula" value="' + esc(it.formula) + '" placeholder="必填" /></td>' +
+        '<td class="fname" title="' + esc(it.dir || (it.structure ? it.structure.file : '')) + '">' +
+        (it.dir ? '📁 ' : '') + esc(it.name || (it.structure ? it.structure.file : '—')) + '</td>' +
+        '<td><input class="cell-in" data-field="formula" value="' + esc(it.name) + '" placeholder="必填" /></td>' +
         '<td><input class="cell-in" data-field="metal" value="' + esc(it.metal) + '" /></td>' +
         '<td><input class="cell-in" data-field="support" value="' + esc(it.support) + '" /></td>' +
         '<td><input class="cell-in" type="number" step="any" data-field="barrier" placeholder="—" /></td>' +
@@ -1700,15 +1926,15 @@
     }).join('');
 
     $('#uploadBody').innerHTML =
-      unmatchedHtml() +
+      noticesHtml() +
       '<div class="batch-summary">' +
-      '<span>共 <b>' + items.length + '</b> 个结构</span>' +
-      '<span>已解析 CIF <b>' + withCif + '</b> 个</span>' +
+      '<span>共 <b>' + items.length + '</b> 条结构</span>' +
+      '<span>已解析 <b>' + withStruct + '</b> 个</span>' +
       '<span>已匹配 OUTCAR <b>' + withEnergy + '</b> 个</span>' +
-      '<span class="muted">化学式默认取文件名，可直接在表格里改</span>' +
+      '<span class="muted">名称默认取文件名或文件夹名，可直接在表格里改</span>' +
       '</div>' +
       '<div class="batch-wrap"><table class="batch-table">' +
-      '<thead><tr><th>文件</th><th>化学式 *</th><th>金属</th><th>载体</th>' +
+      '<thead><tr><th>名称 / 文件夹</th><th>化学式 *</th><th>金属</th><th>载体</th>' +
       '<th>Ea (eV)</th><th>Eads (eV)</th><th>总能 (eV)</th><th>元素</th><th>原子</th><th></th></tr></thead>' +
       '<tbody id="batchBody">' + rows + '</tbody></table></div>' +
       '<div class="form-grid3" style="margin-top:16px">' +
@@ -1736,7 +1962,7 @@
     });
 
     const back = $('#uploadBack');
-    if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [] }; uploadStep1(); });
+    if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [], skipped: [] }; uploadStep1(); });
     const saveAll = $('#uploadSaveAll');
     if (saveAll) saveAll.addEventListener('click', function () { if (saveBatch()) closeUpload(); });
   }
@@ -1765,6 +1991,7 @@
   }
 
   function makeRecord(it, f) {
+    const st = it.structure;
     return {
       id: f.id,
       formula: f.formula,
@@ -1778,19 +2005,20 @@
       eads: isNum(f.eads) ? f.eads : null,
       reactionEnergy: isNum(f.reactionEnergy) ? f.reactionEnergy : null,
       evac: null,
-      structure: it.cif ? {
-        file: baseName(it.cif.file),
-        formula: it.cif.info.formula || '',
-        elements: it.cif.info.elements.slice(),
-        atomCounts: it.cif.info.atomCounts,
-        totalAtoms: it.cif.info.totalAtoms,
-        cell: it.cif.info.cell,
-        spaceGroup: it.cif.info.spaceGroup || '',
-        z: isNum(it.cif.info.z) ? it.cif.info.z : null,
-        cif: it.cif.text
+      structure: st ? {
+        file: st.file,
+        format: st.kind,
+        formula: st.info.formula || '',
+        elements: st.info.elements.slice(),
+        atomCounts: st.info.atomCounts,
+        totalAtoms: st.info.totalAtoms,
+        cell: st.info.cell,
+        spaceGroup: st.info.spaceGroup || '',
+        z: isNum(st.info.z) ? st.info.z : null,
+        cif: st.text
       } : null,
       outcar: it.outcar ? {
-        file: baseName(it.outcar.file),
+        file: it.outcar.file,
         totalEnergy: it.outcar.info.totalEnergy,
         energySigma0: it.outcar.info.energySigma0,
         fermi: it.outcar.info.fermi,

@@ -26,7 +26,9 @@
 - VASP OUTCAR（可选）：自动读取 `free energy TOTEN` 作为总能，同时解析 E-fermi、NIONS、体积、离子步数
 - **化学式 / 催化剂名称默认取 CIF 文件名**（去掉扩展名），例如 `Ni_Al2O3.cif` → `Ni_Al2O3`，可随时改
 - **支持一次上传多个结构**：多选或一次拖入多个 CIF，会逐条生成记录并进入批量编辑表格（化学式、金属、载体、Ea、Eads、总能都可逐行修改，反应体系/来源/备注统一应用）
-- **OUTCAR 自动配对**：按文件名归一化匹配（`OUTCAR_Ni_Al2O3` ↔ `Ni_Al2O3.cif`）；只有一个结构和一个 OUTCAR 时即使名字不同也直接配对；未匹配的 OUTCAR 会明确提示且不写入记录
+- **支持上传文件夹**：点「选择文件夹」（或直接把文件夹拖进来）。里面放 `POSCAR`/`CONTCAR`（或 CIF）与 `OUTCAR`，**用文件夹名作为该条数据的名称**；选中包含多个计算目录的父目录时，每个子目录各成一条记录
+- POSCAR 支持 VASP 5 及以上格式（元素符号行、Selective dynamics、Direct/Cartesian、负缩放系数按目标体积换算），会自动换算晶格常数并把坐标转成 XYZ 做三维预览；VASP 4 格式（无元素符号）会给出明确提示
+- **OUTCAR 自动配对**：按文件名归一化匹配（`OUTCAR_Ni_Al2O3` ↔ `Ni_Al2O3.cif`）；文件夹上传时直接取同目录下的 OUTCAR；散选且只有一个结构和一个 OUTCAR 时即使名字不同也直接配对；未匹配的 OUTCAR 会明确提示且不写入记录
 - 解析 + 人工补充后保存为本地草稿，条目立即进入表格与对应子库
 
 **内容管理（`#/admin`）**
@@ -69,6 +71,7 @@ auth.js           内容管理页的登录门禁（盐 + 哈希）
 reactions.js      反应体系结构定义（id / reaction / 配色）
 data.js           DFT 数据
 cif-parser.js     CIF 解析器（纯前端）
+poscar-parser.js  POSCAR / CONTCAR 解析器（纯前端）
 outcar-parser.js  OUTCAR 解析器（纯前端）
 assets/           图片资源（课题组合影）
 libs/             ECharts 与 3Dmol（本地化，不依赖 CDN）
