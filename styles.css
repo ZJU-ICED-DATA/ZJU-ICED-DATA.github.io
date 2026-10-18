@@ -980,3 +980,43 @@ td.formula { font-weight: 650; }
   .ptable { grid-template-columns: repeat(18, 22px); grid-auto-rows: 22px; }
   .el { font-size: 9px; }
 }
+
+/* ================= 反应体系页：结构概览卡片 ================= */
+.st-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(186px, 1fr));
+  gap: 10px;
+}
+.st-card {
+  border: 1px solid var(--border); border-radius: 9px; background: #fff;
+  padding: 10px 12px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.st-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 3px 10px rgba(16, 42, 67, .09);
+  transform: translateY(-1px);
+}
+.st-name {
+  font-size: 12.5px; font-weight: 700; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.st-cat {
+  font-size: 11px; font-weight: 600; color: var(--primary-dark);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.st-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 1px; }
+.st-card .chip {
+  margin: 0; padding: 1px 6px; font-size: 10.5px; border-radius: 4px;
+  background: #f1f5f9; color: #475569;
+}
+.st-card .chip sub {
+  font-size: 8.5px; color: #94a3b8; margin-left: 1px;
+  vertical-align: baseline; line-height: 1;
+}
+.st-meta {
+  display: flex; justify-content: space-between; gap: 8px;
+  font-size: 10.5px; color: var(--faint);
+  border-top: 1px dashed var(--border); padding-top: 5px; margin-top: 2px;
+}

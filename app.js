@@ -692,56 +692,111 @@
   }
 
   function reactionCharts(rows) {
-    /* Ea vs Eads，按金属分组 */
-    if (chartRefs.chartScatter) {
-      const groups = {};
-      rows.forEach(function (d) {
-        if (!isNum(d.barrier) || !isNum(d.eads)) return;
-        const g = d.metal || '未标注';
-        (groups[g] = groups[g] || []).push({ value: [d.barrier, d.eads], raw: d });
+    const withStruct = rows.filter(function (d) { return structureOf(d); });
+
+    /* 元素组成分布：包含该元素的结构数 */
+    if (chartRefs.chartElements) {
+      const freq = {};
+      withStruct.forEach(function (d) {
+        const s = structureOf(d);
+        (s.elements || []).forEach(function (el) { freq[el] = (freq[el] || 0) + 1; });
       });
-      const names = Object.keys(groups).sort();
-      chartRefs.chartScatter.setOption({
-        color: PALETTE,
+      const list = Object.keys(freq).map(function (k) { return { name: k, value: freq[k] }; })
+        .sort(function (a, b) { return b.value - a.value; })
+        .slice(0, 12);
+
+      chartRefs.chartElements.setOption({
         tooltip: {
-          trigger: 'item',
-          backgroundColor: 'rgba(255,255,255,.97)',
-          borderColor: '#e2e8f0',
-          textStyle: { color: '#1f2933', fontSize: 12.5 },
-          formatter: function (p) {
-            const d = p.data.raw;
-            return '<b>' + esc(d.formula) + '</b><br/>' +
-              '金属：' + esc(d.metal || '—') + ' · 载体：' + esc(d.support || '—') + '<br/>' +
-              'Ea：<b>' + numText(d.barrier) + ' eV</b><br/>' +
-              'Eads：<b>' + numText(d.eads) + ' eV</b><br/>' +
-              '总能：' + (isNum(d.dftEnergy) ? numText(d.dftEnergy, 3) + ' eV' : '—');
-          }
+          trigger: 'axis', axisPointer: { type: 'shadow' },
+          formatter: function (p) { return p[0].name + '：' + p[0].value + ' 个结构'; }
         },
-        legend: { type: 'scroll', bottom: 0, itemWidth: 12, itemHeight: 12, textStyle: { fontSize: 11, color: '#64748b' } },
-        grid: { left: 62, right: 24, top: 20, bottom: 52 },
-        xAxis: { name: '活化能 Ea (eV)', nameLocation: 'middle', nameGap: 28, nameTextStyle: AXIS_NAME, scale: true, axisLine: { lineStyle: { color: '#cbd5e1' } }, axisTick: { show: false }, axisLabel: AXIS_LABEL, splitLine: { lineStyle: { color: '#eef2f7' } } },
-        yAxis: { name: '吸附能 Eads (eV)', nameLocation: 'middle', nameGap: 44, nameRotate: 90, nameTextStyle: AXIS_NAME, scale: true, axisLine: { lineStyle: { color: '#cbd5e1' } }, axisTick: { show: false }, axisLabel: AXIS_LABEL, splitLine: { lineStyle: { color: '#eef2f7' } } },
-        series: names.map(function (n) {
-          return { name: n, type: 'scatter', symbolSize: 11, itemStyle: { opacity: .85, borderColor: '#fff', borderWidth: 1 }, emphasis: { scale: 1.5 }, data: groups[n] };
-        })
+        grid: { left: 48, right: 18, top: 20, bottom: 30 },
+        xAxis: {
+          type: 'category', data: list.map(function (x) { return x.name; }),
+          axisTick: { show: false }, axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: AXIS_LABEL
+        },
+        yAxis: {
+          type: 'value', minInterval: 1,
+          axisLabel: AXIS_LABEL, splitLine: { lineStyle: { color: '#eef2f7' } }
+        },
+        series: [{
+          type: 'bar',
+          data: list.map(function (x) { return x.value; }),
+          barMaxWidth: 26,
+          itemStyle: { borderRadius: [4, 4, 0, 0], color: '#2b7ac4' },
+          label: { show: true, position: 'top', fontSize: 10, color: '#64748b' }
+        }]
       }, true);
     }
 
-    if (chartRefs.chartMetal) {
-      const counts = {};
-      rows.forEach(function (d) { const k = d.metal || '未标注'; counts[k] = (counts[k] || 0) + 1; });
-      const list = Object.keys(counts).map(function (k) { return { name: k, value: counts[k] }; }).sort(function (a, b) { return b.value - a.value; });
-      chartRefs.chartMetal.setOption({
-        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, formatter: function (p) { return p[0].name + '：' + p[0].value + ' 个'; } },
-        grid: { left: 42, right: 18, top: 14, bottom: 26 },
-        xAxis: { type: 'category', data: list.map(function (x) { return x.name; }), axisTick: { show: false }, axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: AXIS_LABEL },
+    /* 结构规模分布：按原子数分箱 */
+    if (chartRefs.chartAtoms) {
+      const bins = [
+        { label: '≤10', min: 0, max: 10 },
+        { label: '11–20', min: 11, max: 20 },
+        { label: '21–40', min: 21, max: 40 },
+        { label: '41–80', min: 41, max: 80 },
+        { label: '81–150', min: 81, max: 150 },
+        { label: '151–300', min: 151, max: 300 },
+        { label: '>300', min: 301, max: Infinity }
+      ];
+      const counts = bins.map(function () { return 0; });
+      withStruct.forEach(function (d) {
+        const n = totalAtomsOf(d);
+        if (!isNum(n)) return;
+        for (let i = 0; i < bins.length; i++) {
+          if (n >= bins[i].min && n <= bins[i].max) { counts[i]++; break; }
+        }
+      });
+
+      chartRefs.chartAtoms.setOption({
+        tooltip: {
+          trigger: 'axis', axisPointer: { type: 'shadow' },
+          formatter: function (p) { return '原子数 ' + p[0].name + '：' + p[0].value + ' 个结构'; }
+        },
+        grid: { left: 48, right: 18, top: 20, bottom: 44 },
+        xAxis: {
+          type: 'category', data: bins.map(function (b) { return b.label; }),
+          name: '每个结构的原子数', nameLocation: 'middle', nameGap: 26, nameTextStyle: AXIS_NAME,
+          axisTick: { show: false }, axisLine: { lineStyle: { color: '#cbd5e1' } }, axisLabel: AXIS_LABEL
+        },
         yAxis: { type: 'value', minInterval: 1, axisLabel: AXIS_LABEL, splitLine: { lineStyle: { color: '#eef2f7' } } },
-        series: [{ type: 'bar', data: list.map(function (x) { return x.value; }), barMaxWidth: 30, itemStyle: { borderRadius: [4, 4, 0, 0], color: '#2b7ac4' } }]
+        series: [{
+          type: 'bar', data: counts, barMaxWidth: 34,
+          itemStyle: { borderRadius: [4, 4, 0, 0], color: '#31a354' }
+        }]
       }, true);
     }
 
-    toggleEmpty('chartScatter', rows.filter(function (d) { return isNum(d.barrier) && isNum(d.eads); }).length === 0);
-    toggleEmpty('chartMetal', rows.length === 0);
+    toggleEmpty('chartElements', withStruct.length === 0);
+    toggleEmpty('chartAtoms', withStruct.length === 0);
+  }
+
+  /* 结构概览卡片：直观展示"这个体系收录了多少结构" */
+  function structureCardsHtml(rows, limit) {
+    const withSt = rows.filter(function (d) { return structureOf(d); });
+    if (!withSt.length) return '<div class="empty" style="padding:24px 0">该体系还没有解析出结构，上传 CIF 后会自动出现在这里。</div>';
+
+    const shown = withSt.slice(0, limit || 18);
+    const cards = shown.map(function (d) {
+      const s = structureOf(d);
+      const chips = (s.elements || []).slice(0, 6).map(function (el) {
+        return '<span class="chip">' + esc(el) + '<sub>' + esc(fmtCount(s.atomCounts[el])) + '</sub></span>';
+      }).join('');
+      return '<div class="st-card" data-row-id="' + esc(d.id) + '">' +
+        '<div class="st-name">' + esc(d.formula || '结构') + '</div>' +
+        '<div class="st-cat">' + esc(catalystOf(d)) + '</div>' +
+        '<div class="st-chips">' + chips + '</div>' +
+        '<div class="st-meta"><span>' + (isNum(s.totalAtoms) ? s.totalAtoms : '—') + ' 原子</span>' +
+        '<span>' + esc(d.metal || '—') + '</span></div>' +
+        '</div>';
+    }).join('');
+
+    return '<div class="st-grid">' + cards + '</div>' +
+      (withSt.length > shown.length
+        ? '<div class="muted" style="text-align:center;font-size:12px;margin-top:10px">仅显示前 ' + shown.length +
+          ' 个，共 ' + withSt.length + ' 个结构</div>'
+        : '');
   }
 
   /* ============================ 表格 ============================ */
@@ -1151,9 +1206,16 @@
   function renderReactionView(r) {
     const t = reactionText(r);
     const rows = allRecords().filter(function (d) { return d.reaction === r.reaction; });
-    const ea = avgOf(rows, 'barrier');
-    const eads = avgOf(rows, 'eads');
-    const structs = rows.filter(function (d) { return structureOf(d); }).length;
+    const withStruct = rows.filter(function (d) { return structureOf(d); });
+
+    const elSet = {};
+    withStruct.forEach(function (d) {
+      (structureOf(d).elements || []).forEach(function (el) { elSet[el] = 1; });
+    });
+    const atomNums = withStruct.map(function (d) { return totalAtomsOf(d); }).filter(isNum);
+    const avgAtoms = atomNums.length
+      ? Math.round(atomNums.reduce(function (a, b) { return a + b; }, 0) / atomNums.length)
+      : null;
 
     const conds = (t.conditions || []).map(function (c) {
       return '<div class="cond-row"><span class="k">' + esc(c.label) + '</span><span class="v">' + esc(c.value) + '</span></div>';
@@ -1171,28 +1233,35 @@
       '<div class="page-head">' +
       '<div class="page-head-row"><h1 class="page-title">' + esc(r.icon || '◆') + ' ' + esc(t.name || r.id) +
       ' <span class="en-tag">' + esc(t.en || '') + '</span></h1>' +
-      '<span class="pill ' + (rows.length ? 'pill-ok' : 'pill-idle') + '">' + (rows.length ? '已入库 ' + rows.length + ' 条' : '待录入') + '</span></div>' +
+      '<span class="pill ' + (rows.length ? 'pill-ok' : 'pill-idle') + '">' + (rows.length ? '已入库 ' + rows.length + ' 个结构' : '待录入') + '</span></div>' +
       '<p class="page-desc">' + esc(t.summary || '') + '</p></div>' +
 
       '<div class="kpi-grid four">' +
-      kpiCard(distinctCatalystCount(rows), '催化剂', rows.length + ' 个结构', '#2b7ac4', '🧪') +
-      kpiCard(isNum(ea.avg) ? ea.avg.toFixed(2) + ' eV' : '—', '平均活化能 Ea', ea.n + ' 条有效数据', '#e8710a', '📈') +
-      kpiCard(isNum(eads.avg) ? eads.avg.toFixed(2) + ' eV' : '—', '平均吸附能 Eads', eads.n + ' 条有效数据', '#7b5ea7', '🧲') +
-      kpiCard(structs, '已解析结构', 'CIF 已解析', '#31a354', '🧬') +
+      kpiCard(distinctCatalystCount(rows), '催化剂', '按催化剂去重', '#2b7ac4', '🧪') +
+      kpiCard(rows.length, '结构总数', withStruct.length + ' 个已解析 CIF', '#31a354', '🧬') +
+      kpiCard(Object.keys(elSet).length, '涉及元素', '全部结构去重', '#7b5ea7', '⚗️') +
+      kpiCard(isNum(avgAtoms) ? avgAtoms : '—', '平均原子数', '每个结构', '#e8710a', '🔬') +
       '</div>' +
+
+      '<div class="charts-2">' +
+      '<div class="panel"><div class="panel-head"><div class="panel-title">元素组成分布</div>' +
+      '<span class="muted">含该元素的结构数</span></div>' +
+      '<div class="panel-body">' + chartFrame('chartElements', 'chart-md') + '</div></div>' +
+      '<div class="panel"><div class="panel-head"><div class="panel-title">结构规模分布</div>' +
+      '<span class="muted">按原子数分箱</span></div>' +
+      '<div class="panel-body">' + chartFrame('chartAtoms', 'chart-md') + '</div></div>' +
+      '</div>' +
+
+      '<div class="panel"><div class="panel-head"><div class="panel-title">结构概览</div>' +
+      '<span class="muted">共 ' + rows.length + ' 个结构 · ' + distinctCatalystCount(rows) + ' 个催化剂 · ' +
+      Object.keys(elSet).length + ' 种元素</span></div>' +
+      '<div class="panel-body">' + structureCardsHtml(rows) + '</div></div>' +
 
       '<div class="meta-grid">' +
       '<div class="panel"><div class="panel-head"><div class="panel-title">计算设置</div></div>' +
       '<div class="panel-body"><div class="cond-list">' + conds + '</div></div></div>' +
       '<div class="panel"><div class="panel-head"><div class="panel-title">DFT 描述符</div></div>' +
       '<div class="panel-body">' + descRows + '</div></div>' +
-      '</div>' +
-
-      '<div class="charts-2">' +
-      '<div class="panel"><div class="panel-head"><div class="panel-title">活化能 vs. 吸附能</div></div>' +
-      '<div class="panel-body">' + chartFrame('chartScatter', 'chart-md') + '</div></div>' +
-      '<div class="panel"><div class="panel-head"><div class="panel-title">金属分布</div></div>' +
-      '<div class="panel-body">' + chartFrame('chartMetal', 'chart-sm2') + '</div></div>' +
       '</div>' +
 
       '<div class="panel"><div class="panel-head"><div class="panel-title">体系要点</div></div>' +
@@ -1204,6 +1273,15 @@
     reactionCharts(rows);
     bindTableEvents();
     refreshTable();
+
+    const byId = {};
+    rows.forEach(function (d) { byId[d.id] = d; });
+    $$('.st-card').forEach(function (el) {
+      el.addEventListener('click', function () {
+        const rec = byId[el.getAttribute('data-row-id')];
+        if (rec) openDrawer(rec);
+      });
+    });
   }
 
   /* ============================ 视图：我们做什么 ============================ */
