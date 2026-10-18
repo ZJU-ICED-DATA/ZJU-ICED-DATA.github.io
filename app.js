@@ -440,20 +440,8 @@
     return { atoms: atoms, coord: coord };
   }
 
-  /* 把记录里的结构还原成 3Dmol 能读的文本 */
-  function structureToText(s) {
-    if (!s) return null;
-    if (s.cif) return { text: s.cif, format: s.format === 'poscar' ? 'poscar' : 'cif' };
-
-    const atoms = s.atoms || [];
-    if (!atoms.length) return null;
-
-    if (s.coord === 'cart') {
-      const lines = [String(atoms.length), String(s.formula || s.file || 'structure')];
-      atoms.forEach(function (a) { lines.push(a[0] + ' ' + a[1] + ' ' + a[2] + ' ' + a[3]); });
-      return { text: lines.join('\n') + '\n', format: 'xyz' };
-    }
-
+  /* 把记录里的结构还原成 3Dmol 能读的文本（保留晶胞参数，便于画出晶胞盒） */
+  function cifFromAtoms(atoms, s) {
     const c = s.cell || {};
     const g = function (v, d) { return isFinite(v) && v ? v : d; };
     const out = [
@@ -477,7 +465,61 @@
       seen[a[0]] = (seen[a[0]] || 0) + 1;
       out.push(a[0] + seen[a[0]] + ' ' + a[0] + ' ' + a[1] + ' ' + a[2] + ' ' + a[3]);
     });
-    return { text: out.join('\n') + '\n', format: 'cif' };
+    return out.join('\n') + '\n';
+  }
+
+  /* 晶胞参数 → 分数坐标基矢矩阵（行向量 a/b/c，与 VASP 约定一致） */
+  function cellMatrix(cell) {
+    if (!cell) return null;
+    const a = cell.a, b = cell.b, c = cell.c;
+    if (![a, b, c].every(function (v) { return isFinite(v) && v > 0; })) return null;
+
+    const d2r = Math.PI / 180;
+    const al = (isFinite(cell.alpha) ? cell.alpha : 90) * d2r;
+    const be = (isFinite(cell.beta) ? cell.beta : 90) * d2r;
+    const ga = (isFinite(cell.gamma) ? cell.gamma : 90) * d2r;
+    const cosG = Math.cos(ga), sinG = Math.sin(ga), cosB = Math.cos(be), cosA = Math.cos(al);
+    if (!isFinite(sinG) || Math.abs(sinG) < 1e-8) return null;
+
+    const cx = c * cosB;
+    const cy = c * (cosA - cosB * cosG) / sinG;
+    const cz2 = c * c - cx * cx - cy * cy;
+    if (!(cz2 > 0)) return null;
+
+    return [[a, 0, 0], [b * cosG, b * sinG, 0], [cx, cy, Math.sqrt(cz2)]];
+  }
+
+  /* 笛卡尔坐标 → 分数坐标（上三角方程组直接回代） */
+  function cartToFrac(atoms, cell) {
+    const m = cellMatrix(cell);
+    if (!m || !atoms || !atoms.length) return null;
+    const a = m[0][0], bx = m[1][0], by = m[1][1], cx = m[2][0], cy = m[2][1], cz = m[2][2];
+
+    return atoms.map(function (row) {
+      const fz = row[3] / cz;
+      const fy = (row[2] - fz * cy) / by;
+      const fx = (row[1] - fy * bx - fz * cx) / a;
+      return [row[0], round4(fx), round4(fy), round4(fz)];
+    });
+  }
+
+  function structureToText(s) {
+    if (!s) return null;
+    const atoms = s.atoms || [];
+
+    if (atoms.length) {
+      if (s.coord === 'cart') {
+        const frac = cartToFrac(atoms, s.cell);
+        if (frac) return { text: cifFromAtoms(frac, s), format: 'cif' };
+        const lines = [String(atoms.length), String(s.formula || s.file || 'structure')];
+        atoms.forEach(function (a) { lines.push(a[0] + ' ' + a[1] + ' ' + a[2] + ' ' + a[3]); });
+        return { text: lines.join('\n') + '\n', format: 'xyz' };
+      }
+      return { text: cifFromAtoms(atoms, s), format: 'cif' };
+    }
+
+    if (s.cif) return { text: s.cif, format: s.format === 'poscar' ? 'poscar' : 'cif' };
+    return null;
   }
   function outcarOf(d) { return d && d.outcar ? d.outcar : null; }
   function totalAtomsOf(d) { const s = structureOf(d); return s && isNum(s.totalAtoms) ? s.totalAtoms : null; }
@@ -2341,6 +2383,18 @@
          'γ=' + (isNum(s.cell.gamma) ? s.cell.gamma + '°' : '–')].join('  ')
       : '';
 
+    /* 晶胞体积：V = abc·√(1 − cos²α − cos²β − cos²γ + 2cosαcosβcosγ) */
+    let cellVolume = null;
+    if (s && s.cell) {
+      const m = cellMatrix(s.cell);
+      if (m) {
+        const v = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1]) -
+                  m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+                  m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+        if (isFinite(v) && v > 0) cellVolume = v;
+      }
+    }
+
     const ed = (k) => descriptor(k).label + ' (' + descriptor(k).unit + ')';
 
     drawer.innerHTML =
@@ -2376,6 +2430,7 @@
         fieldHtml('元素种类', esc(String((s.elements || []).length))) +
         fieldHtml('化学式', esc(s.formula || '—')) + '</div>' +
         (cell ? '<div class="field" style="margin-bottom:10px"><div class="k">晶胞参数</div><div class="v" style="font-weight:500;font-size:12px">' + esc(cell) + '</div></div>' : '') +
+        (cellVolume ? '<div class="field" style="margin-bottom:10px"><div class="k">晶胞体积</div><div class="v">' + cellVolume.toFixed(2) + ' Å³</div></div>' : '') +
         (s.spaceGroup ? '<div class="field" style="margin-bottom:10px"><div class="k">空间群</div><div class="v">' + esc(s.spaceGroup) + '</div></div>' : '') +
         '<table class="el-table"><tbody>' + elRows + '</tbody></table>' +
         '<div class="section-label">三维结构</div>' +
@@ -2407,10 +2462,13 @@
       render();
     });
 
-    if (s && model3d) render3D($('#viewer3d'), model3d.text, model3d.format);
+    if (s && model3d) {
+      const hasCell = !!(s.cell && isFinite(s.cell.a) && s.cell.a > 0);
+      render3D($('#viewer3d'), model3d.text, model3d.format, hasCell);
+    }
   }
 
-  function render3D(container, text, format) {
+  function render3D(container, text, format, withCell) {
     if (!container) return;
     if (!HAS_3DMOL) { container.innerHTML = '<div class="viewer-note">3D 预览不可用（3Dmol 未加载）</div>'; return; }
 
@@ -2432,8 +2490,16 @@
       container.innerHTML = '';
       const viewer = $3Dmol.createViewer(container, { backgroundColor: 'white' });
       if (!viewer) throw new Error('viewer 创建失败');
-      viewer.addModel(modelText, modelFormat);
+      const model = viewer.addModel(modelText, modelFormat);
       viewer.setStyle({}, { stick: { radius: 0.14 }, sphere: { scale: 0.26 } });
+
+      /* 画出晶胞盒子（需要模型带晶胞信息，即 CIF 格式） */
+      if (withCell && modelFormat === 'cif') {
+        try {
+          viewer.addUnitCell(model, { box: { color: '#94a3b8' }, astyle: { linewidth: 0.8 } });
+        } catch (e) { /* 老版本 3Dmol 可能不支持，忽略 */ }
+      }
+
       viewer.zoomTo();
       viewer.render();
       currentViewer = viewer;
@@ -3044,7 +3110,7 @@
         '</div>';
     }
 
-    if (st) render3D($('#uploadViewer'), st.text, st.kind);
+    if (st) render3D($('#uploadViewer'), st.text, st.kind, true);
 
     const back = $('#uploadBack');
     if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [], skipped: [] }; uploadStep1(); });
@@ -3351,6 +3417,9 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
+  /* 发布用：去掉整份 CIF 原文，但完整保留结构信息——
+     atoms（坐标）、coord、cell（a/b/c/α/β/γ）、spaceGroup、z、formula、
+     elements、atomCounts、totalAtoms、file、format 全部照原样带走。 */
   function stripForExport(d) {
     const copy = {};
     Object.keys(d).forEach(function (k) {
