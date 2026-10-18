@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ZJU-ICED Catalyst Database</title>
-<meta name="description" content="ZJU-ICED 课题组催化剂性能数据库：支持 CIF 结构文件上传与元素/原子数自动识别，按反应类型分设子库，提供检索、筛选、排序与可视化分析。" />
+<meta name="description" content="ZJU-ICED 课题组催化剂 DFT 数据库：按反应体系归集 CIF 结构与 VASP 计算能量，支持上传解析、筛选检索与内容管理。" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>" />
 <link rel="stylesheet" href="styles.css" />
 <script src="libs/echarts.min.js"></script>
@@ -15,16 +15,17 @@
 <div class="app">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-head">
-      <div class="logo-mark">ICED</div>
+      <div class="logo-mark" id="brandLogo">ICED</div>
       <div class="logo-text">
-        <strong>ZJU-ICED</strong>
-        <span>Catalyst Database</span>
+        <strong id="brandName">ZJU-ICED</strong>
+        <span id="brandSub">Catalyst DFT Database</span>
       </div>
     </div>
     <nav class="sidebar-nav" id="sidebarNav"></nav>
     <div class="sidebar-foot">
-      <button class="btn-upload" id="uploadBtn">＋ 上传 CIF 结构</button>
-      <div class="sidebar-hint">本地解析，文件不会上传到服务器</div>
+      <div class="sidebar-status" id="sidebarStatus"></div>
+      <button class="btn-upload" id="uploadBtn">＋ 上传计算数据</button>
+      <div class="sidebar-hint">CIF 必填 · OUTCAR 可选</div>
     </div>
   </aside>
 
@@ -37,6 +38,12 @@
       </div>
     </header>
     <main class="view" id="view"></main>
+    <footer class="footer">
+      <div class="footer-inner">
+        <span id="footerNote"></span>
+        <a href="https://github.com/njustzhangmj/ZJU-ICED-DATA.github.io" target="_blank" rel="noopener">GitHub 仓库</a>
+      </div>
+    </footer>
   </div>
 </div>
 
@@ -46,7 +53,7 @@
 <div class="modal-overlay" id="uploadModal">
   <div class="modal-card">
     <div class="modal-head">
-      <h3>上传催化剂结构（CIF）</h3>
+      <h3>上传计算数据</h3>
       <button class="close-btn" id="modalClose" aria-label="关闭">×</button>
     </div>
     <div class="modal-body" id="uploadBody"></div>
@@ -57,8 +64,10 @@
 <div class="toast" id="toast"></div>
 
 <script src="data.js"></script>
+<script src="content.js"></script>
 <script src="reactions.js"></script>
 <script src="cif-parser.js"></script>
+<script src="outcar-parser.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

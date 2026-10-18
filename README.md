@@ -1,121 +1,110 @@
 # ZJU-ICED Catalyst Database
 
-浙江大学 ICED 课题组的催化剂性能数据库网站。
+浙江大学 ICED 课题组的催化剂 **DFT 计算**数据库网站。
 
 **在线访问：** <https://njustzhangmj.github.io/ZJU-ICED-DATA.github.io/>
 
 ## 功能
 
-**数据浏览**
+**数据总览**
 
-- 左侧栏按反应分设子库：全部数据、甲烷燃烧、乙烷燃烧（可在 `reactions.js` 中继续增删）
-- 每个子库有独立的评价条件、指标定义与体系要点说明，并只显示该反应的条目
-- 关键词搜索、金属筛选、任意列排序、分页
-- 三张交互式图表：活化能–选择性散点图（子库内为温度–选择性）、金属分布柱状图、反应/载体分布环形图
-- 点击任意行打开详情抽屉，查看完整字段、结构信息与三维结构
+- 四张统计卡：催化剂体系数、DFT 总能记录数、结构模型数、平均能垒
+- 各反应催化剂覆盖条形图、DFT 描述符分布堆叠图、结构模型分布环形图
+- 当前数据源面板：CIF 结构、OUTCAR 能量、data.js 正式数据、本地草稿分别计数
+- 反应工作区卡片：每个体系的催化剂数、结构数、DFT 数值数，点击进入子库
+- 全量数据表：搜索、金属筛选、任意列排序、分页
 
-**CIF 结构上传与解析**
+**反应子库（左侧栏）**
 
-- 拖拽或点选 `.cif` 文件，浏览器本地解析，**文件不会上传到任何服务器**
-- 自动识别：元素种类与各元素原子数、总原子数、化学式、晶胞参数（a/b/c/α/β/γ）、空间群
-- 自动推测活性金属与载体（如 Al + O → Al₂O₃）
-- 三维结构预览（3Dmol.js），可旋转缩放
-- 解析结果与人工补充的字段一起保存为该条数据的「结构标注」，用 `data.js` 导出后即可固化为正式数据
+- 每个体系独立页面：计算设置、DFT 描述符定义、体系要点
+- 专属 KPI（催化剂数、平均 Ea、平均 Eads、结构数）、Ea–Eads 散点图、金属分布
+- 只收录该反应的条目
+
+**上传与解析**
+
+- CIF 结构文件（必填）：识别元素种类、各元素原子数、总原子数、化学式、晶胞参数、空间群，并提供三维结构预览（3Dmol）
+- VASP OUTCAR（可选）：自动读取 `free energy TOTEN` 作为总能，同时解析 E-fermi、NIONS、体积、离子步数
+- 两个文件可一起拖入，也可只传其中一个（只传 OUTCAR 时需手填化学式）
+- 解析 + 人工补充后保存为本地草稿，条目立即进入表格与对应子库
+
+**内容管理（`#/admin`）**
+
+- 页面上所有文字都可在管理页直接修改：站点名称、总览页标题/说明/标签、KPI 名称、图表标题、空状态文案、各体系的名称/说明/计算设置/体系要点、描述符定义
+- 计算设置可以增删行，例如把「泛函 / 色散」改成别的文字
+- 修改先保存在浏览器本地；点「导出 content.js」下载后覆盖仓库同名文件并提交，才对所有访问者生效
 
 ## 目录结构
 
 ```
-index.html      页面骨架与侧边栏
-styles.css      样式
-app.js          路由、视图、图表、上传、导出
-cif-parser.js   CIF 解析器（纯前端，无依赖）
-reactions.js    反应子库定义（名称、条件、指标、要点）
-data.js         催化剂数据
-libs/           ECharts 与 3Dmol（本地化，不依赖 CDN）
+index.html        页面骨架
+styles.css        样式
+app.js            路由、视图、图表、上传、导出
+content.js        全站文案（可在管理页编辑）
+reactions.js      反应体系结构定义（id / reaction / 配色）
+data.js           DFT 数据
+cif-parser.js     CIF 解析器（纯前端）
+outcar-parser.js  OUTCAR 解析器（纯前端）
+libs/             ECharts 与 3Dmol（本地化，不依赖 CDN）
 ```
 
-## 添加数据
-
-### 方式一：网页上传（推荐）
-
-1. 点左侧栏底部「＋ 上传 CIF 结构」，选择本地 CIF 文件
-2. 核对自动识别的元素、原子数、三维结构，补充化学式、金属、载体、反应类型、指标等
-3. 「保存到本地草稿」——条目立刻出现在表格和对应子库中
-4. 右上角「导出 → 导出 data.js」，用下载的文件覆盖仓库里的 `data.js` 并提交
-
-> 上传的条目保存在**本浏览器**的 localStorage 中，不会自动同步给别人；导出 `data.js` 提交后才成为站点正式数据。
-
-### 方式二：直接编辑 data.js
+## 数据字段
 
 ```js
 window.CATALYST_DATA = [
   { id:'CAT-001', formula:'Ni/Al2O3', metal:'Ni', support:'Al2O3',
-    reaction:'Methane Combustion', dftEnergy:-12.34, barrier:0.87,
-    selectivity:92.5, temp:350, ref:'Zhang et al., ACS Catal. 2024',
-    note:'Pd 负载量 1 wt%', props:{ T50:380, T90:430, co2Sel:99.1 },
+    reaction:'Methane Combustion',
+    dftEnergy:-123.4567, barrier:0.87, eads:-1.24, reactionEnergy:-2.10, evac:null,
+    ref:'VASP-2405-017', note:'Pd(111) 3×3 slab，4 层',
     structure:{ file:'Ni_Al2O3.cif', formula:'Al2 O3', elements:['O','Al'],
                 atomCounts:{O:3,Al:2}, totalAtoms:5,
                 cell:{a:4.7589,b:4.7589,c:12.991,alpha:90,beta:90,gamma:120},
-                spaceGroup:'R -3 c', z:6 } },
+                spaceGroup:'R -3 c', z:6 },
+    outcar:{ file:'OUTCAR', totalEnergy:-123.4567, energySigma0:-123.458,
+             fermi:1.2345, nions:64, volume:254.8, ionicSteps:37 } },
 ];
 ```
 
-| 字段 | 含义 | 示例 |
+| 字段 | 含义 | 单位 |
 | --- | --- | --- |
-| `id` | 唯一编号 | `CAT-001` |
-| `formula` | 化学式 / 催化剂名称 | `Ni/Al2O3` |
-| `metal` | 活性金属 | `Ni` |
-| `support` | 载体 | `Al2O3` |
-| `reaction` | 反应类型，须与子库定义一致 | `Methane Combustion` |
-| `dftEnergy` | DFT 计算能量 (eV)，可空 | `-12.34` |
-| `barrier` | 活化能 (eV)，可空 | `0.87` |
-| `selectivity` | 选择性 (%)，可空 | `92.5` |
-| `temp` | 反应温度 (°C)，可空 | `350` |
-| `ref` | 数据来源 | `Zhang et al. 2024` |
-| `note` | 标注 / 备注 | `1 wt% Pd` |
-| `props` | 反应专属指标 | `{ T50:380, co2Sel:99.1 }` |
-| `structure` | CIF 解析出的结构标注 | 见上例 |
+| `id` | 唯一编号 | — |
+| `formula` | 化学式 / 催化剂名称 | — |
+| `metal` / `support` | 活性金属 / 载体 | — |
+| `reaction` | 反应体系，须与 `reactions.js` 一致 | — |
+| `dftEnergy` | 总能 E_total（来自 OUTCAR） | eV |
+| `barrier` | 活化能 Ea | eV |
+| `eads` | 吸附能 Eads | eV |
+| `reactionEnergy` | 反应能 ΔE | eV |
+| `evac` | 氧空位形成能（可选） | eV |
+| `ref` / `note` | 数据来源 / 备注 | — |
+| `structure` / `outcar` | 上传解析结果 | — |
 
-## 新增一个反应子库
+## 新增一个反应体系
 
-编辑 `reactions.js`，追加一项：
-
-```js
-{
-  id: 'co-oxidation',            // 网址 #/db/co-oxidation
-  name: 'CO 氧化', en: 'CO Oxidation', icon: '🔥',
-  reaction: 'CO Oxidation',      // 与数据的 reaction 字段一致
-  summary: '...', conditions: [...], metrics: [...], notes: [...]
-}
-```
-
-`metrics` 里的 `key` 就是 `props` 的键名，会自动成为该子库表格的专属列。
+1. `reactions.js` 加一项：`{ id:'co-oxidation', reaction:'CO Oxidation', icon:'🔥', accent:'#2b7ac4' }`
+2. `content.js` 的 `reactions` 里加同名 id 的文字（名称、说明、计算设置、要点）——或直接在管理页里编辑
+3. 数据的 `reaction` 写成 `CO Oxidation` 即归入该子库
 
 ## 本地预览
 
-直接双击 `index.html` 即可（脚本均为相对路径）。或：
+直接双击 `index.html`，或：
 
 ```bash
 python -m http.server 8000
-# 访问 http://localhost:8000
 ```
 
 ## 部署
 
-GitHub Pages，来源 `main` 分支根目录，推送后约 1 分钟自动构建。
+GitHub Pages，`main` 分支根目录，推送后约 1 分钟生效。
 
 - 仓库：<https://github.com/njustzhangmj/ZJU-ICED-DATA.github.io>
 - 站点：<https://njustzhangmj.github.io/ZJU-ICED-DATA.github.io/>
 
-## 关于后端
+## 数据流说明
 
-当前是纯静态站点，所以上传的数据只存在访问者自己的浏览器里。若需要**多人共享、服务端持久化**的上传（谁都能传、所有人立即看到），需要加一层后端，可选：
+这是纯静态站点：
 
-- Cloudflare Worker + R2/KV（免费额度够课题组用，需 Cloudflare 账号）
-- Supabase / Firebase（提供现成的鉴权和数据库）
+- 上传、管理页修改都只存在**当前浏览器**（localStorage）
+- 要固化为站点数据：上传页 → 右上角「导出 → 导出 data.js」；管理页 → 「导出 content.js」
+- 把导出的文件覆盖仓库同名文件并提交，所有访问者即可看到
 
-前端已经把数据访问集中在少数几个函数里，接入时改动量不大。
-
-## 数据状态
-
-当前为**框架版本**：页面、子库、CIF 解析与上传流程全部就绪，`data.js` 中尚未录入正式条目。
+如果需要多人共享、服务端持久化（谁上传都能看到），需要接后端（Cloudflare Worker + R2/KV 或 Supabase）。
