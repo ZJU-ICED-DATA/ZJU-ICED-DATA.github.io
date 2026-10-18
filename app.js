@@ -381,7 +381,10 @@
     const raw = (location.hash || '').replace(/^#/, '');
     const parts = raw.split('/').filter(Boolean);
     if (parts[0] === 'db' && parts[1]) return { view: 'reaction', reactionId: parts[1] };
-    if (parts[0] === 'admin') return { view: 'admin', reactionId: null };
+    if (parts[0] === 'admin') {
+      if (parts[1] === 'data') return { view: 'adminData', reactionId: null };
+      return { view: 'admin', reactionId: null };
+    }
     if (parts[0] === 'about') return { view: 'about', reactionId: null };
     return { view: 'dashboard', reactionId: null };
   }
@@ -416,8 +419,6 @@
 
     parts.push('<div class="nav-section">' + esc(cget('site.navWorkspace', '工作区')) + '</div>');
     parts.push(navItem('#/', '◧', cget('dashboard.title', '数据总览'), rows.length, state.view === 'dashboard'));
-    parts.push(navItem('#/about', '◉', cget('site.navAbout', '关于我们'), null, state.view === 'about'));
-    parts.push(navItem('#/admin', '⚙', cget('site.navAdmin', '内容管理'), null, state.view === 'admin'));
 
     parts.push('<div class="nav-section">' + esc(cget('site.navReactions', '反应体系')) + '</div>');
     REACTIONS.forEach(function (r) {
@@ -439,6 +440,17 @@
       status.innerHTML =
         '<div class="status-row"><span>本地草稿</span><b>' + drafts.length + '</b></div>' +
         '<div class="status-row"><span>数据来源</span><b>' + (hasLocalContent() ? '本地内容' : '静态站点') + '</b></div>';
+    }
+
+    /* 管理入口固定在左下角，与常规导航区分开 */
+    const adminBox = $('#sidebarAdmin');
+    if (adminBox) {
+      const inAdmin = state.view === 'admin' || state.view === 'adminData';
+      adminBox.innerHTML =
+        '<a class="admin-link' + (state.view === 'about' ? ' active' : '') + '" href="#/about">' +
+        '<span class="admin-ico">◉</span>' + esc(cget('site.navAbout', '关于我们')) + '</a>' +
+        '<a class="admin-link' + (inAdmin ? ' active' : '') + '" href="#/admin">' +
+        '<span class="admin-ico">⚙</span>' + esc(cget('site.navAdmin', '内容管理')) + '</a>';
     }
   }
 
@@ -1160,6 +1172,7 @@
       : '';
 
     $('#view').innerHTML =
+      adminTabs('content') +
       '<div class="page-head">' +
       '<div class="page-head-row"><h1 class="page-title">' + esc(cget('admin.title', '内容管理')) + '</h1>' +
       '<span class="pill ' + (hasLocalContent() ? 'pill-warn' : 'pill-idle') + '">' + (hasLocalContent() ? '有本地修改' : '与仓库一致') + '</span>' +
@@ -1365,6 +1378,306 @@
     }
 
     return next;
+  }
+
+  /* ============================ 视图：数据管理 ============================ */
+  const manage = { cloudSel: {}, draftSel: {} };
+
+  function adminTabs(active) {
+    return '<div class="admin-tabs">' +
+      '<a class="admin-tab' + (active === 'content' ? ' active' : '') + '" href="#/admin">内容管理</a>' +
+      '<a class="admin-tab' + (active === 'data' ? ' active' : '') + '" href="#/admin/data">数据管理</a>' +
+      '</div>';
+  }
+
+  function reactionNameOf(name) {
+    for (let i = 0; i < REACTIONS.length; i++) {
+      if (REACTIONS[i].reaction === name) return reactionText(REACTIONS[i]).name || REACTIONS[i].id;
+    }
+    return name || '—';
+  }
+
+  function selOf(source) {
+    return source === 'cloud' ? manage.cloudSel : manage.draftSel;
+  }
+
+  function selectedIds(source) {
+    const sel = selOf(source);
+    return Object.keys(sel).filter(function (k) { return sel[k]; });
+  }
+
+  function pruneSelection(sel, records) {
+    const alive = {};
+    records.forEach(function (d) { alive[d.id] = true; });
+    Object.keys(sel).forEach(function (k) { if (!alive[k]) delete sel[k]; });
+  }
+
+  function manageRows(records, source) {
+    const sel = selOf(source);
+    return records.map(function (d) {
+      const st = structureOf(d);
+      const checked = sel[d.id] ? ' checked' : '';
+      return '<tr data-id="' + esc(d.id) + '">' +
+        '<td class="sel-cell"><input type="checkbox" class="row-check" data-src="' + source + '" data-id="' + esc(d.id) + '"' + checked + ' /></td>' +
+        '<td>' + esc(d.id) + '</td>' +
+        '<td class="formula">' + esc(d.formula || '—') + '</td>' +
+        '<td>' + (d.metal ? '<span class="badge">' + esc(d.metal) + '</span>' : '<span class="muted">—</span>') + '</td>' +
+        '<td>' + esc(d.support || '—') + '</td>' +
+        '<td>' + esc(reactionNameOf(d.reaction)) + '</td>' +
+        '<td class="num">' + (st ? st.elements.length + ' 种' : '—') + '</td>' +
+        '<td class="num">' + (st && isNum(st.totalAtoms) ? st.totalAtoms : '—') + '</td>' +
+        '<td class="num">' + (isNum(d.dftEnergy) ? d.dftEnergy.toFixed(3) : '—') + '</td>' +
+        '<td>' + esc(d.ref || '—') + '</td>' +
+        '<td class="ops">' +
+        '<button class="btn btn-mini" data-edit="' + esc(d.id) + '" data-src="' + source + '">修改</button> ' +
+        '<button class="btn btn-mini btn-danger" data-del="' + esc(d.id) + '" data-src="' + source + '">删除</button>' +
+        '</td></tr>';
+    }).join('');
+  }
+
+  function managePanel(source, records) {
+    const isCloud = source === 'cloud';
+    const selCount = selectedIds(source).length;
+    const canCloud = !!loadPublish();
+    const selDis = selCount ? '' : ' disabled';
+
+    return '<div class="panel" data-manage="' + source + '">' +
+      '<div class="panel-head"><div class="panel-title">' +
+      (isCloud ? '云端数据（已提交到服务器）' : '本地草稿（仅当前浏览器）') + '</div>' +
+      '<span class="pill ' + (isCloud ? 'pill-ok' : 'pill-idle') + '">' + records.length + ' 条</span></div>' +
+      '<div class="manage-toolbar">' +
+      '<label class="sel-all"><input type="checkbox" data-all="' + source + '"' +
+      (records.length && selCount === records.length ? ' checked' : '') + (records.length ? '' : ' disabled') + ' /> 全选</label>' +
+      '<span class="muted" data-selinfo="' + source + '">' + (selCount ? '已选 ' + selCount + ' 条' : '未选择') + '</span>' +
+      '<button class="btn btn-mini" data-batch="' + source + '"' + selDis + '>批量修改</button>' +
+      '<button class="btn btn-mini btn-danger" data-batchdel="' + source + '"' + selDis + '>删除选中</button>' +
+      '<button class="btn btn-mini btn-danger" data-clear="' + source + '"' +
+      (records.length ? '' : ' disabled') + '>' + (isCloud ? '清空云端' : '清空本地草稿') + '</button>' +
+      (isCloud && !canCloud ? '<span class="muted" style="font-size:11.5px">云端改动需要先在内容管理里配置发布地址</span>' : '') +
+      '</div>' +
+      (records.length
+        ? '<div class="table-wrap"><table class="manage-table"><thead><tr>' +
+          '<th class="sel-cell"></th><th>ID</th><th>化学式</th><th>金属</th><th>载体</th><th>反应体系</th>' +
+          '<th>元素</th><th>原子数</th><th>总能 (eV)</th><th>来源</th><th></th>' +
+          '</tr></thead><tbody>' + manageRows(records, source) + '</tbody></table></div>'
+        : '<div class="empty" style="padding:26px 0">暂无数据</div>') +
+      '</div>';
+  }
+
+  function renderAdminData() {
+    if (!isAuthed()) { renderLogin(); return; }
+    const cloud = curated();
+    const drafts = loadDrafts();
+    pruneSelection(manage.cloudSel, cloud);
+    pruneSelection(manage.draftSel, drafts);
+
+    $('#view').innerHTML =
+      adminTabs('data') +
+      '<div class="page-head"><div class="page-head-row">' +
+      '<h1 class="page-title">数据管理</h1>' +
+      '<span class="pill pill-ok">云端 ' + cloud.length + ' 条</span>' +
+      '<span class="pill pill-idle">本地 ' + drafts.length + ' 条</span>' +
+      '</div><p class="page-desc">云端数据来自仓库 data.js，修改与删除会提交到仓库，约 1 分钟后全站生效；本地草稿只存在当前浏览器，可随时清空。</p></div>' +
+      managePanel('cloud', cloud) +
+      managePanel('draft', drafts);
+
+    bindManage();
+  }
+
+  function bindManage() {
+    $$('[data-all]').forEach(function (box) {
+      box.addEventListener('change', function () {
+        const source = box.getAttribute('data-all');
+        const sel = selOf(source);
+        const rows = source === 'cloud' ? curated() : loadDrafts();
+        Object.keys(sel).forEach(function (k) { delete sel[k]; });
+        if (box.checked) rows.forEach(function (d) { sel[d.id] = true; });
+        render();
+      });
+    });
+
+    $$('.row-check').forEach(function (box) {
+      box.addEventListener('change', function () {
+        const source = box.getAttribute('data-src');
+        const id = box.getAttribute('data-id');
+        const sel = selOf(source);
+        if (box.checked) sel[id] = true; else delete sel[id];
+        render();
+      });
+    });
+
+    $$('[data-batch]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const source = btn.getAttribute('data-batch');
+        const ids = selectedIds(source);
+        if (!ids.length) return;
+        openBatchEditor(source, ids);
+      });
+    });
+
+    $$('[data-batchdel]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const source = btn.getAttribute('data-batchdel');
+        const ids = selectedIds(source);
+        if (!ids.length) return;
+        confirmDelete(source, ids);
+      });
+    });
+
+    $$('[data-clear]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const source = btn.getAttribute('data-clear');
+        const rows = source === 'cloud' ? curated() : loadDrafts();
+        if (!rows.length) return;
+        const label = source === 'cloud' ? '云端全部数据（' + rows.length + ' 条，将提交到仓库）' : '全部本地草稿（' + rows.length + ' 条）';
+        if (!window.confirm('确定清空' + label + '？此操作不可撤销（云端可从 git 历史恢复）。')) return;
+        if (source === 'cloud') {
+          applyCloud([], '清空云端数据');
+        } else {
+          saveDrafts([]);
+          manage.draftSel = {};
+          showToast('已清空本地草稿');
+          render();
+        }
+      });
+    });
+
+    $$('[data-edit]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        openBatchEditor(btn.getAttribute('data-src'), [btn.getAttribute('data-edit')]);
+      });
+    });
+
+    $$('[data-del]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        confirmDelete(btn.getAttribute('data-src'), [btn.getAttribute('data-del')]);
+      });
+    });
+  }
+
+  function confirmDelete(source, ids) {
+    const isCloud = source === 'cloud';
+    const rows = isCloud ? curated() : loadDrafts();
+    const targets = rows.filter(function (d) { return ids.indexOf(d.id) >= 0; });
+    if (!targets.length) return;
+    const names = targets.slice(0, 3).map(function (d) { return d.formula || d.id; }).join('、');
+    const more = targets.length > 3 ? ' 等' : '';
+    if (!window.confirm('确定删除 ' + targets.length + ' 条' + (isCloud ? '云端数据（将提交到仓库）' : '本地草稿') + '？\n' + names + more)) return;
+
+    if (isCloud) {
+      const remain = rows.filter(function (d) { return ids.indexOf(d.id) < 0; });
+      ids.forEach(function (id) { delete manage.cloudSel[id]; });
+      applyCloud(remain, '删除 ' + targets.length + ' 条记录');
+    } else {
+      const remain = rows.filter(function (d) { return ids.indexOf(d.id) < 0; });
+      ids.forEach(function (id) { delete manage.draftSel[id]; });
+      saveDrafts(remain);
+      showToast('已删除 ' + targets.length + ' 条本地草稿');
+      render();
+    }
+  }
+
+  async function applyCloud(records, message) {
+    try {
+      showToast('正在提交到仓库…');
+      const res = await syncCloud(records, message);
+      window.CATALYST_DATA = records;
+      const n = (res && res.count !== undefined) ? res.count : records.length;
+      showToast('已同步（当前 ' + n + ' 条），约 1 分钟后全站生效');
+      render();
+      return true;
+    } catch (e) {
+      showToast('同步失败：' + e.message);
+      return false;
+    }
+  }
+
+  async function syncCloud(records, message) {
+    const cfg = loadPublish();
+    if (!cfg) throw new Error('未配置发布地址，请到内容管理 → 发布设置里填写');
+    const res = await fetch(publishBase(cfg) + '/api/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + cfg.key
+      },
+      body: JSON.stringify({ records: records.map(stripForExport), message: message })
+    });
+    const data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+  }
+
+  /* ---------- 批量修改对话框 ---------- */
+  function openBatchEditor(source, ids) {
+    const isCloud = source === 'cloud';
+    const modal = $('#genericModal');
+    if (!modal) return;
+
+    $('#genericTitle').textContent = '批量修改 ' + ids.length + ' 条' + (isCloud ? '云端' : '本地') + '记录';
+    $('#genericBody').innerHTML =
+      '<p class="muted" style="margin-bottom:12px">留空的字段保持不变。</p>' +
+      '<div class="form-row"><label>反应体系</label><select id="bReaction"><option value="">— 不修改 —</option>' +
+      REACTIONS.map(function (r) {
+        return '<option value="' + esc(r.reaction) + '">' + esc(reactionText(r).name || r.id) + '</option>';
+      }).join('') + '</select></div>' +
+      '<div class="form-grid2">' +
+      '<div class="form-row"><label>活性金属</label><input id="bMetal" placeholder="不修改" /></div>' +
+      '<div class="form-row"><label>载体</label><input id="bSupport" placeholder="不修改" /></div>' +
+      '</div>' +
+      '<div class="form-grid2">' +
+      '<div class="form-row"><label>数据来源</label><input id="bRef" placeholder="不修改" /></div>' +
+      '<div class="form-row"><label>总能 (eV)</label><input type="number" step="any" id="bEnergy" placeholder="不修改" /></div>' +
+      '</div>' +
+      '<div class="form-row"><label>备注（覆盖）</label><input id="bNote" placeholder="不修改" /></div>';
+
+    $('#genericFoot').innerHTML =
+      '<span class="muted">' + ids.length + ' 条记录</span>' +
+      '<div style="display:flex;gap:8px">' +
+      '<button class="btn" id="bCancel">取消</button>' +
+      '<button class="btn btn-primary" id="bApply">应用修改</button></div>';
+
+    modal.classList.add('open');
+
+    const close = function () { modal.classList.remove('open'); };
+    $('#genericClose').onclick = close;
+    $('#bCancel').onclick = close;
+
+    $('#bApply').onclick = async function () {
+      const patch = {
+        reaction: valueOf('bReaction'),
+        metal: valueOf('bMetal'),
+        support: valueOf('bSupport'),
+        ref: valueOf('bRef'),
+        note: valueOf('bNote'),
+        energy: readNum('bEnergy')
+      };
+      const changed = patch.reaction || patch.metal || patch.support || patch.ref || patch.note || isNum(patch.energy);
+      if (!changed) { showToast('没有填写要修改的内容'); return; }
+
+      const rows = isCloud ? curated() : loadDrafts();
+      const updated = rows.map(function (d) {
+        if (ids.indexOf(d.id) < 0) return d;
+        const c = JSON.parse(JSON.stringify(d));
+        if (patch.reaction) c.reaction = patch.reaction;
+        if (patch.metal) c.metal = patch.metal;
+        if (patch.support) c.support = patch.support;
+        if (patch.ref) c.ref = patch.ref;
+        if (patch.note) c.note = patch.note;
+        if (isNum(patch.energy)) c.dftEnergy = patch.energy;
+        c.updatedAt = new Date().toISOString();
+        return c;
+      });
+
+      close();
+      if (isCloud) {
+        await applyCloud(updated, '批量修改 ' + ids.length + ' 条记录');
+      } else {
+        saveDrafts(updated);
+        showToast('已修改 ' + ids.length + ' 条本地草稿');
+        render();
+      }
+    };
   }
 
   /* ============================ 抽屉 ============================ */
@@ -2431,6 +2744,8 @@
         : esc(cget('dashboard.title', '数据总览'));
     } else if (state.view === 'admin') {
       crumb.innerHTML = esc(cget('dashboard.title', '数据总览')) + ' / <b>' + esc(cget('admin.title', '内容管理')) + '</b>';
+    } else if (state.view === 'adminData') {
+      crumb.innerHTML = esc(cget('dashboard.title', '数据总览')) + ' / ' + esc(cget('admin.title', '内容管理')) + ' / <b>数据管理</b>';
     } else if (state.view === 'about') {
       crumb.innerHTML = '<b>' + esc(cget('about.title', '关于我们')) + '</b>';
     } else {
@@ -2441,6 +2756,9 @@
 
     if (state.view === 'admin') {
       if (isAuthed()) renderAdmin();
+      else renderLogin();
+    } else if (state.view === 'adminData') {
+      if (isAuthed()) renderAdminData();
       else renderLogin();
     } else if (state.view === 'reaction') {
       const r = reactionById(state.reactionId);
@@ -2481,10 +2799,19 @@
       if (e.key === 'Escape') {
         closeUpload();
         closeDrawer();
+        const gm = $('#genericModal');
+        if (gm) gm.classList.remove('open');
         const m = $('#exportMenu');
         if (m) m.remove();
       }
     });
+
+    const genericModal = $('#genericModal');
+    if (genericModal) {
+      genericModal.addEventListener('click', function (e) {
+        if (e.target === genericModal) genericModal.classList.remove('open');
+      });
+    }
 
     let resizeTimer = null;
     window.addEventListener('resize', function () {

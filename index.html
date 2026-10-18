@@ -25,7 +25,7 @@
     <div class="sidebar-foot">
       <div class="sidebar-status" id="sidebarStatus"></div>
       <button class="btn-upload" id="uploadBtn">＋ 上传计算数据</button>
-      <div class="sidebar-hint">CIF 必填 · OUTCAR 可选</div>
+      <div class="sidebar-admin" id="sidebarAdmin"></div>
     </div>
   </aside>
 
@@ -62,6 +62,17 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="genericModal">
+  <div class="modal-card" style="width:560px">
+    <div class="modal-head">
+      <h3 id="genericTitle">批量修改</h3>
+      <button class="close-btn" id="genericClose" aria-label="关闭">×</button>
+    </div>
+    <div class="modal-body" id="genericBody"></div>
+    <div class="modal-foot" id="genericFoot"></div>
+  </div>
+</div>
 
 <script src="data.js"></script>
 <script src="content.js"></script>

@@ -77,13 +77,90 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders(env) });
     }
 
+    if (url.pathname === '/api/health') {
+      if (!checkAuth(request, env)) return json({ error: 'unauthorized' }, 401, env);
+      if (!env.GITHUB_TOKEN || !env.REPO) {
+        return json({ ok: false, error: '尚未配置 GITHUB_TOKEN' }, 503, env);
+      }
+      const probe = await fetch('https://api.github.com/repos/' + env.REPO, {
+        headers: {
+          'Authorization': 'Bearer ' + env.GITHUB_TOKEN,
+          'Accept': 'application/vnd.github+json',
+          'User-Agent': 'iced-catalyst-publisher'
+        }
+      });
+      if (!probe.ok) {
+        const body = await probe.text();
+        return json({ ok: false, error: 'GitHub 访问失败', status: probe.status, detail: body.slice(0, 200) }, 502, env);
+      }
+      const repo = await probe.json();
+      return json({
+        ok: true,
+        repo: repo.full_name,
+        branch: env.BRANCH || 'main',
+        dataPath: env.DATA_PATH || 'data.js',
+        canPush: !!(repo.permissions && repo.permissions.push)
+      }, 200, env);
+    }
+
     if (!env.GITHUB_TOKEN || !env.REPO) {
       return json({ error: 'Worker 未配置 GITHUB_TOKEN 或 REPO' }, 500, env);
     }
 
-    if (url.pathname === '/api/health') {
-      if (!checkAuth(request, env)) return json({ error: 'unauthorized' }, 401, env);
-      return json({ ok: true, repo: env.REPO, branch: env.BRANCH || 'main', dataPath: env.DATA_PATH || 'data.js' }, 200, env);
+    /* ---------- 整表同步：用于批量修改 / 删除 ---------- */
+    if (url.pathname === '/api/sync') {
+      if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405, env);
+      if (!checkAuth(request, env)) return json({ error: '发布密钥不正确' }, 401, env);
+
+      let payload2;
+      try {
+        payload2 = await request.json();
+      } catch (e) {
+        return json({ error: '请求体不是合法 JSON' }, 400, env);
+      }
+      if (!Array.isArray(payload2.records)) return json({ error: 'records 必须是数组' }, 400, env);
+      if (payload2.records.length > 5000) return json({ error: '记录数量过多' }, 400, env);
+
+      const dataPath2 = env.DATA_PATH || 'data.js';
+      const branch2 = env.BRANCH || 'main';
+      const getRes2 = await gh(env, dataPath2 + '?ref=' + encodeURIComponent(branch2));
+      if (!getRes2.ok) {
+        return json({ error: '读取 data.js 失败', status: getRes2.status }, 502, env);
+      }
+      const file2 = await getRes2.json();
+      const text2 = b64ToUtf8(file2.content);
+
+      const marker2 = 'window.CATALYST_DATA = [';
+      const at2 = text2.indexOf(marker2);
+      const close2 = text2.lastIndexOf('\n];');
+      if (at2 < 0 || close2 < 0 || close2 < at2) {
+        return json({ error: 'data.js 结构无法识别，已放弃写入' }, 422, env);
+      }
+
+      const body2 = payload2.records.map(function (r) { return '\n  ' + JSON.stringify(r); }).join(',');
+      const updated2 = text2.slice(0, at2 + marker2.length) + body2 + '\n' + text2.slice(close2 + 1);
+
+      const putRes2 = await gh(env, dataPath2, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: payload2.message || ('同步 ' + payload2.records.length + ' 条催化剂记录'),
+          content: utf8ToB64(updated2),
+          sha: file2.sha,
+          branch: branch2
+        })
+      });
+      if (!putRes2.ok) {
+        const detail2 = await putRes2.text();
+        return json({ error: '同步失败', status: putRes2.status, detail: detail2.slice(0, 300) }, 502, env);
+      }
+      const commit2 = await putRes2.json();
+      return json({
+        ok: true,
+        count: payload2.records.length,
+        commit: commit2.commit && commit2.commit.sha,
+        url: commit2.commit && commit2.commit.html_url
+      }, 200, env);
     }
 
     if (url.pathname !== '/api/records') {
