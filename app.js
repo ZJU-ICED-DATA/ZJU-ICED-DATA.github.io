@@ -1370,12 +1370,13 @@
   }
 
   /* ============================ 上传 ============================ */
-  let uploadState = { cif: null, outcar: null };
+  /* 一次可上传多个 CIF；同名的 OUTCAR 会自动与对应结构配对 */
+  let uploadState = { items: [], unmatched: [] };
 
   function openUpload() {
     const modal = $('#uploadModal');
     if (!modal) return;
-    uploadState = { cif: null, outcar: null };
+    uploadState = { items: [], unmatched: [] };
     modal.classList.add('open');
     uploadStep1();
   }
@@ -1383,8 +1384,23 @@
   function closeUpload() {
     const modal = $('#uploadModal');
     if (modal) modal.classList.remove('open');
-    uploadState = { cif: null, outcar: null };
+    uploadState = { items: [], unmatched: [] };
     if (currentViewer) { try { currentViewer.clear(); } catch (e) { /* 忽略 */ } currentViewer = null; }
+  }
+
+  function baseName(path) {
+    const s = String(path || '');
+    const i = Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\'));
+    return i >= 0 ? s.slice(i + 1) : s;
+  }
+
+  function stripExt(name) {
+    return baseName(name).replace(/\.[^.\\/]+$/, '');
+  }
+
+  /* 归一化文件名用于 CIF ↔ OUTCAR 配对：去掉扩展名、outcar 字样与非字母数字 */
+  function matchKey(name) {
+    return stripExt(name).toLowerCase().replace(/outcar/g, '').replace(/[^a-z0-9]/g, '');
   }
 
   function uploadStep1() {
@@ -1395,7 +1411,7 @@
       '<div class="dropzone" id="dropzone">' +
       '<div class="dz-icon">🧪</div>' +
       '<div class="dz-title">拖拽 CIF 结构文件到这里，或点击选择</div>' +
-      '<div class="dz-sub">同一位置也可以放入 VASP 的 OUTCAR 文件，会自动读取总能（可选）</div>' +
+      '<div class="dz-sub">支持一次选择多个结构；把同名 OUTCAR 一起放进来会自动配对读取总能</div>' +
       '<div class="dz-formats">CIF：.cif / .mcif　·　OUTCAR：文件名含 OUTCAR 或 .out　·　全部在浏览器本地解析</div>' +
       '<input type="file" id="fileInput" accept=".cif,.mcif,.out,.txt,OUTCAR" multiple hidden />' +
       '</div>';
@@ -1443,30 +1459,101 @@
 
   async function handleFiles(fileList) {
     const files = Array.prototype.slice.call(fileList);
+    if (!files.length) return;
+
+    const cifs = [];
+    const outcars = [];
+
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       const name = f.name || 'file';
       try {
         if (isOutcarName(name)) {
-          if (f.size > 60 * 1024 * 1024) { showToast('OUTCAR 超过 60 MB，已跳过'); continue; }
+          if (f.size > 60 * 1024 * 1024) { showToast('OUTCAR 超过 60 MB，已跳过：' + name); continue; }
           const text = await readText(f);
           const info = window.OutcarParser ? window.OutcarParser.parse(text) : null;
           if (!info || !info.ok) { uploadError(name, (info && info.error) || 'OUTCAR 解析失败'); return; }
-          uploadState.outcar = { file: name, text: text, info: info };
-        } else if (isCifName(name) || f.size < 8 * 1024 * 1024) {
-          if (f.size > 8 * 1024 * 1024) { showToast('CIF 超过 8 MB，已跳过'); continue; }
+          outcars.push({ file: name, text: text, info: info });
+        } else if (isCifName(name) || (f.size < 8 * 1024 * 1024 && !isOutcarName(name))) {
+          if (f.size > 8 * 1024 * 1024) { showToast('文件超过 8 MB，已跳过：' + name); continue; }
           const text = await readText(f);
           const info = window.CIFParser ? window.CIFParser.parse(text) : null;
           if (!info || !info.ok) { uploadError(name, (info && info.error) || 'CIF 解析失败'); return; }
-          uploadState.cif = { file: name, text: text, info: info };
+          cifs.push({ file: name, text: text, info: info });
         }
       } catch (err) {
         uploadError(name, '文件读取失败');
         return;
       }
     }
-    if (!uploadState.cif && !uploadState.outcar) { showToast('没有识别到可解析的文件'); return; }
+
+    if (!cifs.length && !outcars.length) { showToast('没有识别到可解析的文件'); return; }
+
+    const paired = pairOutcars(cifs, outcars);
+    uploadState.items = paired.items;
+    uploadState.unmatched = paired.unmatched;
+
     uploadStep2();
+  }
+
+  /* 配对规则：先按归一化文件名匹配，剩下的若恰好各一个则直接配对 */
+  function pairOutcars(cifs, outcars) {
+    const items = cifs.map(function (c) {
+      return {
+        cif: c,
+        outcar: null,
+        formula: stripExt(c.file),
+        metal: window.CIFParser ? window.CIFParser.guessMetal(c.info.atomCounts) : '',
+        support: window.CIFParser ? window.CIFParser.guessSupport(c.info.atomCounts) : '',
+        energy: null
+      };
+    });
+    const used = items.map(function () { return false; });
+    const leftovers = [];
+
+    outcars.forEach(function (o) {
+      const key = matchKey(o.file);
+      let hit = -1;
+      if (key) {
+        for (let i = 0; i < items.length; i++) {
+          if (!used[i] && matchKey(items[i].cif.file) === key) { hit = i; break; }
+        }
+      }
+      if (hit >= 0) {
+        used[hit] = true;
+        items[hit].outcar = o;
+        items[hit].energy = isNum(o.info.totalEnergy) ? o.info.totalEnergy : null;
+      } else {
+        leftovers.push(o);
+      }
+    });
+
+    /* 只有一个结构、一个 OUTCAR 时，即使名字对不上也视为同一组计算 */
+    const unmatchedIdx = [];
+    for (let i = 0; i < items.length; i++) if (!used[i]) unmatchedIdx.push(i);
+    const unmatched = [];
+    while (leftovers.length && unmatchedIdx.length === 1 && leftovers.length === 1) {
+      const idx = unmatchedIdx.shift();
+      const o = leftovers.shift();
+      items[idx].outcar = o;
+      items[idx].energy = isNum(o.info.totalEnergy) ? o.info.totalEnergy : null;
+    }
+    leftovers.forEach(function (o) { unmatched.push(o.file); });
+
+    /* 没有 CIF 但有 OUTCAR：允许只存能量 */
+    if (!items.length && outcars.length) {
+      items.push({
+        cif: null,
+        outcar: outcars[0],
+        formula: '',
+        metal: '',
+        support: '',
+        energy: isNum(outcars[0].info.totalEnergy) ? outcars[0].info.totalEnergy : null
+      });
+      for (let i = 1; i < outcars.length; i++) unmatched.push(outcars[i].file);
+    }
+
+    return { items: items, unmatched: unmatched };
   }
 
   function uploadError(name, msg) {
@@ -1484,64 +1571,83 @@
     }
   }
 
+  function reactionOptionsHtml(selected) {
+    const def = selected !== undefined ? selected : (state.view === 'reaction' && state.reactionId
+      ? (reactionById(state.reactionId) || { reaction: '' }).reaction
+      : (REACTIONS[0] ? REACTIONS[0].reaction : ''));
+    return REACTIONS.map(function (r) {
+      const t = reactionText(r);
+      return '<option value="' + esc(r.reaction) + '"' + (r.reaction === def ? ' selected' : '') + '>' +
+        esc(t.name || r.id) + '（' + esc(t.en || '') + '）</option>';
+    }).join('');
+  }
+
+  function cifCardHtml(c) {
+    if (!c) return '';
+    const info = c.info;
+    return '<div class="parse-summary"><div class="parse-head"><span class="parse-title">✓ ' + esc(baseName(c.file)) + '</span>' +
+      '<span class="muted">' + esc(info.dataBlock || '') + '</span></div>' +
+      '<div class="parse-stats"><div class="parse-stat"><b>' + info.elements.length + '</b>元素种类</div>' +
+      '<div class="parse-stat"><b>' + info.totalAtoms + '</b>总原子数</div>' +
+      '<div class="parse-stat"><b>' + esc(info.formula || '—') + '</b>化学式</div></div>' +
+      '<div>' + info.elements.map(function (el) {
+        return '<span class="chip">' + esc(el) + '<sub>' + esc(fmtCount(info.atomCounts[el])) + '</sub></span>';
+      }).join('') + '</div></div>';
+  }
+
+  function outcarCardHtml(o) {
+    if (!o) {
+      return '<div class="parse-summary muted-card"><div class="parse-head"><span class="parse-title">未提供 OUTCAR</span></div>' +
+        '<div class="parse-desc">可稍后手动填写总能，或重新上传 OUTCAR 自动解析。</div></div>';
+    }
+    const info = o.info;
+    return '<div class="parse-summary"><div class="parse-head"><span class="parse-title">✓ ' + esc(baseName(o.file)) + '</span>' +
+      '<span class="muted">OUTCAR</span></div>' +
+      '<div class="parse-stats"><div class="parse-stat"><b>' + numText(info.totalEnergy, 4) + '</b>总能 (eV)</div>' +
+      '<div class="parse-stat"><b>' + esc(String(info.ionicSteps || '—')) + '</b>离子步</div>' +
+      '<div class="parse-stat"><b>' + (isNum(info.fermi) ? info.fermi.toFixed(3) : '—') + '</b>E-fermi (eV)</div></div>' +
+      (info.warnings || []).map(function (w) { return '<div class="warn-box">' + esc(w) + '</div>'; }).join('') +
+      '</div>';
+  }
+
   function uploadStep2() {
     const body = $('#uploadBody');
     if (!body) return;
-    const cif = uploadState.cif;
-    const oc = uploadState.outcar;
-    const cinfo = cif ? cif.info : null;
-    const oinfo = oc ? oc.info : null;
+    if (!uploadState.items.length) { uploadStep1(); return; }
+    if (uploadState.items.length === 1) renderSingle(uploadState.items[0]);
+    else renderBatch();
+  }
 
-    const guessMetal = cinfo && window.CIFParser ? window.CIFParser.guessMetal(cinfo.atomCounts) : '';
-    const guessSupport = cinfo && window.CIFParser ? window.CIFParser.guessSupport(cinfo.atomCounts) : '';
-    const defaultReaction = state.view === 'reaction' && state.reactionId
-      ? (reactionById(state.reactionId) || { reaction: '' }).reaction
-      : (REACTIONS[0] ? REACTIONS[0].reaction : '');
+  function unmatchedHtml() {
+    if (!uploadState.unmatched.length) return '';
+    return '<div class="warn-box">以下 OUTCAR 没能匹配到对应的 CIF，未写入记录：' +
+      esc(uploadState.unmatched.join('、')) + '</div>';
+  }
 
-    const reactionOptions = REACTIONS.map(function (r) {
-      const t = reactionText(r);
-      return '<option value="' + esc(r.reaction) + '"' + (r.reaction === defaultReaction ? ' selected' : '') + '>' +
-        esc(t.name || r.id) + '（' + esc(r.en || '') + '）</option>';
-    }).join('');
+  /* ---- 单个结构：保留详细预览 ---- */
+  function renderSingle(it) {
+    const cinfo = it.cif ? it.cif.info : null;
+    const oinfo = it.outcar ? it.outcar.info : null;
 
-    const cifCard = cinfo
-      ? '<div class="parse-summary"><div class="parse-head"><span class="parse-title">✓ ' + esc(cif.file) + '</span>' +
-        '<span class="muted">' + esc(cinfo.dataBlock || '') + '</span></div>' +
-        '<div class="parse-stats"><div class="parse-stat"><b>' + cinfo.elements.length + '</b>元素种类</div>' +
-        '<div class="parse-stat"><b>' + cinfo.totalAtoms + '</b>总原子数</div>' +
-        '<div class="parse-stat"><b>' + esc(cinfo.formula || '—') + '</b>化学式</div></div>' +
-        '<div>' + cinfo.elements.map(function (el) {
-          return '<span class="chip">' + esc(el) + '<sub>' + esc(fmtCount(cinfo.atomCounts[el])) + '</sub></span>';
-        }).join('') + '</div></div>'
-      : '<div class="warn-box">未提供 CIF 结构文件，本条记录将只有能量数据。</div>';
-
-    const outcarCard = oinfo
-      ? '<div class="parse-summary"><div class="parse-head"><span class="parse-title">✓ ' + esc(oc.file) + '</span>' +
-        '<span class="muted">OUTCAR</span></div>' +
-        '<div class="parse-stats"><div class="parse-stat"><b>' + numText(oinfo.totalEnergy, 4) + '</b>总能 (eV)</div>' +
-        '<div class="parse-stat"><b>' + esc(String(oinfo.ionicSteps || '—')) + '</b>离子步</div>' +
-        '<div class="parse-stat"><b>' + (isNum(oinfo.fermi) ? oinfo.fermi.toFixed(3) : '—') + '</b>E-fermi (eV)</div></div>' +
-        ((oinfo.warnings || []).map(function (w) { return '<div class="warn-box">' + esc(w) + '</div>'; }).join('')) +
-        '</div>'
-      : '<div class="parse-summary muted-card"><div class="parse-head"><span class="parse-title">未提供 OUTCAR</span></div>' +
-        '<div class="parse-desc">可稍后手动填写总能，或重新上传 OUTCAR 自动解析。</div></div>';
-
-    body.innerHTML =
+    $('#uploadBody').innerHTML =
       '<div class="upload-grid">' +
-      '<div>' + cifCard + outcarCard +
-      (cinfo ? '<div class="viewer3d" id="uploadViewer" style="height:280px"></div>' : '') +
+      '<div>' +
+      (it.cif ? cifCardHtml(it.cif) : '<div class="warn-box">未提供 CIF 结构文件，本条记录将只有能量数据。</div>') +
+      outcarCardHtml(it.outcar) +
+      unmatchedHtml() +
+      (it.cif ? '<div class="viewer3d" id="uploadViewer" style="height:280px"></div>' : '') +
       '</div>' +
       '<div>' +
       '<div class="form-row"><label>化学式 / 催化剂名称 *</label>' +
-      '<input id="fFormula" value="' + esc(cinfo ? (cinfo.formula || '') : '') + '" placeholder="如 Ni/Al2O3" /></div>' +
+      '<input id="fFormula" value="' + esc(it.formula) + '" placeholder="默认取 CIF 文件名" /></div>' +
       '<div class="form-grid2">' +
-      '<div class="form-row"><label>活性金属</label><input id="fMetal" value="' + esc(guessMetal) + '" /></div>' +
-      '<div class="form-row"><label>载体</label><input id="fSupport" value="' + esc(guessSupport) + '" /></div>' +
+      '<div class="form-row"><label>活性金属</label><input id="fMetal" value="' + esc(it.metal) + '" /></div>' +
+      '<div class="form-row"><label>载体</label><input id="fSupport" value="' + esc(it.support) + '" /></div>' +
       '</div>' +
-      '<div class="form-row"><label>反应体系</label><select id="fReaction">' + reactionOptions + '</select></div>' +
+      '<div class="form-row"><label>反应体系</label><select id="fReaction">' + reactionOptionsHtml() + '</select></div>' +
       '<div class="form-grid2">' +
       '<div class="form-row"><label>' + esc(descriptor('dftEnergy').label) + ' (eV)</label>' +
-      '<input type="number" step="any" id="fEnergy" value="' + (oinfo && isNum(oinfo.totalEnergy) ? oinfo.totalEnergy : '') + '" placeholder="来自 OUTCAR" /></div>' +
+      '<input type="number" step="any" id="fEnergy" value="' + (isNum(it.energy) ? it.energy : '') + '" placeholder="来自 OUTCAR" /></div>' +
       '<div class="form-row"><label>' + esc(descriptor('barrier').label) + ' (eV)</label><input type="number" step="any" id="fBarrier" placeholder="可选" /></div>' +
       '</div>' +
       '<div class="form-grid2">' +
@@ -1560,14 +1666,79 @@
         '<button class="btn btn-primary" id="uploadSave">保存到本地草稿</button></div>';
     }
 
-    if (cinfo) render3D($('#uploadViewer'), cif.text);
+    if (it.cif) render3D($('#uploadViewer'), it.cif.text);
 
     const back = $('#uploadBack');
-    if (back) back.addEventListener('click', function () { uploadState = { cif: null, outcar: null }; uploadStep1(); });
+    if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [] }; uploadStep1(); });
     const again = $('#uploadAgain');
-    if (again) again.addEventListener('click', function () { if (saveUpload()) { uploadState = { cif: null, outcar: null }; uploadStep1(); } });
+    if (again) again.addEventListener('click', function () { if (saveUpload()) { uploadState = { items: [], unmatched: [] }; uploadStep1(); } });
     const save = $('#uploadSave');
     if (save) save.addEventListener('click', function () { if (saveUpload()) closeUpload(); });
+  }
+
+  /* ---- 多个结构：表格批量编辑 ---- */
+  function renderBatch() {
+    const items = uploadState.items;
+    const withCif = items.filter(function (x) { return x.cif; }).length;
+    const withEnergy = items.filter(function (x) { return isNum(x.energy); }).length;
+
+    const rows = items.map(function (it, idx) {
+      const info = it.cif ? it.cif.info : null;
+      const name = it.cif ? it.cif.file : (it.outcar ? it.outcar.file : '—');
+      return '<tr data-item="' + idx + '">' +
+        '<td class="fname" title="' + esc(name) + '">' + esc(stripExt(name)) + '</td>' +
+        '<td><input class="cell-in" data-field="formula" value="' + esc(it.formula) + '" placeholder="必填" /></td>' +
+        '<td><input class="cell-in" data-field="metal" value="' + esc(it.metal) + '" /></td>' +
+        '<td><input class="cell-in" data-field="support" value="' + esc(it.support) + '" /></td>' +
+        '<td><input class="cell-in" type="number" step="any" data-field="barrier" placeholder="—" /></td>' +
+        '<td><input class="cell-in" type="number" step="any" data-field="eads" placeholder="—" /></td>' +
+        '<td><input class="cell-in" type="number" step="any" data-field="energy" value="' + (isNum(it.energy) ? it.energy : '') + '" placeholder="—" /></td>' +
+        '<td class="num">' + (info ? info.elements.length + ' 种' : '—') + '</td>' +
+        '<td class="num">' + (info ? info.totalAtoms : '—') + '</td>' +
+        '<td><button type="button" class="icon-btn" data-remove-item>×</button></td>' +
+        '</tr>';
+    }).join('');
+
+    $('#uploadBody').innerHTML =
+      unmatchedHtml() +
+      '<div class="batch-summary">' +
+      '<span>共 <b>' + items.length + '</b> 个结构</span>' +
+      '<span>已解析 CIF <b>' + withCif + '</b> 个</span>' +
+      '<span>已匹配 OUTCAR <b>' + withEnergy + '</b> 个</span>' +
+      '<span class="muted">化学式默认取文件名，可直接在表格里改</span>' +
+      '</div>' +
+      '<div class="batch-wrap"><table class="batch-table">' +
+      '<thead><tr><th>文件</th><th>化学式 *</th><th>金属</th><th>载体</th>' +
+      '<th>Ea (eV)</th><th>Eads (eV)</th><th>总能 (eV)</th><th>元素</th><th>原子</th><th></th></tr></thead>' +
+      '<tbody id="batchBody">' + rows + '</tbody></table></div>' +
+      '<div class="form-grid3" style="margin-top:16px">' +
+      '<div class="form-row"><label>反应体系（应用到全部）</label><select id="batchReaction">' + reactionOptionsHtml() + '</select></div>' +
+      '<div class="form-row"><label>数据来源</label><input id="batchRef" placeholder="计算任务编号 / 文献" /></div>' +
+      '<div class="form-row"><label>备注</label><input id="batchNote" placeholder="可选，应用到全部" /></div>' +
+      '</div>';
+
+    const footEl = $('#uploadFoot');
+    if (footEl) {
+      footEl.innerHTML = '<button class="btn" id="uploadBack">重新选择</button>' +
+        '<div style="display:flex;gap:8px">' +
+        '<span class="muted" style="align-self:center">将保存 ' + items.length + ' 条记录</span>' +
+        '<button class="btn btn-primary" id="uploadSaveAll">全部保存到本地草稿</button></div>';
+    }
+
+    $$('#batchBody [data-remove-item]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const tr = btn.closest('tr');
+        const idx = parseInt(tr.getAttribute('data-item'), 10);
+        uploadState.items.splice(idx, 1);
+        if (!uploadState.items.length) { uploadStep1(); return; }
+        renderBatch();
+      });
+    });
+
+    const back = $('#uploadBack');
+    if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [] }; uploadStep1(); });
+    const saveAll = $('#uploadSaveAll');
+    if (saveAll) saveAll.addEventListener('click', function () { if (saveBatch()) closeUpload(); });
   }
 
   function readNum(id) {
@@ -1584,20 +1755,59 @@
     return el ? String(el.value || '').trim() : '';
   }
 
-  function nextId() {
+  function maxIdNumber() {
     let maxNum = 0;
     loadDrafts().concat(curated()).forEach(function (d) {
       const m = String(d.id || '').match(/(\d+)/);
       if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
     });
-    return 'CAT-' + String(maxNum + 1).padStart(3, '0');
+    return maxNum;
+  }
+
+  function makeRecord(it, f) {
+    return {
+      id: f.id,
+      formula: f.formula,
+      metal: f.metal,
+      support: f.support,
+      reaction: f.reaction,
+      ref: f.ref,
+      note: f.note,
+      dftEnergy: isNum(f.energy) ? f.energy : null,
+      barrier: isNum(f.barrier) ? f.barrier : null,
+      eads: isNum(f.eads) ? f.eads : null,
+      reactionEnergy: isNum(f.reactionEnergy) ? f.reactionEnergy : null,
+      evac: null,
+      structure: it.cif ? {
+        file: baseName(it.cif.file),
+        formula: it.cif.info.formula || '',
+        elements: it.cif.info.elements.slice(),
+        atomCounts: it.cif.info.atomCounts,
+        totalAtoms: it.cif.info.totalAtoms,
+        cell: it.cif.info.cell,
+        spaceGroup: it.cif.info.spaceGroup || '',
+        z: isNum(it.cif.info.z) ? it.cif.info.z : null,
+        cif: it.cif.text
+      } : null,
+      outcar: it.outcar ? {
+        file: baseName(it.outcar.file),
+        totalEnergy: it.outcar.info.totalEnergy,
+        energySigma0: it.outcar.info.energySigma0,
+        fermi: it.outcar.info.fermi,
+        nions: it.outcar.info.nions,
+        volume: it.outcar.info.volume,
+        ionicSteps: it.outcar.info.ionicSteps
+      } : null,
+      source: 'draft',
+      addedAt: new Date().toISOString()
+    };
   }
 
   function saveUpload() {
-    const cif = uploadState.cif;
-    const oc = uploadState.outcar;
-    if (!cif && !oc) { showToast('请先选择文件'); return false; }
+    return uploadState.items.length === 1 ? saveSingle(uploadState.items[0]) : saveBatch();
+  }
 
+  function saveSingle(it) {
     const formulaEl = document.getElementById('fFormula');
     const formula = formulaEl ? String(formulaEl.value || '').trim() : '';
     if (!formula) {
@@ -1606,56 +1816,89 @@
       return false;
     }
 
-    const cinfo = cif ? cif.info : null;
-    const oinfo = oc ? oc.info : null;
-    const energyFromFile = oinfo && isNum(oinfo.totalEnergy) ? oinfo.totalEnergy : null;
-    const typedEnergy = readNum('fEnergy');
-
-    const record = {
-      id: nextId(),
+    const record = makeRecord(it, {
+      id: 'CAT-' + String(maxIdNumber() + 1).padStart(3, '0'),
       formula: formula,
       metal: valueOf('fMetal'),
       support: valueOf('fSupport'),
       reaction: valueOf('fReaction'),
       ref: valueOf('fRef'),
       note: valueOf('fNote'),
-      dftEnergy: isNum(typedEnergy) ? typedEnergy : energyFromFile,
+      energy: readNum('fEnergy'),
       barrier: readNum('fBarrier'),
       eads: readNum('fEads'),
-      reactionEnergy: readNum('fRxn'),
-      evac: null,
-      structure: cinfo ? {
-        file: cif.file,
-        formula: cinfo.formula || '',
-        elements: cinfo.elements.slice(),
-        atomCounts: cinfo.atomCounts,
-        totalAtoms: cinfo.totalAtoms,
-        cell: cinfo.cell,
-        spaceGroup: cinfo.spaceGroup || '',
-        z: isNum(cinfo.z) ? cinfo.z : null,
-        cif: cif.text
-      } : null,
-      outcar: oinfo ? {
-        file: oc.file,
-        totalEnergy: oinfo.totalEnergy,
-        energySigma0: oinfo.energySigma0,
-        fermi: oinfo.fermi,
-        nions: oinfo.nions,
-        volume: oinfo.volume,
-        ionicSteps: oinfo.ionicSteps
-      } : null,
-      source: 'draft',
-      addedAt: new Date().toISOString()
-    };
+      reactionEnergy: readNum('fRxn')
+    });
 
     const drafts = loadDrafts();
     drafts.push(record);
     if (!saveDrafts(drafts)) return false;
 
     showToast('已保存：' + record.formula +
-      (record.dftEnergy !== null ? ' · 总能 ' + record.dftEnergy.toFixed(4) + ' eV' : '') +
+      (isNum(record.dftEnergy) ? ' · 总能 ' + record.dftEnergy.toFixed(4) + ' eV' : '') +
       (record.structure ? ' · ' + record.structure.elements.length + ' 种元素' : ''));
+    render();
+    return true;
+  }
 
+  function saveBatch() {
+    const rows = $$('#batchBody tr[data-item]');
+    if (!rows.length) { showToast('没有可保存的结构'); return false; }
+
+    const reaction = valueOf('batchReaction');
+    const ref = valueOf('batchRef');
+    const note = valueOf('batchNote');
+
+    const records = [];
+    let startId = maxIdNumber();
+    let firstBad = null;
+
+    for (let i = 0; i < rows.length; i++) {
+      const tr = rows[i];
+      const idx = parseInt(tr.getAttribute('data-item'), 10);
+      const it = uploadState.items[idx];
+      if (!it) continue;
+      const get = function (field) {
+        const el = tr.querySelector('[data-field="' + field + '"]');
+        return el ? String(el.value || '').trim() : '';
+      };
+      const num = function (field) {
+        const v = get(field);
+        if (!v) return null;
+        const n = parseFloat(v);
+        return isFinite(n) ? n : null;
+      };
+      const formula = get('formula');
+      if (!formula) { firstBad = tr; break; }
+
+      startId++;
+      records.push(makeRecord(it, {
+        id: 'CAT-' + String(startId).padStart(3, '0'),
+        formula: formula,
+        metal: get('metal'),
+        support: get('support'),
+        reaction: reaction,
+        ref: ref,
+        note: note,
+        energy: num('energy'),
+        barrier: num('barrier'),
+        eads: num('eads'),
+        reactionEnergy: null
+      }));
+    }
+
+    if (firstBad) {
+      showToast('有行未填写化学式，请补全后再保存');
+      const input = firstBad.querySelector('[data-field="formula"]');
+      if (input) input.focus();
+      return false;
+    }
+
+    const drafts = loadDrafts();
+    records.forEach(function (r) { drafts.push(r); });
+    if (!saveDrafts(drafts)) return false;
+
+    showToast('已保存 ' + records.length + ' 条记录');
     render();
     return true;
   }
