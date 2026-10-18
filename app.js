@@ -1291,6 +1291,7 @@
       '<div class="panel"><div class="panel-head"><div class="panel-title">' + esc(cget('dashboard.sections.workspace', '反应工作区')) + '</div>' +
       '<span class="muted">' + esc(cget('dashboard.sections.workspaceDesc', '')) + '</span></div>' +
       '<div class="panel-body"><div class="ws-grid">' + cards + '</div></div></div>' +
+      '<div id="detailArea" class="detail-area"></div>' +
       tablePanel();
 
     initCharts();
@@ -1356,6 +1357,8 @@
       '<span class="muted">共 ' + rows.length + ' 个结构 · ' + distinctCatalystCount(rows) + ' 个催化剂 · ' +
       Object.keys(elSet).length + ' 种元素</span></div>' +
       '<div class="panel-body">' + structureCardsHtml(rows) + '</div></div>' +
+
+      '<div id="detailArea" class="detail-area"></div>' +
 
       '<div class="meta-grid">' +
       '<div class="panel"><div class="panel-head"><div class="panel-title">计算设置</div></div>' +
@@ -2342,16 +2345,18 @@
     };
   }
 
-  /* ============================ 抽屉 ============================ */
+  /* ============================ 结构详情（页内区域，不用弹窗） ============================ */
   let currentRecord = null;
 
   function closeDrawer() {
-    const drawer = $('#drawer');
-    const overlay = $('#drawerOverlay');
-    if (drawer) { drawer.classList.remove('open'); drawer.setAttribute('aria-hidden', 'true'); }
-    if (overlay) overlay.classList.remove('open');
+    const host = $('#detailArea');
+    if (host) {
+      host.innerHTML = '';
+      host.classList.remove('open');
+    }
     if (currentViewer) { try { currentViewer.clear(); } catch (e) { /* 忽略 */ } currentViewer = null; }
     currentRecord = null;
+    $$('.st-card.active').forEach(function (el) { el.classList.remove('active'); });
   }
 
   function fieldHtml(k, v) {
@@ -2360,10 +2365,11 @@
 
   function openDrawer(d) {
     if (!d) return;
+    const host = $('#detailArea');
+    if (!host) return;
+
     currentRecord = d;
-    const drawer = $('#drawer');
-    const overlay = $('#drawerOverlay');
-    if (!drawer) return;
+    if (currentViewer) { try { currentViewer.clear(); } catch (e) { /* 忽略 */ } currentViewer = null; }
 
     const s = structureOf(d);
     const model3d = structureToText(s);
@@ -2397,12 +2403,17 @@
 
     const ed = (k) => descriptor(k).label + ' (' + descriptor(k).unit + ')';
 
-    drawer.innerHTML =
-      '<div class="drawer-head">' +
+    host.innerHTML =
+      '<div class="detail-card">' +
+      '<div class="detail-head">' +
       '<div><h3>' + esc(d.formula || '未命名') + (d.source === 'draft' ? '<span class="tag-draft">本地</span>' : '') + '</h3>' +
-      '<div class="sub">' + esc(d.id || '') + ' · ' + esc(rname) + '</div></div>' +
-      '<button class="close-btn" id="drawerClose">×</button></div>' +
-      '<div class="drawer-body">' +
+      '<div class="sub">' + esc(d.id || '') + ' · ' + esc(catalystOf(d)) + ' · ' + esc(rname) + '</div></div>' +
+      '<button class="btn btn-mini" id="detailClose">收起</button>' +
+      '</div>' +
+
+      '<div class="detail-body">' +
+      '<div>' +
+      '<div class="section-label">DFT 数据</div>' +
       '<div class="field-grid">' +
       fieldHtml('催化剂', esc(catalystOf(d))) +
       fieldHtml('结构', esc(d.formula || '—')) +
@@ -2423,36 +2434,45 @@
         fieldHtml('NIONS', isNum(oc.nions) ? String(oc.nions) : '—') +
         '</div>' : '') +
 
-      '<div class="section-label">结构信息（来自 CIF）</div>' +
-      (s ? '<div class="field-grid">' +
-        fieldHtml('文件', esc(s.file || '—')) +
-        fieldHtml('总原子数', esc(String(s.totalAtoms || 0))) +
-        fieldHtml('元素种类', esc(String((s.elements || []).length))) +
-        fieldHtml('化学式', esc(s.formula || '—')) + '</div>' +
-        (cell ? '<div class="field" style="margin-bottom:10px"><div class="k">晶胞参数</div><div class="v" style="font-weight:500;font-size:12px">' + esc(cell) + '</div></div>' : '') +
-        (cellVolume ? '<div class="field" style="margin-bottom:10px"><div class="k">晶胞体积</div><div class="v">' + cellVolume.toFixed(2) + ' Å³</div></div>' : '') +
-        (s.spaceGroup ? '<div class="field" style="margin-bottom:10px"><div class="k">空间群</div><div class="v">' + esc(s.spaceGroup) + '</div></div>' : '') +
-        '<table class="el-table"><tbody>' + elRows + '</tbody></table>' +
-        '<div class="section-label">三维结构</div>' +
-        (model3d
-          ? '<div class="viewer3d" id="viewer3d"></div>'
-          : '<div class="viewer-note">该记录没有坐标数据（早期上传的记录未保存坐标）。可在「内容管理 → 数据管理 → 补传结构」重新挂上 CIF。</div>')
-        : '<p class="muted">此条目没有结构文件。</p>') +
-
       (d.note ? '<div class="section-label">标注 / 备注</div><p style="font-size:13px;color:#475569">' + esc(d.note) + '</p>' : '') +
 
-      '<div style="display:flex;gap:8px;margin-top:22px">' +
-      '<button class="btn" id="copyJson">复制该条 JSON</button>' +
-      (d.source === 'draft' ? '<button class="btn btn-danger" id="deleteDraft">删除本地草稿</button>' : '') +
+      '<div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">' +
+      '<button class="btn btn-mini" id="copyJson">复制该条 JSON</button>' +
+      (d.source === 'draft' ? '<button class="btn btn-mini btn-danger" id="deleteDraft">删除本地草稿</button>' : '') +
+      '</div></div>' +
+
+      '<div>' +
+      (s
+        ? '<div class="section-label">结构信息（来自 CIF）</div>' +
+          '<div class="field-grid">' +
+          fieldHtml('文件', esc(s.file || '—')) +
+          fieldHtml('总原子数', esc(String(s.totalAtoms || 0))) +
+          fieldHtml('元素种类', esc(String((s.elements || []).length))) +
+          fieldHtml('化学式', esc(s.formula || '—')) +
+          '</div>' +
+          (cell ? '<div class="field" style="margin-bottom:8px"><div class="k">晶胞参数</div>' +
+            '<div class="v" style="font-weight:500;font-size:12px">' + esc(cell) + '</div></div>' : '') +
+          (cellVolume ? '<div class="field" style="margin-bottom:8px"><div class="k">晶胞体积</div>' +
+            '<div class="v">' + cellVolume.toFixed(2) + ' Å³</div></div>' : '') +
+          (s.spaceGroup ? '<div class="field" style="margin-bottom:8px"><div class="k">空间群</div>' +
+            '<div class="v">' + esc(s.spaceGroup) + '</div></div>' : '') +
+          '<table class="el-table"><tbody>' + elRows + '</tbody></table>' +
+          '<div class="section-label">三维结构</div>' +
+          (model3d
+            ? '<div class="viewer3d" id="viewer3d"></div>'
+            : '<div class="viewer3d"><div class="viewer-note">该记录没有坐标数据（早期上传的记录未保存坐标）。<br />可在「内容管理 → 数据管理 → 补传结构」重新挂上 CIF。</div></div>')
+        : '<p class="muted">此条目没有结构文件。</p>') +
+      '</div>' +
       '</div></div>';
 
-    drawer.classList.add('open');
-    drawer.setAttribute('aria-hidden', 'false');
-    if (overlay) overlay.classList.add('open');
+    host.classList.add('open');
 
-    $('#drawerClose').addEventListener('click', closeDrawer);
+    const closeBtn = $('#detailClose');
+    if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+
     const cp = $('#copyJson');
     if (cp) cp.addEventListener('click', function () { copyText(JSON.stringify(d, null, 2), '已复制该条 JSON'); });
+
     const del = $('#deleteDraft');
     if (del) del.addEventListener('click', function () {
       if (!window.confirm('确定删除这条本地草稿？删除后无法恢复。')) return;
@@ -2462,10 +2482,16 @@
       render();
     });
 
+    $$('.st-card').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-row-id') === d.id);
+    });
+
     if (s && model3d) {
       const hasCell = !!(s.cell && isFinite(s.cell.a) && s.cell.a > 0);
       render3D($('#viewer3d'), model3d.text, model3d.format, hasCell);
     }
+
+    try { host.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) { /* 忽略 */ }
   }
 
   function render3D(container, text, format, withCell) {
