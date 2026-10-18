@@ -60,6 +60,7 @@ window.SITE_CONTENT = {
     title: '数据总览',
     desc: '按反应体系归集的 DFT 计算结果：每个体系收录催化剂模型、总能、活化能与结构信息，可逐条追溯 CIF 与 OUTCAR 来源。',
     badge: 'DFT 数据平台',
+    databaseName: 'C1 小分子活化数据库',
     kpi: {
       catalysts: { label: '催化剂体系', sub: '跨反应去重统计' },
       energies: { label: 'DFT 总能', sub: '来自 OUTCAR 解析' },

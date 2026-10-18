@@ -555,6 +555,17 @@ td.formula { font-weight: 650; }
 .pill-ok { background: #e7f6ee; color: #1f7a4d; }
 .pill-idle { background: #f1f5f9; color: #64748b; }
 .pill-warn { background: #fef3c7; color: #92400e; }
+.pill-brand { background: #eef2ff; color: #3730a3; letter-spacing: .2px; }
+
+/* -------- 上传前的账号验证 -------- */
+.upload-login { max-width: 380px; margin: 4px auto 0; }
+.upload-login .login-head { margin-bottom: 16px; }
+.upload-login .logo-mark {
+  width: 42px; height: 42px; margin: 0 auto 10px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 11px; background: linear-gradient(135deg, #123f73, #2b7ac4);
+  color: #fff; font-weight: 800; font-size: 11px; letter-spacing: .4px;
+}
 
 .charts-2 {
   display: grid;

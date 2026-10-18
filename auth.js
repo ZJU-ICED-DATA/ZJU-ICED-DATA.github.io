@@ -17,5 +17,15 @@ window.SITE_AUTH = {
   salt: 'iced-a3f7c9e1d2b4',
   hash: '0a88b653dfb4bbb7e36a448303847734ee65021d242c2fb9ac54086f1101c5d0',
   maxFails: 5,
-  lockMs: 30000
+  lockMs: 30000,
+
+  /* 上传计算数据用的默认账号；可在「内容管理 → 上传权限」里改成别的，
+     改过的账号密码存放在浏览器 localStorage，优先于这里的默认值。 */
+  upload: {
+    username: 'Admin',
+    salt: 'iced-upload-7f2c1a9d',
+    hash: 'f16c83edd42b90920e8e242a0b1768a6d86afdd95bcbbc75739ba7e313b3a9dc',
+    maxFails: 5,
+    lockMs: 30000
+  }
 };

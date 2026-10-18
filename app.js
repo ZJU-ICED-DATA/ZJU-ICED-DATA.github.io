@@ -146,6 +146,58 @@
   let loginFails = 0;
   let loginLockUntil = 0;
 
+  /* ============================ 上传权限 ============================ */
+  /* 默认账号在 auth.js 的 SITE_AUTH.upload；在「内容管理 → 上传权限」改过后，
+     覆盖值存 localStorage，优先于默认。 */
+  const UPLOAD_AUTH_KEY = 'iced-db:uploadauth:v1';
+  const UPLOAD_OK_KEY = 'iced-db:upload-ok:v1';
+
+  function defaultUploadAuth() {
+    return (AUTH && AUTH.upload) || { username: 'Admin', salt: '', hash: '' };
+  }
+
+  function getUploadAuth() {
+    const base = defaultUploadAuth();
+    try {
+      const raw = localStorage.getItem(UPLOAD_AUTH_KEY);
+      const o = raw ? JSON.parse(raw) : null;
+      if (o && o.user && o.hash) {
+        return { username: o.user, salt: o.salt, hash: o.hash, maxFails: base.maxFails || 5, lockMs: base.lockMs || 30000, custom: true };
+      }
+    } catch (e) { /* 忽略 */ }
+    return { username: base.username, salt: base.salt, hash: base.hash, maxFails: base.maxFails || 5, lockMs: base.lockMs || 30000, custom: false };
+  }
+
+  function saveUploadAuth(user, pass) {
+    const cur = getUploadAuth();
+    const salt = pass ? ('u' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36)) : cur.salt;
+    const hash = pass ? sha256Hex(salt + ':' + pass) : cur.hash;
+    try {
+      localStorage.setItem(UPLOAD_AUTH_KEY, JSON.stringify({ user: user, salt: salt, hash: hash }));
+      return true;
+    } catch (e) {
+      showToast('本地存储空间不足，设置未保存');
+      return false;
+    }
+  }
+
+  function resetUploadAuth() {
+    try { localStorage.removeItem(UPLOAD_AUTH_KEY); } catch (e) { /* 忽略 */ }
+  }
+
+  function isUploadAuthed() {
+    try { return sessionStorage.getItem(UPLOAD_OK_KEY) === 'ok'; } catch (e) { return false; }
+  }
+  function setUploadAuthed() {
+    try { sessionStorage.setItem(UPLOAD_OK_KEY, 'ok'); } catch (e) { /* 忽略 */ }
+  }
+  function clearUploadAuthed() {
+    try { sessionStorage.removeItem(UPLOAD_OK_KEY); } catch (e) { /* 忽略 */ }
+  }
+
+  let uploadFails = 0;
+  let uploadLockUntil = 0;
+
   /* ============================ 发布配置 ============================ */
   /* Worker 地址与发布密钥只存在本机浏览器；GitHub 令牌保存在 Worker 服务端 */
   const PUBLISH_STORE = 'iced-db:publish:v1';
@@ -896,6 +948,7 @@
     $('#view').innerHTML =
       '<div class="page-head">' +
       '<div class="page-head-row"><h1 class="page-title">' + esc(cget('dashboard.title', '数据总览')) + '</h1>' +
+      '<span class="pill pill-brand">' + esc(cget('dashboard.databaseName', 'C1 小分子活化数据库')) + '</span>' +
       '<span class="pill pill-ok">✓ ' + esc(cget('dashboard.badge', 'DFT 数据平台')) + '</span></div>' +
       '<p class="page-desc">' + esc(cget('dashboard.desc', '')) + '</p></div>' +
       kpiHtml +
@@ -1149,6 +1202,25 @@
     if (errEl) errEl.textContent = '账户或密码不正确（还可尝试 ' + left + ' 次）';
   }
 
+  function uploadAuthPanelHtml() {
+    const cfg = getUploadAuth();
+    return '<div class="panel"><div class="panel-head"><div class="panel-title">上传权限</div>' +
+      '<span class="pill ' + (cfg.custom ? 'pill-ok' : 'pill-idle') + '">' + (cfg.custom ? '已自定义' : '默认账号') + '</span></div>' +
+      '<div class="panel-body admin-body">' +
+      '<p class="muted" style="margin-bottom:10px">上传计算数据时需要验证这里的账号密码。修改后立即生效；已通过验证的标签页需重新验证。</p>' +
+      '<div class="form-grid2">' +
+      '<div class="form-row"><label>上传账号</label><input id="upUser" value="' + esc(cfg.username) + '" /></div>' +
+      '<div class="form-row"><label>新密码（留空表示不修改）</label><input id="upPass" type="password" placeholder="••••••" /></div>' +
+      '</div>' +
+      '<div class="form-row"><label>确认新密码</label><input id="upPass2" type="password" /></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">' +
+      '<button type="button" class="btn btn-primary" id="upSave">保存上传账号</button>' +
+      '<button type="button" class="btn btn-danger" id="upReset">恢复默认</button>' +
+      '<span class="muted" id="upStatus" style="align-self:center">当前账号：' + esc(cfg.username) +
+      (cfg.custom ? '（自定义）' : '（默认）') + '</span>' +
+      '</div></div></div>';
+  }
+
   function publishPanelHtml() {
     const cfg = loadPublish() || { url: '', key: '' };
     return '<div class="panel"><div class="panel-head"><div class="panel-title">发布设置（Cloudflare Worker）</div>' +
@@ -1230,11 +1302,13 @@
       '</div></div>' +
 
       publishPanelHtml() +
+      uploadAuthPanelHtml() +
       aboutEditor() +
 
       '<div class="panel"><div class="panel-head"><div class="panel-title">数据总览页文案</div></div>' +
       '<div class="panel-body admin-body">' +
       '<div class="form-grid2">' + fieldInput('dashboard.title', '页面标题') + fieldInput('dashboard.badge', '右上角标签') + '</div>' +
+      fieldInput('dashboard.databaseName', '数据库名称（显示在标题旁）') +
       fieldArea('dashboard.desc', '页面说明', 2) +
       '<div class="section-label">KPI 卡片</div>' +
       '<div class="form-grid2">' + fieldInput('dashboard.kpi.catalysts.label', '卡片 1 名称') + fieldInput('dashboard.kpi.catalysts.sub', '卡片 1 说明') + '</div>' +
@@ -1319,6 +1393,31 @@
         showToast('发布设置已保存，上传时会多出「保存并发布」');
         render();
       }
+    });
+
+    const upSave = $('#upSave');
+    if (upSave) upSave.addEventListener('click', function () {
+      const u = valueOf('upUser').trim();
+      const p1 = valueOf('upPass');
+      const p2 = valueOf('upPass2');
+      if (!u) { showToast('请填写上传账号'); return; }
+      if (p1 || p2) {
+        if (p1 !== p2) { showToast('两次输入的密码不一致'); return; }
+        if (p1.length < 4) { showToast('密码至少 4 位'); return; }
+      }
+      if (!saveUploadAuth(u, p1 || null)) return;
+      clearUploadAuthed();
+      showToast('上传账号已更新：' + u);
+      render();
+    });
+
+    const upReset = $('#upReset');
+    if (upReset) upReset.addEventListener('click', function () {
+      if (!window.confirm('恢复为默认上传账号（Admin / zjusce985）？')) return;
+      resetUploadAuth();
+      clearUploadAuthed();
+      showToast('已恢复默认上传账号');
+      render();
     });
 
     const pubTest = $('#pubTest');
@@ -1887,7 +1986,79 @@
     if (!modal) return;
     uploadState = { items: [], unmatched: [], skipped: [] };
     modal.classList.add('open');
-    uploadStep1();
+    if (!isUploadAuthed()) renderUploadLogin();
+    else uploadStep1();
+  }
+
+  function renderUploadLogin() {
+    const body = $('#uploadBody');
+    const foot = $('#uploadFoot');
+    if (!body) return;
+
+    const now = Date.now();
+    const locked = now < uploadLockUntil;
+    const lockLeft = locked ? Math.ceil((uploadLockUntil - now) / 1000) : 0;
+
+    body.innerHTML =
+      '<div class="upload-login">' +
+      '<div class="login-head"><div class="logo-mark">ICED</div>' +
+      '<h2>上传计算数据</h2><p>请输入上传账号后继续</p></div>' +
+      '<form id="uploadLoginForm">' +
+      '<div class="form-row"><label>账号</label><input id="ulUser" autocomplete="username"' + (locked ? ' disabled' : '') + ' /></div>' +
+      '<div class="form-row"><label>密码</label><input id="ulPass" type="password" autocomplete="current-password"' + (locked ? ' disabled' : '') + ' /></div>' +
+      '<div class="login-error" id="ulError">' + (locked ? '尝试次数过多，请 ' + lockLeft + ' 秒后再试' : '') + '</div>' +
+      '<button class="btn btn-primary login-submit" type="submit"' + (locked ? ' disabled' : '') + '>验证并继续</button>' +
+      '</form>' +
+      '<p class="login-note">上传账号可在「内容管理 → 上传权限」中修改。<br />验证后本标签页内无需重复输入。</p>' +
+      '</div>';
+
+    if (foot) {
+      foot.innerHTML = '<span class="muted">上传计算数据需要验证账号</span>' +
+        '<button class="btn" id="uploadCancel">取消</button>';
+    }
+
+    const form = $('#uploadLoginForm');
+    if (form) form.addEventListener('submit', function (e) { e.preventDefault(); doUploadLogin(); });
+    const userEl = $('#ulUser');
+    if (userEl && !locked) userEl.focus();
+    const cancel = $('#uploadCancel');
+    if (cancel) cancel.addEventListener('click', closeUpload);
+  }
+
+  function doUploadLogin() {
+    const errEl = $('#ulError');
+    const now = Date.now();
+    if (now < uploadLockUntil) {
+      if (errEl) errEl.textContent = '尝试次数过多，请 ' + Math.ceil((uploadLockUntil - now) / 1000) + ' 秒后再试';
+      return;
+    }
+
+    const cfg = getUploadAuth();
+    const user = valueOf('ulUser').trim();
+    const pass = valueOf('ulPass');
+    const okUser = user === String(cfg.username || '');
+    const okPass = !!cfg.hash && sha256Hex(String(cfg.salt || '') + ':' + pass) === cfg.hash;
+
+    if (okUser && okPass) {
+      uploadFails = 0;
+      setUploadAuthed();
+      showToast('验证通过，可以上传了');
+      uploadStep1();
+      return;
+    }
+
+    uploadFails++;
+    const left = (cfg.maxFails || 5) - uploadFails;
+    if (left <= 0) {
+      uploadLockUntil = Date.now() + (cfg.lockMs || 30000);
+      uploadFails = 0;
+      if (errEl) errEl.textContent = '尝试次数过多，请 ' + Math.ceil((cfg.lockMs || 30000) / 1000) + ' 秒后再试';
+      const btn = $('#uploadLoginForm .login-submit');
+      if (btn) btn.disabled = true;
+      setTimeout(function () { if (!isUploadAuthed()) renderUploadLogin(); }, (cfg.lockMs || 30000) + 200);
+      return;
+    }
+    if (errEl) errEl.textContent = '账号或密码不正确（还可尝试 ' + left + ' 次）';
   }
 
   function closeUpload() {
@@ -1942,7 +2113,9 @@
 
     if (foot) {
       foot.innerHTML = '<span class="muted">' + esc(cget('upload.desc', '')) + '</span>' +
-        '<button class="btn" id="uploadCancel">取消</button>';
+        '<div style="display:flex;gap:8px">' +
+        '<button class="btn btn-mini" id="uploadLogout">退出上传</button>' +
+        '<button class="btn" id="uploadCancel">取消</button></div>';
     }
 
     const dz = $('#dropzone');
@@ -1984,6 +2157,14 @@
 
     const cancel = $('#uploadCancel');
     if (cancel) cancel.addEventListener('click', closeUpload);
+
+    const logout = $('#uploadLogout');
+    if (logout) logout.addEventListener('click', function () {
+      clearUploadAuthed();
+      uploadState = { items: [], unmatched: [], skipped: [] };
+      showToast('已退出上传权限');
+      renderUploadLogin();
+    });
   }
 
   function normalizeFiles(list) {
