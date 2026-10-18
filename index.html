@@ -5,7 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>ZJU-ICED Catalyst Database</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="echarts.min.js"></script>
+<script>
+  /* 图表库本地优先；若本地文件缺失（例如单独拷走 html），回退到 CDN */
+  if (!window.echarts) {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"><\/script>');
+  }
+</script>
 <style>
 :root{
   --primary:#1e5aa8;
@@ -142,6 +148,36 @@ td.num{font-variant-numeric:tabular-nums}
 .page-btn:hover:not(:disabled){background:#f1f5f9;border-color:#cbd5e1}
 .page-btn:disabled{opacity:.45;cursor:not-allowed}
 
+/* ---------- Empty state ---------- */
+.banner{
+  background:#fff7e6;border:1px solid #f0d49b;color:#8a5a00;
+  border-radius:var(--radius);padding:12px 16px;margin-bottom:18px;
+  font-size:13.5px;line-height:1.55;display:flex;gap:10px;align-items:flex-start;
+  box-shadow:var(--shadow);
+}
+.banner b{color:#7a4d00}
+.banner a{color:#8a5a00;font-weight:650}
+.chart-box{position:relative}
+.chart-empty{
+  position:absolute;inset:0;display:none;flex-direction:column;gap:6px;
+  align-items:center;justify-content:center;text-align:center;
+  color:var(--muted);font-size:13px;letter-spacing:.2px;background:#fff;
+}
+.chart-empty span{font-size:22px;opacity:.55}
+.chart-empty.show{display:flex}
+
+/* ---------- Footer ---------- */
+.footer{
+  border-top:1px solid var(--border);background:#fff;
+  padding:18px 0;margin-top:8px;
+}
+.footer-inner{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);
+}
+.footer-inner a{color:var(--primary);text-decoration:none}
+.footer-inner a:hover{text-decoration:underline}
+
 /* ---------- Responsive ---------- */
 @media(max-width:1000px){
   .charts{grid-template-columns:1fr}
@@ -169,11 +205,22 @@ td.num{font-variant-numeric:tabular-nums}
         <p>催化剂性能数据平台 · Catalyst Performance Data Platform</p>
       </div>
     </div>
-    <a class="gh-link" href="https://github.com/ZJU-ICED-DATA" target="_blank" rel="noopener">GitHub 仓库</a>
+    <a class="gh-link" href="https://github.com/njustzhangmj/ZJU-ICED-DATA.github.io" target="_blank" rel="noopener">GitHub 仓库</a>
   </div>
 </header>
 
 <main class="container">
+
+  <!-- ==================== 数据状态提示（有数据后自动隐藏） ==================== -->
+  <div class="banner" id="dataBanner">
+    <span>ℹ️</span>
+    <span>
+      <b>数据库框架已就绪，催化剂条目正在整理录入中。</b>
+      本页面已支持按金属 / 反应类型筛选、排序、分页与交互式图表，
+      数据补齐后会自动生成全部统计与图表。
+      维护方式见 <a href="https://github.com/njustzhangmj/ZJU-ICED-DATA.github.io#readme" target="_blank" rel="noopener">README</a>。
+    </span>
+  </div>
 
   <!-- ==================== 统计卡片 ==================== -->
   <section class="stats">
@@ -207,16 +254,25 @@ td.num{font-variant-numeric:tabular-nums}
   <section class="charts">
     <div class="card">
       <h3>活化能 vs. 选择性</h3>
-      <div id="scatterChart" class="chart chart-lg"></div>
+      <div class="chart-box">
+        <div id="scatterChart" class="chart chart-lg"></div>
+        <div class="chart-empty" id="scatterEmpty"><span>📊</span>暂无数据</div>
+      </div>
     </div>
     <div class="charts-right">
       <div class="card">
         <h3>各金属条目数</h3>
+        <div class="chart-box">
         <div id="barChart" class="chart chart-sm"></div>
+        <div class="chart-empty" id="barEmpty"><span>📊</span>暂无数据</div>
+      </div>
       </div>
       <div class="card">
         <h3>反应类型分布</h3>
+        <div class="chart-box">
         <div id="pieChart" class="chart chart-sm"></div>
+        <div class="chart-empty" id="pieEmpty"><span>📊</span>暂无数据</div>
+      </div>
       </div>
     </div>
   </section>
@@ -257,63 +313,40 @@ td.num{font-variant-numeric:tabular-nums}
 
 </main>
 
+<footer class="footer">
+  <div class="container footer-inner">
+    <span>© 2025 ZJU-ICED 课题组 · 催化剂性能数据库</span>
+    <span>
+      <a href="https://github.com/njustzhangmj/ZJU-ICED-DATA.github.io" target="_blank" rel="noopener">贡献数据 / 查看源码</a>
+      &nbsp;·&nbsp; 数据仅供科研参考
+    </span>
+  </div>
+</footer>
+
+<script src="data.js"></script>
 <script>
 /* =========================================================================
-   1. 数据区 —— 以后只需替换这里的内容
-   字段说明：
-     id          唯一编号
-     formula     化学式 / 催化剂名称
-     metal       活性金属（用于分组着色）
+   1. 数据区
+   -------------------------------------------------------------------------
+   数据不在本文件中维护。所有条目请写入同目录下的 data.js：
+
+       window.CATALYST_DATA = [ { ... }, { ... } ];
+
+   每条记录的字段（缺一不可，数值型请勿加引号）：
+     id          唯一编号，建议 CAT-001 递增
+     formula     化学式 / 催化剂名称，如 "Ni/Al2O3"
+     metal       活性金属，用于筛选与分组着色
      support     载体
-     reaction    反应类型
+     reaction    反应类型，如 "CO2 Hydrogenation"
      dftEnergy   DFT 计算能量 (eV)
      barrier     活化能 (eV)
      selectivity 目标产物选择性 (%)
      temp        反应温度 (°C)
-     ref         数据来源
+     ref         数据来源（文献 / 内部记录编号）
+
+   data.js 为空数组时，页面会自动显示“数据整理中”的空状态。
    ========================================================================= */
-const DATA = [
-  { id:'CAT-001', formula:'Ni/Al2O3',  metal:'Ni', support:'Al2O3', reaction:'CO2 Hydrogenation', dftEnergy:-12.34, barrier:0.87, selectivity:92.5, temp:350, ref:'ZJU-ICED 2025' },
-  { id:'CAT-002', formula:'Ni/SiO2',   metal:'Ni', support:'SiO2',  reaction:'CO2 Hydrogenation', dftEnergy:-11.87, barrier:0.95, selectivity:88.2, temp:380, ref:'ZJU-ICED 2025' },
-  { id:'CAT-003', formula:'Ni/CeO2',   metal:'Ni', support:'CeO2',  reaction:'CO2 Hydrogenation', dftEnergy:-13.02, barrier:0.72, selectivity:95.1, temp:320, ref:'DFT-PBE 2024' },
-  { id:'CAT-004', formula:'Ni/TiO2',   metal:'Ni', support:'TiO2',  reaction:'Methane Reforming', dftEnergy:-10.55, barrier:1.12, selectivity:76.4, temp:700, ref:'Lit. 2023' },
-  { id:'CAT-005', formula:'Ni/ZrO2',   metal:'Ni', support:'ZrO2',  reaction:'Methane Reforming', dftEnergy:-9.88,  barrier:1.28, selectivity:71.2, temp:750, ref:'Lit. 2023' },
-  { id:'CAT-006', formula:'Cu/Al2O3',  metal:'Cu', support:'Al2O3', reaction:'CO2 Hydrogenation', dftEnergy:-8.45,  barrier:0.68, selectivity:64.3, temp:280, ref:'ZJU-ICED 2025' },
-  { id:'CAT-007', formula:'Cu/ZnO',    metal:'Cu', support:'ZnO',   reaction:'CO2 Hydrogenation', dftEnergy:-9.12,  barrier:0.55, selectivity:78.9, temp:260, ref:'DFT-PBE 2024' },
-  { id:'CAT-008', formula:'Cu/SiO2',   metal:'Cu', support:'SiO2',  reaction:'Water-Gas Shift',   dftEnergy:-7.98,  barrier:0.92, selectivity:58.7, temp:300, ref:'Lit. 2023' },
-  { id:'CAT-009', formula:'Cu/CeO2',   metal:'Cu', support:'CeO2',  reaction:'CO Oxidation',      dftEnergy:-8.76,  barrier:0.61, selectivity:82.1, temp:150, ref:'ZJU-ICED 2025' },
-  { id:'CAT-010', formula:'Pd/Al2O3',  metal:'Pd', support:'Al2O3', reaction:'CO Oxidation',      dftEnergy:-9.65,  barrier:0.45, selectivity:96.8, temp:120, ref:'ZJU-ICED 2025' },
-  { id:'CAT-011', formula:'Pd/CeO2',   metal:'Pd', support:'CeO2',  reaction:'CO Oxidation',      dftEnergy:-10.23, barrier:0.38, selectivity:98.2, temp:100, ref:'DFT-PBE 2024' },
-  { id:'CAT-012', formula:'Pd/C',      metal:'Pd', support:'C',     reaction:'CO Oxidation',      dftEnergy:-9.11,  barrier:0.52, selectivity:94.5, temp:140, ref:'Lit. 2023' },
-  { id:'CAT-013', formula:'Pd/SiO2',   metal:'Pd', support:'SiO2',  reaction:'CO2 Hydrogenation', dftEnergy:-8.94,  barrier:1.05, selectivity:61.7, temp:300, ref:'ZJU-ICED 2025' },
-  { id:'CAT-014', formula:'Pt/Al2O3',  metal:'Pt', support:'Al2O3', reaction:'CO Oxidation',      dftEnergy:-11.02, barrier:0.41, selectivity:97.3, temp:110, ref:'ZJU-ICED 2025' },
-  { id:'CAT-015', formula:'Pt/TiO2',   metal:'Pt', support:'TiO2',  reaction:'CO Oxidation',      dftEnergy:-10.78, barrier:0.48, selectivity:95.6, temp:130, ref:'Lit. 2023' },
-  { id:'CAT-016', formula:'Pt/C',      metal:'Pt', support:'C',     reaction:'CO Oxidation',      dftEnergy:-11.45, barrier:0.35, selectivity:99.1, temp:90,  ref:'DFT-PBE 2024' },
-  { id:'CAT-017', formula:'Pt/CeO2',   metal:'Pt', support:'CeO2',  reaction:'Water-Gas Shift',   dftEnergy:-10.12, barrier:0.88, selectivity:68.4, temp:280, ref:'ZJU-ICED 2025' },
-  { id:'CAT-018', formula:'Ru/Al2O3',  metal:'Ru', support:'Al2O3', reaction:'NH3 Synthesis',     dftEnergy:-14.21, barrier:1.32, selectivity:84.6, temp:400, ref:'Lit. 2023' },
-  { id:'CAT-019', formula:'Ru/C',      metal:'Ru', support:'C',     reaction:'NH3 Synthesis',     dftEnergy:-15.06, barrier:1.15, selectivity:89.3, temp:380, ref:'DFT-PBE 2024' },
-  { id:'CAT-020', formula:'Ru/MgO',    metal:'Ru', support:'MgO',   reaction:'NH3 Synthesis',     dftEnergy:-13.78, barrier:1.41, selectivity:81.2, temp:420, ref:'Lit. 2023' },
-  { id:'CAT-021', formula:'Ru/CeO2',   metal:'Ru', support:'CeO2',  reaction:'CO2 Hydrogenation', dftEnergy:-13.55, barrier:0.79, selectivity:93.7, temp:340, ref:'ZJU-ICED 2025' },
-  { id:'CAT-022', formula:'Co/Al2O3',  metal:'Co', support:'Al2O3', reaction:'Fischer-Tropsch',   dftEnergy:-11.34, barrier:1.18, selectivity:72.8, temp:240, ref:'ZJU-ICED 2025' },
-  { id:'CAT-023', formula:'Co/SiO2',   metal:'Co', support:'SiO2',  reaction:'Fischer-Tropsch',   dftEnergy:-10.89, barrier:1.25, selectivity:69.5, temp:230, ref:'Lit. 2023' },
-  { id:'CAT-024', formula:'Co/TiO2',   metal:'Co', support:'TiO2',  reaction:'Fischer-Tropsch',   dftEnergy:-10.12, barrier:1.34, selectivity:66.1, temp:250, ref:'DFT-PBE 2024' },
-  { id:'CAT-025', formula:'Fe/Al2O3',  metal:'Fe', support:'Al2O3', reaction:'Fischer-Tropsch',   dftEnergy:-9.45,  barrier:1.42, selectivity:58.3, temp:260, ref:'Lit. 2023' },
-  { id:'CAT-026', formula:'Fe/C',      metal:'Fe', support:'C',     reaction:'Fischer-Tropsch',   dftEnergy:-8.87,  barrier:1.51, selectivity:54.7, temp:270, ref:'ZJU-ICED 2025' },
-  { id:'CAT-027', formula:'Fe/SiO2',   metal:'Fe', support:'SiO2',  reaction:'Water-Gas Shift',   dftEnergy:-8.12,  barrier:1.08, selectivity:62.5, temp:320, ref:'Lit. 2023' },
-  { id:'CAT-028', formula:'Rh/Al2O3',  metal:'Rh', support:'Al2O3', reaction:'CO2 Hydrogenation', dftEnergy:-12.87, barrier:0.82, selectivity:91.4, temp:310, ref:'ZJU-ICED 2025' },
-  { id:'CAT-029', formula:'Rh/SiO2',   metal:'Rh', support:'SiO2',  reaction:'CO Oxidation',      dftEnergy:-11.76, barrier:0.44, selectivity:96.2, temp:125, ref:'DFT-PBE 2024' },
-  { id:'CAT-030', formula:'Rh/CeO2',   metal:'Rh', support:'CeO2',  reaction:'Methane Reforming', dftEnergy:-11.23, barrier:0.98, selectivity:79.8, temp:680, ref:'Lit. 2023' },
-  { id:'CAT-031', formula:'Ni/MgO',    metal:'Ni', support:'MgO',   reaction:'CO2 Hydrogenation', dftEnergy:-10.98, barrier:0.91, selectivity:85.3, temp:360, ref:'ZJU-ICED 2025' },
-  { id:'CAT-032', formula:'Pt/ZrO2',   metal:'Pt', support:'ZrO2',  reaction:'CO Oxidation',      dftEnergy:-10.45, barrier:0.51, selectivity:93.8, temp:135, ref:'DFT-PBE 2024' },
-  { id:'CAT-033', formula:'Cu/TiO2',   metal:'Cu', support:'TiO2',  reaction:'CO2 Hydrogenation', dftEnergy:-8.23,  barrier:0.74, selectivity:67.9, temp:290, ref:'Lit. 2023' },
-  { id:'CAT-034', formula:'Pd/TiO2',   metal:'Pd', support:'TiO2',  reaction:'CO2 Hydrogenation', dftEnergy:-9.34,  barrier:0.96, selectivity:71.5, temp:305, ref:'ZJU-ICED 2025' },
-  { id:'CAT-035', formula:'Ru/TiO2',   metal:'Ru', support:'TiO2',  reaction:'NH3 Synthesis',     dftEnergy:-14.67, barrier:1.22, selectivity:86.9, temp:395, ref:'DFT-PBE 2024' },
-  { id:'CAT-036', formula:'Co/CeO2',   metal:'Co', support:'CeO2',  reaction:'Fischer-Tropsch',   dftEnergy:-11.08, barrier:1.21, selectivity:70.3, temp:245, ref:'ZJU-ICED 2025' },
-  { id:'CAT-037', formula:'Fe/TiO2',   metal:'Fe', support:'TiO2',  reaction:'Fischer-Tropsch',   dftEnergy:-9.01,  barrier:1.46, selectivity:56.9, temp:265, ref:'Lit. 2023' },
-  { id:'CAT-038', formula:'Rh/TiO2',   metal:'Rh', support:'TiO2',  reaction:'CO2 Hydrogenation', dftEnergy:-12.45, barrier:0.86, selectivity:89.7, temp:315, ref:'ZJU-ICED 2025' },
-  { id:'CAT-039', formula:'Ni/C',      metal:'Ni', support:'C',     reaction:'Methane Reforming', dftEnergy:-9.67,  barrier:1.35, selectivity:68.2, temp:720, ref:'Lit. 2023' },
-  { id:'CAT-040', formula:'Pt/SiO2',   metal:'Pt', support:'SiO2',  reaction:'CO2 Hydrogenation', dftEnergy:-9.78,  barrier:1.02, selectivity:65.8, temp:295, ref:'DFT-PBE 2024' }
-];
+const DATA = Array.isArray(window.CATALYST_DATA) ? window.CATALYST_DATA : [];
 
 /* =========================================================================
    2. 全局状态
@@ -336,9 +369,10 @@ const $ = id => document.getElementById(id);
 /* =========================================================================
    3. 图表初始化
    ========================================================================= */
-const scatterChart = echarts.init($('scatterChart'));
-const barChart     = echarts.init($('barChart'));
-const pieChart     = echarts.init($('pieChart'));
+const HAS_ECHARTS  = typeof echarts !== 'undefined';
+const scatterChart = HAS_ECHARTS ? echarts.init($('scatterChart')) : null;
+const barChart     = HAS_ECHARTS ? echarts.init($('barChart'))     : null;
+const pieChart     = HAS_ECHARTS ? echarts.init($('pieChart'))     : null;
 
 const AXIS_LABEL = { fontSize: 11, color: '#64748b' };
 const AXIS_NAME  = { fontSize: 11.5, color: '#64748b' };
@@ -392,13 +426,17 @@ function updateStats(rows) {
   const avg = rows.length
     ? rows.reduce((s, d) => s + d.selectivity, 0) / rows.length
     : 0;
-  $('statSel').textContent = avg.toFixed(1) + '%';
+  $('statSel').textContent = rows.length ? avg.toFixed(1) + '%' : '—';
 }
 
 /* =========================================================================
    7. 图表更新
    ========================================================================= */
 function updateCharts(rows) {
+  if (!HAS_ECHARTS) {
+    ['scatterEmpty', 'barEmpty', 'pieEmpty'].forEach(id => $(id).classList.add('show'));
+    return;
+  }
   /* ---- 散点图：活化能 vs 选择性，按金属分组 ---- */
   const byMetal = {};
   rows.forEach(d => {
@@ -532,9 +570,14 @@ function updateCharts(rows) {
       data: pieData
     }]
   }, true);
+
+  /* 无数据时用遮罩层替代空白图表 */
+  ['scatterEmpty', 'barEmpty', 'pieEmpty'].forEach(id => {
+    $(id).classList.toggle('show', rows.length === 0);
+  });
 }
 
-/* =========================================================================
+/* ================================================================
    8. 表格渲染 & 分页
    ========================================================================= */
 function renderTable(rows) {
@@ -547,8 +590,10 @@ function renderTable(rows) {
   const tbody = $('tbody');
 
   if (!pageRows.length) {
-    tbody.innerHTML =
-      '<tr><td class="empty" colspan="10">没有匹配的数据，试试调整筛选条件</td></tr>';
+    const emptyMsg = DATA.length === 0
+      ? '数据库正在录入中 · 暂无催化剂条目'
+      : '没有匹配的数据，试试调整筛选条件';
+    tbody.innerHTML = `<tr><td class="empty" colspan="10">${emptyMsg}</td></tr>`;
   } else {
     tbody.innerHTML = pageRows.map(d => `
       <tr>
@@ -592,6 +637,7 @@ function renderSortArrows() {
    10. 统一刷新
    ========================================================================= */
 function update() {
+  $('dataBanner').style.display = DATA.length ? 'none' : 'flex';
   const rows = sortRows(getFiltered());
   updateStats(rows);
   updateCharts(rows);
@@ -657,6 +703,7 @@ $('nextBtn').addEventListener('click', () => {
 /* 窗口尺寸变化时重绘图表 */
 let resizeTimer;
 window.addEventListener('resize', () => {
+  if (!HAS_ECHARTS) return;
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => {
     scatterChart.resize();
