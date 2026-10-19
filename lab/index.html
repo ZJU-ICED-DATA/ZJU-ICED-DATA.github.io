@@ -104,6 +104,10 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   width: 34px; height: 34px; object-fit: cover;
   border-radius: 5px; border: 1px solid var(--border); vertical-align: middle;
 }
+.day-table .thumb-row { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.day-table .thumb-dev { font-size: 10.5px; color: var(--muted); margin-top: 3px; }
+.js-photo { cursor: zoom-in; transition: transform .12s, box-shadow .12s; }
+.js-photo:hover { transform: scale(1.08); box-shadow: 0 2px 8px rgba(16,42,67,.2); }
 
 .modal{position:fixed;inset:0;background:rgba(15,23,42,.42);display:none;align-items:center;justify-content:center;padding:18px;z-index:60}
 .modal.open{display:flex}
@@ -299,6 +303,18 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       <button class="btn primary" id="stSave">保存</button>
       <button class="btn" id="stCancel">取消</button>
       <button class="btn ghost" id="stTest" style="margin-left:auto">测试连接</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="photoModal">
+  <div class="box" style="width:min(760px,96vw)">
+    <h3 id="pmTitle">检查照片</h3>
+    <p class="hint" id="pmMeta"></p>
+    <img id="pmImg" alt="检查照片" style="width:100%;border-radius:10px;border:1px solid var(--border);background:#fff" />
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <a class="btn" id="pmOpen" target="_blank" rel="noopener">在新标签打开</a>
+      <button class="btn primary" id="pmClose" style="margin-left:auto">关闭</button>
     </div>
   </div>
 </div>
@@ -1060,23 +1076,80 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
           ? '<span class="badge err">发现异常</span>'
           : '<span class="badge ok">无异常</span>';
         var photoCount = arr.reduce(function (n, c) { return n + (c.photos || []).length; }, 0);
-        var firstPhoto = '';
-        for (var i = 0; i < arr.length && !firstPhoto; i++) {
-          if ((arr[i].photos || []).length) firstPhoto = Store.photoUrl(arr[i].photos[0]);
-        }
+
+        /* 照片 → 设备映射 */
+        var meta = {};
+        arr.forEach(function (c) { (c.photoMeta || []).forEach(function (m) { meta[m.id] = m; }); });
+
+        var thumbs = [];
+        arr.forEach(function (c) {
+          (c.photos || []).forEach(function (pid) {
+            var m = meta[pid] || {};
+            var dev = m.device || '未标注设备';
+            thumbs.push('<img src="' + Store.photoUrl(pid) + '" class="thumb js-photo" loading="lazy" alt="' + esc(dev) + '"' +
+              ' data-pid="' + esc(pid) + '" data-device="' + esc(dev) + '" data-owner="' + esc(m.owner || '') + '"' +
+              ' data-inspector="' + esc(c.name || '') + '"' +
+              ' data-date="' + esc(c.date) + '" data-time="' + esc(c.time) + '" title="' + esc(dev) + '" />');
+          });
+        });
+
+        var devList = [];
+        arr.forEach(function (c) {
+          (c.photos || []).forEach(function (pid) {
+            var d = (meta[pid] || {}).device;
+            if (d && devList.indexOf(d) < 0) devList.push(d);
+          });
+        });
+
         return '<tr><td><b>' + d + '</b></td><td>周' + weekdayZh(d) + '</td>' +
           '<td>' + esc(names) + '</td><td>' + esc(time) + '</td><td>' + verdict + '</td>' +
           '<td class="num">' + (photoCount || '—') + '</td>' +
-          '<td>' + (firstPhoto ? '<img src="' + firstPhoto + '" class="thumb" loading="lazy" alt="照片" />' : '') + '</td></tr>';
+          '<td><div class="thumb-row">' + thumbs.join('') + '</div>' +
+          (devList.length ? '<div class="thumb-dev">' + esc(devList.join('、')) + '</div>' : '') +
+          '</td></tr>';
       }).join('');
 
       list.innerHTML = '<div class="table-scroll"><table class="tb day-table">' +
-        '<thead><tr><th>日期</th><th>星期</th><th>检查人</th><th>离开时间</th><th>结论</th><th class="num">照片</th><th></th></tr></thead>' +
+        '<thead><tr><th>日期</th><th>星期</th><th>检查人</th><th>离开时间</th><th>结论</th><th class="num">照片</th><th>拍摄设备</th></tr></thead>' +
         '<tbody>' + dayRows + '</tbody></table></div>';
+
+      bindPhotoLightbox(list);
     }).catch(function (e) {
       $('#statsSummary').className = 'empty';
       $('#statsSummary').textContent = '读取失败：' + e.message;
     });
+  }
+
+  /* 照片灯箱 */
+  function bindPhotoLightbox(scope) {
+    $$('.js-photo', scope).forEach(function (img) {
+      img.addEventListener('click', function () {
+        var pid = img.getAttribute('data-pid');
+        var dev = img.getAttribute('data-device') || '检查照片';
+        var owner = img.getAttribute('data-owner') || '';
+        var inspector = img.getAttribute('data-inspector') || '';
+        var date = img.getAttribute('data-date') || '';
+        var time = img.getAttribute('data-time') || '';
+        var url = Store.photoUrl(pid);
+
+        $('#pmImg').src = url;
+        $('#pmTitle').textContent = dev;
+        $('#pmMeta').textContent = date + ' ' + time +
+          (inspector ? ' · 检查人 ' + inspector : '') +
+          (owner ? ' · 设备使用人 ' + owner : '') +
+          (dev === '未标注设备' ? '（旧记录未记录设备）' : '');
+        $('#pmOpen').href = url;
+        $('#photoModal').classList.add('open');
+      });
+    });
+  }
+
+  function bindPhotoModal() {
+    var close = function () { $('#photoModal').classList.remove('open'); };
+    var btn = $('#pmClose');
+    if (btn) btn.addEventListener('click', close);
+    var modal = $('#photoModal');
+    if (modal) modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
   }
 
   /* 当月所有日期 */
@@ -1252,11 +1325,13 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       var photosPayload = [];
       var photoIds = [];
       var usage = dayOf(date).usage;
+      var photoMeta = [];
       usage.forEach(function (r) {
         (state.photos[r.id] || []).forEach(function (dataUrl) {
           var pid = uid('p');
           photoIds.push(pid);
           photosPayload.push({ id: pid, usageId: r.id, dataUrl: dataUrl });
+          photoMeta.push({ id: pid, usageId: r.id, device: r.device || '', owner: r.name || '' });
         });
       });
 
@@ -1265,6 +1340,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         name: name, checks: checks, verdict: verdict, issue: issue,
         usageIds: usage.map(function (r) { return r.id; }),
         photos: photoIds,
+        photoMeta: photoMeta,
         createdAt: new Date().toISOString()
       };
 
@@ -1456,6 +1532,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     bindCheck();
     bindStats();
     bindSettings();
+    bindPhotoModal();
 
     /* 选项管理 */
     var os = $('#optSave');
