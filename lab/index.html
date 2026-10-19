@@ -282,9 +282,9 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 <div class="modal" id="settings">
   <div class="box">
     <h3>数据连接设置</h3>
-    <p class="hint">配置后全组共享同一份记录；不配置则只保存在当前浏览器（仅用于试用）。</p>
-    <label class="f"><span>接口地址（Cloudflare Worker）</span><input type="text" id="stApi" placeholder="https://lab-api.xxx.workers.dev" /></label>
-    <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;font-size:13px;color:#475569"><input type="checkbox" id="stLocal" style="margin-top:4px" /><span>仅在本机保存（不参与云端共享，一般不用勾）</span></label>
+    <p class="hint">数据存在 GitHub（读取不用代理）。填了 GitHub 写入令牌就直接提交到 GitHub，完全不经 Cloudflare。</p>
+    <label class="f"><span>GitHub 写入令牌（推荐）</span><input type="text" id="stToken" placeholder="github_pat_… 只需 lab-data 仓库的 Contents 写权限" /></label>
+    <label class="f"><span>接口地址（Cloudflare Worker，没填令牌时用）</span><input type="text" id="stApi" placeholder="https://lab-api.xxx.workers.dev" /></label>
     <label class="f"><span>我的名字（自动填充）</span><input type="text" id="stMe" placeholder="可选" /></label>
     <div style="display:flex;gap:8px;margin-top:6px">
       <button class="btn primary" id="stSave">保存</button>
@@ -353,10 +353,14 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   function getCfg() {
     var c = {};
     try { c = JSON.parse(localStorage.getItem(LS.cfg) || '{}'); } catch (e) { c = {}; }
-    return { api: (c.api || DEFAULT_API), local: !!c.local };
+    return { api: (c.api || DEFAULT_API), local: !!c.local, token: c.token || '' };
   }
   function setCfg(c) { localStorage.setItem(LS.cfg, JSON.stringify(c)); }
-  function cloudOn() { var c = getCfg(); return !c.local && !!c.api; }
+  function cloudOn() {
+    var c = getCfg();
+    if (c.token) return true;            /* 直接写 GitHub */
+    return !c.local && !!c.api;          /* 走 Worker */
+  }
 
   /* ---------------- 下拉选项（可在「④ 选项管理」里改） ---------------- */
   var DEFAULT_OPTIONS = {
@@ -445,7 +449,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
     /* 优先读 GitHub Pages 上的静态文件（同域名，不需要代理） */
     try {
-      var r0 = await fetch('data/options.json?t=' + Date.now(), { cache: 'no-store' });
+      var r0 = await fetch(OPTIONS_URL + '?t=' + Date.now(), { cache: 'no-store' });
       if (r0.ok) raw = await r0.json();
     } catch (e) { /* 忽略 */ }
 
@@ -482,7 +486,16 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     var cfg = getCfg();
     var syncOk = true;
 
-    if (cloudOn()) {
+    if (cfg.token) {
+      try {
+        var cur = await ghGetFile('options.json', cfg.token);
+        await ghPutText('options.json', JSON.stringify(opts, null, 1), cfg.token,
+          '更新实验室选项（成员 / 设备 / 时长）', cur && cur.sha);
+      } catch (e) {
+        syncOk = false;
+        toast('已存到本机，但提交 GitHub 失败：' + e.message, 4500);
+      }
+    } else if (cloudOn()) {
       try {
         var r = await fetch(cfg.api + '/api/options', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -506,12 +519,109 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   }
 
   /* ---------------- 数据层 ----------------
-     读取：直接读 GitHub Pages 上的静态文件（同域名，不需要代理/梯子）
-     写入：POST 到 Cloudflare Worker，由它提交到 GitHub
-     写失败时先存本机「待同步」，网络恢复后可重试 */
-  var DATA_URL = 'data/records.json';
-  var PHOTO_URL = 'data/photos/';
+     读取：GitHub Pages 静态文件（与页面同域，不需要代理/梯子）
+     写入：优先用 GitHub 令牌直接提交（不经过 Cloudflare）；没配令牌才退回 Worker */
+  var DATA_BASE = 'https://zju-iced-data.github.io/lab-data/';
+  var DATA_URL = DATA_BASE + 'records.json';
+  var OPTIONS_URL = DATA_BASE + 'options.json';
+  var PHOTO_URL = DATA_BASE + 'photos/';
+
+  var GH_REPO = 'ZJU-ICED-DATA/lab-data';
+  var GH_API = 'https://api.github.com/repos/' + GH_REPO + '/contents/';
+
   var PENDING_KEY = 'lab:pending:v1';
+
+  function b64encUtf8(str) {
+    var bytes = new TextEncoder().encode(str);
+    var bin = '';
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+  function b64decUtf8(b64) {
+    var bin = atob(String(b64).replace(/\s/g, ''));
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  async function ghGetFile(path, token) {
+    var r = await fetch(GH_API + path + '?t=' + Date.now(), {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' },
+      cache: 'no-store'
+    });
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error('GitHub 读取失败 HTTP ' + r.status);
+    var j = await r.json();
+    return { sha: j.sha, text: b64decUtf8(j.content) };
+  }
+
+  async function ghPutText(path, text, token, message, sha) {
+    var body = { message: message, content: b64encUtf8(text), branch: 'main' };
+    if (sha) body.sha = sha;
+    var r = await fetch(GH_API + path, {
+      method: 'PUT',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) {
+      var msg = '';
+      try { var j = await r.json(); msg = j.message || ''; } catch (e) { /* ignore */ }
+      throw new Error('GitHub 写入失败 HTTP ' + r.status + (msg ? '：' + msg : ''));
+    }
+    return r.json();
+  }
+
+  async function ghPutBinary(path, base64, token, message) {
+    var r = await fetch(GH_API + path, {
+      method: 'PUT',
+      headers: {
+        Authorization: 'Bearer ' + token,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ message: message, content: base64, branch: 'main' })
+    });
+    if (!r.ok) {
+      var msg = '';
+      try { var j = await r.json(); msg = j.message || ''; } catch (e) { /* ignore */ }
+      throw new Error('照片上传失败 HTTP ' + r.status + (msg ? '：' + msg : ''));
+    }
+    return r.json();
+  }
+
+  /* 直接写 GitHub：先传照片，再改 records.json（带重试，防止并发冲突） */
+  async function ghSubmit(record, photos, token) {
+    var list = photos || [];
+    for (var i = 0; i < list.length; i++) {
+      var b64 = String(list[i].dataUrl || '').split(',')[1] || '';
+      if (!b64) continue;
+      await ghPutBinary('photos/' + list[i].id + '.jpg', b64, token, '实验室检查照片 ' + record.date);
+    }
+
+    var label = record.type === 'check' ? '实验室夜间检查' : '设备使用备案';
+    var message = label + '：' + record.date + ' ' + record.name;
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      var cur = await ghGetFile('records.json', token);
+      var data = cur ? JSON.parse(cur.text) : { records: [] };
+      if (!Array.isArray(data.records)) data.records = [];
+      if (!data.records.some(function (r) { return r.id === record.id; })) data.records.push(record);
+      data.updatedAt = new Date().toISOString();
+
+      try {
+        await ghPutText('records.json', JSON.stringify(data, null, 1), token, message, cur && cur.sha);
+        return true;
+      } catch (e) {
+        if (attempt === 1) throw e;
+        await new Promise(function (res) { setTimeout(res, 700); });
+      }
+    }
+    return true;
+  }
 
   function pendingAll() {
     try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch (e) { return []; }
@@ -572,10 +682,11 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
     async submit(record, photos) {
       var cfg = getCfg();
-      if (!cloudOn()) {
-        var localAllList = localAll();
-        localAllList.push(record);
-        localStorage.setItem(LS.records, JSON.stringify(localAllList));
+
+      if (!cloudOn() && !cfg.token) {
+        var localList = localAll();
+        localList.push(record);
+        localStorage.setItem(LS.records, JSON.stringify(localList));
         if (photos && photos.length) {
           var imgs = photoStore();
           photos.forEach(function (p) { imgs[p.id] = p.dataUrl; });
@@ -585,27 +696,29 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       }
 
       try {
-        var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/submit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ record: record, photos: photos || [] })
-        });
-        var j = null;
-        try { j = await r.json(); } catch (e) { /* ignore */ }
-        if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
+        if (cfg.token) {
+          await ghSubmit(record, photos, cfg.token);
+        } else {
+          var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ record: record, photos: photos || [] })
+          });
+          var j = null;
+          try { j = await r.json(); } catch (e) { /* ignore */ }
+          if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
+        }
         pendingRemove(record.id);
         state.offline = false;
         return { ok: true };
       } catch (e) {
-        /* 写不进去：先存本机，稍后重试 */
         pendingAdd(record);
         state.offline = true;
-        throw new Error(e.message + '（已暂存到本机，网络恢复后可点「重试同步」）');
+        throw new Error(e.message + '（已暂存到本机，可稍后点「重试同步」）');
       }
     },
 
     photoUrl(id) {
-      /* 照片也在 GitHub Pages 上，同域名可直接显示 */
       return PHOTO_URL + id + '.jpg';
     },
 
@@ -614,16 +727,22 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       if (!list.length) return { ok: 0, fail: 0 };
       var cfg = getCfg();
       var okCount = 0, failCount = 0;
+
       for (var i = 0; i < list.length; i++) {
         try {
-          var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ record: list[i], photos: [] })
-          });
-          var j = await r.json();
-          if (r.ok && j.ok) { pendingRemove(list[i].id); okCount++; }
-          else failCount++;
+          if (cfg.token) {
+            await ghSubmit(list[i], [], cfg.token);
+          } else {
+            var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/submit', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ record: list[i], photos: [] })
+            });
+            var j = await r.json();
+            if (!(r.ok && j.ok)) { failCount++; continue; }
+          }
+          pendingRemove(list[i].id);
+          okCount++;
         } catch (e) { failCount++; }
       }
       return { ok: okCount, fail: failCount };
@@ -710,7 +829,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
     if (!cloudOn()) { b.className = 'warn badge'; b.textContent = '仅本机保存'; }
     else if (pc > 0) { b.className = 'warn badge'; b.textContent = pc + ' 条待同步'; }
-    else { b.className = 'badge ok'; b.textContent = '☁ 已同步 GitHub'; }
+    else if (getCfg().token) { b.className = 'badge ok'; b.textContent = '☁ 直连 GitHub'; }
+    else { b.className = 'badge ok'; b.textContent = '☁ 经 Cloudflare'; }
     $('#ruleUsage').textContent = '21:00';
     $('#ruleCheck').textContent = '21:30';
   }
@@ -1087,23 +1207,23 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   function bindSettings() {
     $('#settingsBtn').addEventListener('click', function () {
       var c = getCfg();
+      $('#stToken').value = c.token || '';
       $('#stApi').value = c.api || DEFAULT_API;
-      $('#stLocal').checked = !!c.local;
       $('#stMe').value = localStorage.getItem(LS.me) || '';
       $('#settings').classList.add('open');
     });
     $('#stCancel').addEventListener('click', function () { $('#settings').classList.remove('open'); });
     $('#stSave').addEventListener('click', function () {
+      var token = $('#stToken').value.trim();
       var api = $('#stApi').value.trim().replace(/\/+$/, '') || DEFAULT_API;
       var me = $('#stMe').value.trim();
-      var local = !!$('#stLocal').checked;
-      setCfg({ api: api, local: local });
+      setCfg({ api: api, token: token });
       if (me) localStorage.setItem(LS.me, me);
       $('#settings').classList.remove('open');
       renderTop();
       refreshAll();
       loadToday().then(refreshAll);
-      toast(local ? '已切换为仅本机保存' : '已连接云端，全组共享');
+      toast(token ? '已保存令牌，提交将直接写入 GitHub' : '已保存（未填令牌，提交走 Cloudflare）');
     });
     $('#stTest').addEventListener('click', async function () {
       var api = $('#stApi').value.trim().replace(/\/+$/, '') || DEFAULT_API;
