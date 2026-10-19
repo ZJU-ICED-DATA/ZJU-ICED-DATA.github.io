@@ -1271,9 +1271,27 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   }
 
   /* ---------------- 启动 ---------------- */
-  var BUILD = '2026-10-19 19:40';
+  var BUILD = '2026-10-19 20:05';
+
+  /* 支持 ?token=xxx 一键配置：保存后立刻从地址栏移除，避免被转发时泄露 */
+  function absorbUrlConfig() {
+    try {
+      var qs = new URLSearchParams(location.search);
+      var token = qs.get('token') || '';
+      var api = qs.get('api') || '';
+      if (!token && !api) return;
+      var cfg = getCfg();
+      if (token) cfg.token = token.trim();
+      if (api) cfg.api = api.trim();
+      setCfg(cfg);
+      toast('已自动配置写入令牌', 3000);
+      history.replaceState(null, '', location.pathname + location.hash);
+    } catch (e) { /* 忽略 */ }
+  }
 
   function boot() {
+    absorbUrlConfig();
+
     var bs = $('#buildStamp');
     if (bs) bs.textContent = '版本 ' + BUILD;
 
