@@ -112,6 +112,21 @@ window.CATALYST_DATA = [
 | `ref` / `note` | 数据来源 / 备注 | — |
 | `structure` / `outcar` | 上传解析结果 | — |
 
+### 小分子记录（`kind: "molecule"`）
+
+小分子与催化剂共用同一个 `data.js`，靠 `kind` 区分；`id` 以 `MOL-` 开头，不计入催化剂的统计与表格。
+
+| 字段 | 含义 |
+| --- | --- |
+| `kind` | 固定为 `molecule` |
+| `name` | 分子名称，如 `CH4`、`CO2` |
+| `structure` | 构型（坐标、晶胞、元素），同催化剂 |
+| `outcar.totalEnergy` | 总能（free energy TOTEN） |
+| `outcar.magnetization` | 总磁矩 μB（`number of electron … magnetization`） |
+| `outcar.magPerAtom` | 逐原子磁矩数组 μB |
+
+页面入口：`#/molecules`（侧边栏「小分子 → 小分子性质」）。点开分子后可查看三维构型，**点击任意化学键即显示键长**（按共价半径判定成键，用屏幕上点到键段的距离拾取）。
+
 ## 新增一个反应体系
 
 1. `reactions.js` 加一项：`{ id:'co-oxidation', reaction:'CO Oxidation', icon:'🔥', accent:'#2b7ac4' }`
