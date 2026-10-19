@@ -96,6 +96,15 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 .rank{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:var(--primary-soft);color:var(--primary-dark);font-weight:700;font-size:12px}
 .rank.gold{background:#fef3c7;color:#92400e}
 
+.table-scroll { overflow-x: auto; }
+.day-table { min-width: 620px; }
+.day-table tr.miss td { background: #fff7f7; color: var(--danger); }
+.day-table tr.miss td:first-child { font-weight: 700; }
+.day-table .thumb {
+  width: 34px; height: 34px; object-fit: cover;
+  border-radius: 5px; border: 1px solid var(--border); vertical-align: middle;
+}
+
 .modal{position:fixed;inset:0;background:rgba(15,23,42,.42);display:none;align-items:center;justify-content:center;padding:18px;z-index:60}
 .modal.open{display:flex}
 .modal .box{background:#fff;border-radius:14px;padding:20px;width:min(460px,96vw);box-shadow:0 20px 60px rgba(0,0,0,.18);max-height:90vh;overflow:auto}
@@ -252,8 +261,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     </div>
 
     <div class="card">
-      <h2>检查记录明细</h2>
-      <div class="sub">点击可查看照片。</div>
+      <h2>每日检查明细</h2>
+      <div class="sub">每天是谁检查的、什么时候离开、有没有异常，一目了然。红色表示当天未检查。</div>
       <div class="list" id="statList"><div class="empty">暂无记录</div></div>
     </div>
   </section>
@@ -988,20 +997,33 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     $('#sMonth').value = month;
 
     var from = month + '-01', to = month + '-31';
-    Promise.all([Store.list(from, to), Store.list(from, to)]).then(function () { /* noop */ });
 
     Store.list(from, to).then(function (all) {
       var checks = all.filter(function (r) { return r.type === 'check'; });
       var usages = all.filter(function (r) { return r.type === 'usage'; });
 
+      /* 按天归并 */
+      var byDate = {};
+      checks.forEach(function (c) {
+        (byDate[c.date] = byDate[c.date] || []).push(c);
+      });
+
+      var today = now().date;
+      var days = monthDayList(month).filter(function (d) { return d <= today; });
+
+      /* ---- 汇总表：每人次数 ---- */
       var byName = {};
       checks.forEach(function (c) {
-        byName[c.name] = byName[c.name] || { name: c.name, checks: 0, issues: 0 };
+        byName[c.name] = byName[c.name] || { name: c.name, checks: 0, issues: 0, days: [] };
         byName[c.name].checks++;
         if (c.verdict === 'issue') byName[c.name].issues++;
+        if (byName[c.name].days.indexOf(c.date) < 0) byName[c.name].days.push(c.date);
       });
       var rows = Object.keys(byName).map(function (k) { return byName[k]; })
         .sort(function (a, b) { return b.checks - a.checks; });
+
+      var missing = days.filter(function (d) { return !byDate[d]; }).length;
+      var done = days.length - missing;
 
       var sum = $('#statsSummary');
       if (!checks.length) {
@@ -1009,37 +1031,68 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         sum.textContent = month + ' 还没有检查记录';
       } else {
         sum.className = '';
-        sum.innerHTML = '<table class="tb"><thead><tr><th>#</th><th>检查人</th><th class="num">检查次数</th><th class="num">发现异常</th></tr></thead><tbody>' +
+        sum.innerHTML = '<table class="tb"><thead><tr><th>#</th><th>检查人</th><th class="num">检查天数</th><th class="num">发现异常</th></tr></thead><tbody>' +
           rows.map(function (r, i) {
             return '<tr><td><span class="rank' + (i === 0 ? ' gold' : '') + '">' + (i + 1) + '</span></td>' +
               '<td><b>' + esc(r.name) + '</b></td>' +
-              '<td class="num">' + r.checks + '</td>' +
+              '<td class="num">' + r.days.length + '</td>' +
               '<td class="num">' + (r.issues || '—') + '</td></tr>';
           }).join('') + '</tbody></table>' +
-          '<div class="m" style="margin-top:10px;color:var(--muted);font-size:12.5px">本月共 ' + checks.length +
-          ' 次检查、' + usages.length + ' 条设备备案。</div>';
+          '<div class="m" style="margin-top:10px;color:var(--muted);font-size:12.5px">' +
+          '本月已过 ' + days.length + ' 天：<b style="color:var(--ok)">' + done + ' 天已检查</b>' +
+          (missing ? '，<b style="color:var(--danger)">' + missing + ' 天未检查</b>' : '') +
+          '　共 ' + checks.length + ' 次检查、' + usages.length + ' 条设备备案。</div>';
       }
 
+      /* ---- 每日检查明细：哪天、谁查的 ---- */
       var list = $('#statList');
-      if (!checks.length) { list.innerHTML = '<div class="empty">暂无记录</div>'; return; }
-      checks.sort(function (a, b) { return (b.date + b.time).localeCompare(a.date + a.time); });
-      list.innerHTML = checks.map(function (c) {
-        var ph = (c.photos || []).slice(0, 4).map(function (pid) {
-          var u = Store.photoUrl(pid);
-          return u ? '<div class="photo"><img src="' + u + '" alt="photo" loading="lazy" /></div>' : '';
-        }).join('');
-        return '<div class="item">' +
-          '<div class="t">' + esc(c.date) + ' ' + esc(c.time) + ' · ' + esc(c.name) +
-          ' <span class="badge ' + (c.verdict === 'ok' ? 'ok' : 'err') + '" style="margin-left:6px">' +
-          (c.verdict === 'ok' ? '无异常' : '发现异常') + '</span></div>' +
-          '<div class="m">' + (c.verdict === 'ok' ? '水电气与设备均已检查' : esc(c.issue || '')) + '</div>' +
-          (ph ? '<div class="photos">' + ph + '</div>' : '') +
-          '</div>';
+      if (!days.length) { list.innerHTML = '<div class="empty">暂无记录</div>'; return; }
+
+      var dayRows = days.map(function (d) {
+        var arr = byDate[d] || [];
+        if (!arr.length) {
+          return '<tr class="miss"><td>' + d + '</td><td>周' + weekdayZh(d) + '</td>' +
+            '<td colspan="3">未检查</td><td class="num">—</td><td></td></tr>';
+        }
+        var names = arr.map(function (c) { return c.name; }).join('、');
+        var time = arr.map(function (c) { return c.time; }).join('、');
+        var verdict = arr.some(function (c) { return c.verdict === 'issue'; })
+          ? '<span class="badge err">发现异常</span>'
+          : '<span class="badge ok">无异常</span>';
+        var photoCount = arr.reduce(function (n, c) { return n + (c.photos || []).length; }, 0);
+        var firstPhoto = '';
+        for (var i = 0; i < arr.length && !firstPhoto; i++) {
+          if ((arr[i].photos || []).length) firstPhoto = Store.photoUrl(arr[i].photos[0]);
+        }
+        return '<tr><td><b>' + d + '</b></td><td>周' + weekdayZh(d) + '</td>' +
+          '<td>' + esc(names) + '</td><td>' + esc(time) + '</td><td>' + verdict + '</td>' +
+          '<td class="num">' + (photoCount || '—') + '</td>' +
+          '<td>' + (firstPhoto ? '<img src="' + firstPhoto + '" class="thumb" loading="lazy" alt="照片" />' : '') + '</td></tr>';
       }).join('');
+
+      list.innerHTML = '<div class="table-scroll"><table class="tb day-table">' +
+        '<thead><tr><th>日期</th><th>星期</th><th>检查人</th><th>离开时间</th><th>结论</th><th class="num">照片</th><th></th></tr></thead>' +
+        '<tbody>' + dayRows + '</tbody></table></div>';
     }).catch(function (e) {
       $('#statsSummary').className = 'empty';
       $('#statsSummary').textContent = '读取失败：' + e.message;
     });
+  }
+
+  /* 当月所有日期 */
+  function monthDayList(month) {
+    var y = parseInt(month.slice(0, 4), 10);
+    var m = parseInt(month.slice(5, 7), 10);
+    var last = new Date(y, m, 0).getDate();
+    var out = [];
+    for (var d = 1; d <= last; d++) out.push(month + '-' + pad(d));
+    return out;
+  }
+
+  function weekdayZh(dateStr) {
+    var p = String(dateStr).split('-');
+    var wd = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10)).getDay();
+    return '日一二三四五六'.charAt(wd);
   }
 
   /* ---------------- 数据加载 ---------------- */
