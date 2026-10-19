@@ -1765,6 +1765,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     });
   }
 
+  /* 修改：先读最新文件，只改目标那一条，避免覆盖别人刚提交的记录 */
   async function saveEdited() {
     var rec = state.editing;
     if (!rec) return;
@@ -1789,19 +1790,38 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       patch.reaction = $('#edReaction').value.trim();
     }
 
-    var next = (state.adminRecords || []).map(function (r) {
-      if (r.id !== rec.id) return r;
-      var c = JSON.parse(JSON.stringify(r));
-      Object.keys(patch).forEach(function (k) { if (patch[k] !== undefined) c[k] = patch[k]; });
-      c.updatedAt = new Date().toISOString();
-      return c;
-    });
-
     var btn = $('#edSave');
     btn.disabled = true; btn.textContent = '保存中…';
     try {
-      await saveAdminRecords(next, '修改记录：' + rec.date + ' ' + rec.name);
-      state.adminRecords = next;
+      var fresh = await withToken(async function (token) {
+        for (var attempt = 0; attempt < 2; attempt++) {
+          var cur = await ghGetFile('records.json', token);
+          var data = cur ? JSON.parse(cur.text) : { records: [] };
+          var list = Array.isArray(data.records) ? data.records : [];
+          var hit = false;
+          list = list.map(function (r) {
+            if (r.id !== rec.id) return r;
+            hit = true;
+            var c = JSON.parse(JSON.stringify(r));
+            Object.keys(patch).forEach(function (k) { if (patch[k] !== undefined) c[k] = patch[k]; });
+            c.updatedAt = new Date().toISOString();
+            return c;
+          });
+          if (!hit) throw new Error('这条记录已经不存在（可能被别人删除了）');
+          data.records = list;
+          data.updatedAt = new Date().toISOString();
+          try {
+            await ghPutText('records.json', JSON.stringify(data, null, 1), token,
+              '修改记录：' + patch.date + ' ' + patch.name, cur && cur.sha);
+            return list;
+          } catch (e) {
+            if (attempt === 1) throw e;
+            await new Promise(function (res) { setTimeout(res, 800); });
+          }
+        }
+      });
+
+      state.adminRecords = fresh;
       delete state.days[todayKey()];
       try { localStorage.removeItem(RECENT_KEY); } catch (e) { /* 忽略 */ }
       $('#editModal').classList.remove('open');
@@ -1815,11 +1835,29 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     }
   }
 
+  /* 删除：同样先读最新，只删目标 id */
   async function deleteRecord(id) {
-    var next = (state.adminRecords || []).filter(function (r) { return r.id !== id; });
     try {
-      await saveAdminRecords(next, '删除记录：' + id);
-      state.adminRecords = next;
+      var fresh = await withToken(async function (token) {
+        for (var attempt = 0; attempt < 2; attempt++) {
+          var cur = await ghGetFile('records.json', token);
+          var data = cur ? JSON.parse(cur.text) : { records: [] };
+          var list = Array.isArray(data.records) ? data.records : [];
+          var next = list.filter(function (r) { return r.id !== id; });
+          if (next.length === list.length) throw new Error('这条记录已经不存在了');
+          data.records = next;
+          data.updatedAt = new Date().toISOString();
+          try {
+            await ghPutText('records.json', JSON.stringify(data, null, 1), token, '删除记录：' + id, cur && cur.sha);
+            return next;
+          } catch (e) {
+            if (attempt === 1) throw e;
+            await new Promise(function (res) { setTimeout(res, 800); });
+          }
+        }
+      });
+
+      state.adminRecords = fresh;
       delete state.days[todayKey()];
       try { localStorage.removeItem(RECENT_KEY); } catch (e) { /* 忽略 */ }
       renderAdminTable();
