@@ -109,6 +109,19 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 .js-photo { cursor: zoom-in; transition: transform .12s, box-shadow .12s; }
 .js-photo:hover { transform: scale(1.08); box-shadow: 0 2px 8px rgba(16,42,67,.2); }
 
+.list-head {
+  font-size: 12px; font-weight: 700; color: var(--muted);
+  margin: 4px 0 8px; letter-spacing: .3px;
+}
+.list-head b { color: var(--primary-dark); margin-left: 6px; }
+.item.dim { opacity: .55; background: #f8fafc; }
+.sealed-box { margin-top: 14px; border-top: 1px dashed var(--border); padding-top: 10px; }
+.sealed-box summary {
+  cursor: pointer; font-size: 12.5px; color: var(--muted);
+  font-weight: 650; margin-bottom: 8px; user-select: none;
+}
+.sealed-box[open] summary { margin-bottom: 10px; }
+
 .modal{position:fixed;inset:0;background:rgba(15,23,42,.42);display:none;align-items:center;justify-content:center;padding:18px;z-index:60}
 .modal.open{display:flex}
 .modal .box{background:#fff;border-radius:14px;padding:20px;width:min(460px,96vw);box-shadow:0 20px 60px rgba(0,0,0,.18);max-height:90vh;overflow:auto}
@@ -278,7 +291,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       <div class="sub">这里维护下拉框的内容：成员名单（姓名 / 检查人）、设备清单、使用时长。每行一项，保存后全组同步。</div>
       <div class="row">
         <label class="f"><span>成员名单（每行一个）</span><textarea id="optNames" rows="5" placeholder="张三&#10;李四"></textarea></label>
-        <label class="f"><span>使用时长（每行一个，单位小时）</span><textarea id="optHours" rows="5" placeholder="1&#10;2&#10;4&#10;6"></textarea></label>
+        <label class="f"><span>使用时长（每行一个，单位小时；写「长期」表示不设结束时间）</span><textarea id="optHours" rows="5" placeholder="1&#10;2&#10;4&#10;6&#10;长期"></textarea></label>
       </div>
       <label class="f"><span>设备清单（每行一个）</span><textarea id="optDevices" rows="7" placeholder="管式炉 1 号&#10;高压反应釜 A&#10;气相色谱"></textarea></label>
       <div class="row" style="align-items:center">
@@ -398,10 +411,11 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   }
 
   /* ---------------- 下拉选项（可在「④ 选项管理」里改） ---------------- */
+  var LONG_TERM = '长期';
   var DEFAULT_OPTIONS = {
     names: [],
     devices: ['管式炉 1 号', '管式炉 2 号', '马弗炉', '高压反应釜 A', '旋转蒸发仪', '气相色谱', '液相色谱', '电化学工作站', '手套箱'],
-    durations: [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12]
+    durations: ['0.5', '1', '2', '4', '6', '8', '12', LONG_TERM]
   };
 
   function cleanList(v) {
@@ -415,9 +429,22 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     return out;
   }
 
+  /* 时长既可以是数字（小时），也可以是「长期」 */
+  function normalizeDurations(list) {
+    var out = cleanList(list).map(function (s) {
+      if (/^长期$/.test(s)) return LONG_TERM;
+      var n = Number(s);
+      return (isFinite(n) && n > 0 && n <= 8760) ? String(n) : '';
+    }).filter(Boolean);
+    var uniq = [];
+    out.forEach(function (v) { if (uniq.indexOf(v) < 0) uniq.push(v); });
+    return uniq;
+  }
+
   function normalizeOptions(o) {
     o = o || {};
-    var d = cleanList(o.durations).map(Number).filter(function (n) { return isFinite(n) && n > 0 && n <= 24; });
+    var d = normalizeDurations(o.durations);
+    if (d.indexOf(LONG_TERM) < 0) d.push(LONG_TERM);   /* 「长期」始终可选 */
     var dev = cleanList(o.devices);
     return {
       names: cleanList(o.names),
@@ -462,7 +489,9 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     fillSelect($('#uName'), o.names.map(function (n) { return { value: n, label: n }; }), '请选择姓名…', '＋ 其他（新成员）');
     fillSelect($('#cName'), o.names.map(function (n) { return { value: n, label: n }; }), '请选择检查人…', '＋ 其他（新成员）');
     fillSelect($('#uDevice'), o.devices.map(function (d) { return { value: d, label: d }; }), '请选择设备…', '＋ 其他（新设备）');
-    fillSelect($('#uHours'), o.durations.map(function (h) { return { value: h, label: h + ' 小时' }; }), '请选择时长…');
+    fillSelect($('#uHours'), o.durations.map(function (h) {
+      return { value: h, label: (h === LONG_TERM ? '长期（不设结束时间）' : h + ' 小时') };
+    }), '请选择时长…');
 
     var me = localStorage.getItem(LS.me);
     if (me) {
@@ -512,7 +541,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     var opts = {
       names: lines($('#optNames').value),
       devices: lines($('#optDevices').value),
-      durations: lines($('#optHours').value).map(Number).filter(function (n) { return isFinite(n) && n > 0 && n <= 24; })
+      durations: normalizeDurations(lines($('#optHours').value))
     };
     if (!opts.devices.length) { toast('设备清单不能为空'); return; }
     if (!opts.durations.length) { toast('至少要有一个使用时长'); return; }
@@ -875,11 +904,14 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
   async function ensureDay(date) {
     if (state.days[date]) return state.days[date];
-    var all = await Store.list(date, date);
-    state.days[date] = {
-      usage: all.filter(function (r) { return r.type === 'usage'; }),
-      checks: all.filter(function (r) { return r.type === 'check'; })
-    };
+    /* 一次拉 30 天：长期运行的设备可能很多天前就备案了 */
+    var from = shiftDate(date, -30);
+    var all = await Store.list(from, date);
+    var usage = all.filter(function (r) { return r.type === 'usage'; });
+    var checks = all.filter(function (r) { return r.type === 'check' && r.date === date; });
+
+    state.days[date] = { usage: usage, checks: checks };
+    state.windowUsage = usage;
     return state.days[date];
   }
 
@@ -891,6 +923,16 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     renderUsageList();
     renderPhotoTargets();
     renderCheckDone();
+  }
+
+  /* 仍在运行（未封存）的备案：今天的 + 之前提交但仍未封存的（含长期） */
+  function activeUsage() {
+    var nowMs = Date.now();
+    return (state.windowUsage || []).filter(function (r) {
+      return !isSealed(r) && shMs(r.date, r.time) <= nowMs;
+    }).sort(function (a, b) {
+      return (b.date + b.time).localeCompare(a.date + a.time);
+    });
   }
 
   function todayKey() { return now().date; }
@@ -924,22 +966,57 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     }).join('') + '</div>';
   }
 
+  function usageItemHtml(r, dim) {
+    var st = runStatus(r);
+    var dur = isLongTerm(r) ? '长期' : (r.hours + ' 小时');
+    var end = isLongTerm(r) ? '不设结束时间' : (r.endTime ? '预计到 ' + r.endTime : '');
+    return '<div class="item' + (dim ? ' dim' : '') + '">' +
+      '<div class="t">' + esc(r.device) + ' · ' + esc(r.name) +
+      ' <span class="badge ' + st.cls + '" style="margin-left:6px">' + st.label + '</span></div>' +
+      '<div class="m">' + esc(r.date) + ' ' + esc(r.time) + ' · ' + esc(dur) +
+      (end ? ' · ' + esc(end) : '') + ' · ' + esc(r.reaction) + '</div>' +
+      hazardsHtml(r.hazards) +
+      (r.note ? '<div class="m" style="margin-top:4px">备注：' + esc(r.note) + '</div>' : '') +
+      '</div>';
+  }
+
   function renderUsageList() {
     var host = $('#uList');
-    var day = selectedDate();
-    var list = dayOf(day).usage;
-    $('#uCount').textContent = day + ' 共 ' + list.length + ' 条';
+    var all = state.windowUsage || [];
+    var today = todayKey();
 
-    if (!list.length) { host.innerHTML = '<div class="empty">这一天还没有备案</div>'; return; }
-    host.innerHTML = list.map(function (r) {
-      return '<div class="item">' +
-        '<div class="t">' + esc(r.device) + ' · ' + esc(r.name) + '</div>' +
-        '<div class="m">' + esc(r.date) + (r.time ? ' ' + esc(r.time) : '') + ' · ' + esc(r.hours) + ' 小时' +
-        (r.endTime ? ' · 预计到 ' + esc(r.endTime) : '') + ' · ' + esc(r.reaction) + '</div>' +
-        hazardsHtml(r.hazards) +
-        (r.note ? '<div class="m" style="margin-top:4px">备注：' + esc(r.note) + '</div>' : '') +
-        '</div>';
-    }).join('');
+    var active = activeUsage();
+    var recentFrom = shiftDate(today, -6);
+    var sealedRecent = all.filter(function (r) {
+      return isSealed(r) && r.date >= recentFrom && r.date <= today;
+    }).sort(function (a, b) { return (b.date + b.time).localeCompare(a.date + a.time); });
+
+    var olderSealed = all.filter(function (r) {
+      return isSealed(r) && r.date < recentFrom;
+    }).length;
+
+    $('#uCount').textContent = '运行中 ' + active.length + ' 条' +
+      (sealedRecent.length ? ' · 近期已封存 ' + sealedRecent.length + ' 条' : '');
+
+    var parts = [];
+
+    parts.push('<div class="list-head">正在进行（需要备案检查）<b>' + active.length + '</b></div>');
+    if (active.length) {
+      parts.push(active.map(function (r) { return usageItemHtml(r, false); }).join(''));
+    } else {
+      parts.push('<div class="empty">目前没有正在运行的备案</div>');
+    }
+
+    if (sealedRecent.length) {
+      parts.push('<details class="sealed-box"><summary>近期已封存 <b>' + sealedRecent.length + '</b> 条（仅归档，数据保留）</summary>' +
+        sealedRecent.map(function (r) { return usageItemHtml(r, true); }).join('') + '</details>');
+    }
+    if (olderSealed) {
+      parts.push('<div class="m" style="margin-top:10px;color:var(--faint);font-size:12px">更早已封存 ' +
+        olderSealed + ' 条，可在「③ 记录与统计」查看。</div>');
+    }
+
+    host.innerHTML = parts.join('');
   }
 
   function renderUsageGate() {
@@ -970,17 +1047,18 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
   function renderPhotoTargets() {
     var host = $('#photoTargets');
-    var day = selectedDate();
-    var list = dayOf(day).usage;
+    var list = activeUsage();
 
     if (!list.length) {
-      host.innerHTML = '<div class="empty">今晚还没有设备备案，可只做整体检查。</div>';
+      host.innerHTML = '<div class="empty">目前没有正在运行的备案，可只做整体检查。</div>';
       return;
     }
     host.innerHTML = list.map(function (r) {
       var photos = state.photos[r.id] || [];
+      var st = runStatus(r);
       return '<div class="item" data-usage="' + esc(r.id) + '">' +
-        '<div class="t">' + esc(r.device) + ' <span class="m" style="font-weight:400">· ' + esc(r.name) + '</span></div>' +
+        '<div class="t">' + esc(r.device) + ' <span class="m" style="font-weight:400">· ' + esc(r.name) + '</span>' +
+        ' <span class="badge ' + st.cls + '" style="margin-left:6px">' + st.label + '</span></div>' +
         '<div class="m">' + esc(r.reaction) + '</div>' +
         hazardsHtml(r.hazards) +
         '<div class="photos">' +
@@ -1192,18 +1270,20 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
       var name = readPick('uName', 'uNameOther');
       var device = readPick('uDevice', 'uDeviceOther');
-      var hours = parseFloat($('#uHours').value);
+      var hoursRaw = $('#uHours').value;
+      var longTerm = hoursRaw === LONG_TERM;
+      var hours = longTerm ? LONG_TERM : parseFloat(hoursRaw);
       var reaction = $('#uReaction').value.trim();
       if (!name || !device || !reaction) { toast('请选择姓名、设备并填写实验内容'); return; }
-      if (!hours || hours <= 0 || hours > 24) { toast('请填写合理的时长（0.5–24 小时）'); return; }
+      if (!longTerm && (!hours || hours <= 0 || hours > 8760)) { toast('请选择合理的时长，或选「长期」'); return; }
 
       var hazards = $$('#uHazards .chip').filter(function (b) { return b.getAttribute('aria-pressed') === 'true'; })
         .map(function (b) { return b.getAttribute('data-v'); });
 
       var rec = {
         id: uid('u'), type: 'usage', date: date, time: time,
-        name: name, device: device, hours: hours,
-        endTime: $('#uEnd').value.trim(),
+        name: name, device: device, hours: hours, longTerm: longTerm,
+        endTime: longTerm ? LONG_TERM : $('#uEnd').value.trim(),
         reaction: reaction, hazards: hazards,
         note: $('#uNote').value.trim(),
         createdAt: new Date().toISOString()
@@ -1324,7 +1404,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
       var photosPayload = [];
       var photoIds = [];
-      var usage = dayOf(date).usage;
+      var usage = activeUsage();
       var photoMeta = [];
       usage.forEach(function (r) {
         (state.photos[r.id] || []).forEach(function (dataUrl) {
@@ -1423,6 +1503,12 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   function computeEnd() {
     var el = $('#uEnd'), sel = $('#uHours');
     if (!el || !sel) return;
+
+    if (sel.value === LONG_TERM) {
+      el.value = '长期运行，不设结束时间';
+      return;
+    }
+
     var h = parseFloat(sel.value);
     if (!h) { el.value = ''; return; }
 
@@ -1430,6 +1516,50 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     var nextDay = total >= 1440;
     var rem = total % 1440;
     el.value = pad(Math.floor(rem / 60)) + ':' + pad(rem % 60) + (nextDay ? '（次日）' : '');
+  }
+
+  /* ---------------- 运行状态与封存 ----------------
+     规则：非长期记录在「结束时间之后的第一个 12:00（北京时间）」封存；
+           长期记录永不封存；数据只做标记，不删除。 */
+  function shMs(dateStr, timeStr) {
+    var p = String(dateStr || '').split('-');
+    var t = String(timeStr || '00:00').split(':');
+    if (p.length !== 3) return NaN;
+    return Date.UTC(+p[0], +p[1] - 1, +p[2], (+t[0] || 0) - 8, +t[1] || 0);
+  }
+
+  function isLongTerm(rec) { return !!(rec && (rec.longTerm === true || rec.hours === LONG_TERM)); }
+
+  /* 返回该记录的封存时间（毫秒）；长期或无法计算返回 null */
+  function sealTimeOf(rec) {
+    if (!rec || isLongTerm(rec)) return null;
+    var h = parseFloat(rec.hours);
+    if (!isFinite(h) || h <= 0) return null;
+    var start = shMs(rec.date, rec.time);
+    if (!isFinite(start)) return null;
+
+    var end = start + Math.round(h * 3600 * 1000);
+    var d = new Date(end + 8 * 3600 * 1000);          /* 转到北京时间的“墙上时间” */
+    var noon = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12 - 8, 0);
+    return end < noon ? noon : noon + 86400000;        /* 结束后的第一个 12:00 */
+  }
+
+  function isSealed(rec) {
+    var s = sealTimeOf(rec);
+    return s !== null && Date.now() >= s;
+  }
+
+  function runStatus(rec) {
+    if (isLongTerm(rec)) return { key: 'long', label: '长期运行', cls: 'ok' };
+    if (isSealed(rec)) return { key: 'sealed', label: '已封存', cls: 'idle' };
+    return { key: 'active', label: '运行中', cls: 'warn' };
+  }
+
+  function shiftDate(dateStr, delta) {
+    var p = String(dateStr).split('-');
+    var d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+    d.setUTCDate(d.getUTCDate() + delta);
+    return d.toISOString().slice(0, 10);
   }
 
   /* ---------------- 标签页 ---------------- */
