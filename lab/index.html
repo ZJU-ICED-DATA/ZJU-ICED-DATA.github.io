@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>实验室安全与设备管理</title>
+<meta name="description" content="课题组实验室安全管理：每晚设备使用备案、夜间安全检查与拍照留证、月底检查统计。" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>" />
+<style>
+:root{
+  --bg:#f4f7fb; --card:#fff; --border:#e3e9f2; --text:#1f2933; --muted:#64748b; --faint:#94a3b8;
+  --primary:#1f5fa9; --primary-dark:#164a85; --primary-soft:#eaf2fb; --primary-light:#dbe9f8;
+  --ok:#1f7a4d; --ok-bg:#e7f6ee; --warn:#92400e; --warn-bg:#fef3c7; --danger:#b42318; --danger-bg:#fdecea;
+  --radius:12px; --shadow:0 1px 3px rgba(16,42,67,.06),0 8px 24px rgba(16,42,67,.05);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--primary)}
+
+.top{display:flex;align-items:center;gap:12px;padding:12px 18px;background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;flex-wrap:wrap}
+.brand{font-weight:800;font-size:16px;letter-spacing:.2px}
+.brand small{display:block;font-weight:500;font-size:11px;color:var(--faint);letter-spacing:.3px}
+.top .spacer{flex:1}
+.clock{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:650}
+.badge.ok{background:var(--ok-bg);color:var(--ok)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.idle{background:#eef2f7;color:var(--muted)}
+.badge.err{background:var(--danger-bg);color:var(--danger)}
+
+.tabs{display:flex;gap:6px;padding:10px 18px 0;max-width:1080px;margin:0 auto;flex-wrap:wrap}
+.tab{border:1px solid var(--border);background:#fff;border-radius:10px 10px 0 0;padding:9px 16px;font-weight:650;font-size:13.5px;color:var(--muted);cursor:pointer;border-bottom:none;position:relative}
+.tab.active{color:var(--primary-dark);background:var(--primary-soft);border-color:var(--primary-light)}
+.tab .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--faint);margin-right:6px}
+.tab.active .dot{background:var(--primary)}
+
+main{max-width:1080px;margin:0 auto;padding:16px 18px 60px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px;margin-bottom:16px}
+.card h2{margin:0 0 4px;font-size:15.5px}
+.card .sub{color:var(--muted);font-size:12.5px;margin-bottom:14px}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.row>*{flex:1 1 220px;min-width:0}
+label.f{display:block;margin-bottom:12px}
+label.f>span{display:block;font-size:12.5px;font-weight:650;color:#475569;margin-bottom:5px}
+label.f em{color:var(--danger);font-style:normal;margin-left:2px}
+input[type=text],input[type=number],select,textarea{
+  width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:9px;background:#fbfcfe;outline:none;transition:border-color .15s,background .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--primary);background:#fff}
+textarea{resize:vertical;min-height:64px}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--border);background:#fff;border-radius:20px;padding:6px 13px;font-size:12.5px;cursor:pointer;user-select:none;transition:.15s}
+.chip[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:650}
+.chip.warn[aria-pressed="true"]{background:#d97706;border-color:#d97706}
+.chip.danger[aria-pressed="true"]{background:var(--danger);border-color:var(--danger)}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:9px;border:1px solid var(--border);background:#fff;cursor:pointer;font-weight:650;transition:.15s}
+.btn:hover{border-color:var(--primary);color:var(--primary-dark)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.btn.primary:hover{background:var(--primary-dark);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.sm{padding:6px 11px;font-size:12.5px;border-radius:8px}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+
+.list{display:flex;flex-direction:column;gap:8px}
+.item{border:1px solid var(--border);border-radius:10px;padding:11px 13px;background:#fbfcfe}
+.item .t{font-weight:700;font-size:13.5px}
+.item .m{font-size:12px;color:var(--muted);margin-top:2px}
+.item .tags{margin-top:6px;display:flex;flex-wrap:wrap;gap:5px}
+.tag{font-size:11px;padding:1px 8px;border-radius:5px;background:#eef2f7;color:#475569;font-weight:600}
+.tag.hot{background:#fdecec;color:#b42318}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+
+.empty{text-align:center;color:var(--faint);padding:26px 0;font-size:13px}
+
+.checks{display:flex;flex-direction:column;gap:10px}
+.check{display:flex;align-items:center;gap:12px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fbfcfe;flex-wrap:wrap}
+.check .name{font-weight:700;min-width:88px}
+.check .seg{margin-left:auto;display:flex;gap:6px}
+.seg button{border:1px solid var(--border);background:#fff;border-radius:8px;padding:5px 12px;font-size:12.5px;cursor:pointer}
+.seg button[aria-pressed="true"].good{background:var(--ok-bg);border-color:var(--ok);color:var(--ok);font-weight:700}
+.seg button[aria-pressed="true"].bad{background:var(--danger-bg);border-color:var(--danger);color:var(--danger);font-weight:700}
+
+.photos{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.photo{position:relative;width:78px;height:78px;border-radius:9px;overflow:hidden;border:1px solid var(--border);background:#eef2f7}
+.photo img{width:100%;height:100%;object-fit:cover}
+.photo .x{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;border:none;font-size:12px;line-height:1;cursor:pointer}
+.addphoto{width:78px;height:78px;border-radius:9px;border:1.5px dashed var(--border);background:#fff;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px;cursor:pointer}
+.addphoto:hover{border-color:var(--primary);color:var(--primary)}
+
+table.tb{width:100%;border-collapse:collapse;font-size:13px}
+table.tb th{text-align:left;font-size:12px;color:var(--muted);font-weight:650;padding:8px 10px;border-bottom:1px solid var(--border);background:#f7fafd}
+table.tb td{padding:8px 10px;border-bottom:1px solid #f1f5f9}
+table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nums}
+.rank{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:var(--primary-soft);color:var(--primary-dark);font-weight:700;font-size:12px}
+.rank.gold{background:#fef3c7;color:#92400e}
+
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.42);display:none;align-items:center;justify-content:center;padding:18px;z-index:60}
+.modal.open{display:flex}
+.modal .box{background:#fff;border-radius:14px;padding:20px;width:min(460px,96vw);box-shadow:0 20px 60px rgba(0,0,0,.18);max-height:90vh;overflow:auto}
+.modal h3{margin:0 0 4px;font-size:16px}
+.modal p.hint{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+
+#toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,20px);background:#1f2933;color:#fff;padding:10px 18px;border-radius:10px;font-size:13.5px;opacity:0;transition:.25s;pointer-events:none;z-index:80;max-width:90vw}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+.gate{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:10px;background:#f7fafd;border:1px dashed var(--border);color:var(--muted);font-size:13px;margin-bottom:14px}
+.gate .ic{font-size:18px}
+.hidden{display:none!important}
+.footer{text-align:center;color:var(--faint);font-size:12px;padding:10px 0 30px}
+@media (max-width:620px){
+  .top{padding:10px 14px}
+  main{padding:12px 14px 50px}
+  .card{padding:14px}
+  .check .seg{margin-left:0;width:100%}
+}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div class="brand">🛡️ 实验室安全与设备管理<small>ZJU-ICED · 设备使用备案 / 夜间检查 / 月度统计</small></div>
+  <div class="spacer"></div>
+  <div class="clock"><b id="today"></b> <span id="clock"></span></div>
+  <span class="badge idle" id="modeBadge">未连接云端</span>
+  <button class="btn sm" id="settingsBtn">⚙ 设置</button>
+</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="usage"><span class="dot"></span>① 今晚备案</button>
+  <button class="tab" data-tab="check"><span class="dot"></span>② 夜间检查</button>
+  <button class="tab" data-tab="stats"><span class="dot"></span>③ 记录与统计</button>
+</div>
+
+<main>
+  <!-- ================= 备案 ================= -->
+  <section id="tab-usage">
+    <div class="card">
+      <h2>设备使用备案</h2>
+      <div class="sub">每天晚上 <b id="ruleUsage">21:00</b> 开放填写，登记今晚要用的设备、时长、反应内容与危险源。</div>
+      <div class="gate" id="usageGate"><span class="ic">🌙</span><span id="usageGateText">加载中…</span></div>
+
+      <form id="usageForm">
+        <div class="row">
+          <label class="f"><span>姓名 <em>*</em></span><input type="text" id="uName" placeholder="你的名字" required autocomplete="name" /></label>
+          <label class="f"><span>设备名称 <em>*</em></span><input type="text" id="uDevice" list="deviceList" placeholder="如：管式炉 3 号 / 高压反应釜 A" required /><datalist id="deviceList"></datalist></label>
+        </div>
+        <div class="row">
+          <label class="f"><span>预计使用时长（小时） <em>*</em></span><input type="number" id="uHours" min="0.5" max="24" step="0.5" placeholder="如 4" required /></label>
+          <label class="f"><span>预计结束时间</span><input type="text" id="uEnd" placeholder="如 23:30（可留空）" /></label>
+        </div>
+        <label class="f"><span>做什么反应 / 实验内容 <em>*</em></span><textarea id="uReaction" placeholder="如：甲烷干重整，600 ℃，CH4/CO2 混合气" required></textarea></label>
+        <label class="f"><span>潜在危险源分类（可多选）</span></label>
+        <div class="chips" id="uHazards" style="margin-bottom:14px">
+          <button type="button" class="chip" data-v="高温">高温</button>
+          <button type="button" class="chip" data-v="高压">高压</button>
+          <button type="button" class="chip" data-v="易燃易爆">易燃易爆</button>
+          <button type="button" class="chip" data-v="有毒有害">有毒有害</button>
+          <button type="button" class="chip" data-v="腐蚀性">腐蚀性</button>
+          <button type="button" class="chip" data-v="低温">低温</button>
+          <button type="button" class="chip" data-v="真空">真空</button>
+          <button type="button" class="chip" data-v="高电压">高电压</button>
+          <button type="button" class="chip" data-v="辐射">辐射</button>
+          <button type="button" class="chip" data-v="其他">其他</button>
+        </div>
+        <label class="f"><span>备注（可选）</span><input type="text" id="uNote" placeholder="如：需要别人帮忙值夜 / 设备有异响" /></label>
+        <div class="row" style="align-items:center">
+          <button class="btn primary" type="submit" id="uSubmit">提交备案</button>
+          <span class="badge idle" id="uCount">今晚 0 条</span>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>今晚已备案</h2>
+      <div class="sub">夜间检查会按这里的清单逐台核对。</div>
+      <div class="list" id="uList"><div class="empty">还没有人提交备案</div></div>
+    </div>
+  </section>
+
+  <!-- ================= 检查 ================= -->
+  <section id="tab-check" class="hidden">
+    <div class="card">
+      <h2>夜间安全检查</h2>
+      <div class="sub">每晚 <b id="ruleCheck">21:30</b> 开放。最后一个离开实验室的同学完成检查，对备案装置拍照，署名提交。</div>
+      <div class="gate" id="checkGate"><span class="ic">🔦</span><span id="checkGateText">加载中…</span></div>
+
+      <div id="checkDone" class="hidden">
+        <div class="item" style="border-color:var(--ok);background:var(--ok-bg)">
+          <div class="t" id="checkDoneTitle">今晚已完成检查</div>
+          <div class="m" id="checkDoneMeta"></div>
+        </div>
+      </div>
+
+      <form id="checkForm">
+        <h2 style="font-size:14px;margin:14px 0 8px">一、水电气与设备状态</h2>
+        <div class="checks" id="checksBox">
+          <div class="check" data-key="water"><span class="name">💧 水</span><span class="m" style="color:var(--faint);font-size:12px">水龙头 / 冷凝水 / 地漏</span><span class="seg"><button type="button" class="good" data-v="ok">正常</button><button type="button" class="bad" data-v="bad">异常</button></span></div>
+          <div class="check" data-key="power"><span class="name">⚡ 电</span><span class="m" style="color:var(--faint);font-size:12px">插排 / 电源线 / 电炉</span><span class="seg"><button type="button" class="good" data-v="ok">正常</button><button type="button" class="bad" data-v="bad">异常</button></span></div>
+          <div class="check" data-key="gas"><span class="name">🔥 气</span><span class="m" style="color:var(--faint);font-size:12px">气瓶阀门 / 管路 / 报警器</span><span class="seg"><button type="button" class="good" data-v="ok">正常</button><button type="button" class="bad" data-v="bad">异常</button></span></div>
+          <div class="check" data-key="device"><span class="name">🧪 设备运行</span><span class="m" style="color:var(--faint);font-size:12px">在跑的设备有无异响 / 超温 / 泄漏</span><span class="seg"><button type="button" class="good" data-v="ok">正常</button><button type="button" class="bad" data-v="bad">异常</button></span></div>
+        </div>
+
+        <h2 style="font-size:14px;margin:18px 0 8px">二、备案装置拍照留证</h2>
+        <div class="sub" style="margin-top:-4px">每台在用的设备至少拍 1 张照片（可直接调用手机摄像头）。</div>
+        <div id="photoTargets"></div>
+
+        <h2 style="font-size:14px;margin:18px 0 8px">三、结论与署名</h2>
+        <label class="f"><span>检查结论</span></label>
+        <div class="chips" id="verdict" style="margin-bottom:14px">
+          <button type="button" class="chip" data-v="ok" aria-pressed="true">✅ 无异常，可以离开</button>
+          <button type="button" class="chip warn" data-v="issue">⚠️ 发现异常</button>
+        </div>
+        <label class="f" id="issueWrap" style="display:none"><span>异常描述 <em>*</em></span><textarea id="cIssue" placeholder="说明哪一项异常、如何处理、是否已上报"></textarea></label>
+        <div class="row">
+          <label class="f"><span>检查人署名 <em>*</em></span><input type="text" id="cName" placeholder="你的名字" required /></label>
+          <label class="f"><span>离开时间</span><input type="text" id="cTime" readonly /></label>
+        </div>
+        <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:14px;font-size:13px;color:#475569">
+          <input type="checkbox" id="cConfirm" style="margin-top:4px" />
+          <span>我确认已实地检查，以上情况属实；如发现异常已按流程处理或上报。</span>
+        </label>
+        <button class="btn primary" type="submit" id="cSubmit">提交检查记录</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ================= 统计 ================= -->
+  <section id="tab-stats" class="hidden">
+    <div class="card">
+      <h2>月度检查统计</h2>
+      <div class="sub">月底按这里的检查次数发放奖金。</div>
+      <div class="row" style="align-items:flex-end;margin-bottom:12px">
+        <label class="f" style="flex:0 0 180px"><span>月份</span><input type="text" id="sMonth" placeholder="YYYY-MM" /></label>
+        <button class="btn sm" id="sRefresh" style="flex:0 0 auto;align-self:center">刷新</button>
+        <button class="btn sm" id="sExport" style="flex:0 0 auto;align-self:center">导出 CSV</button>
+      </div>
+      <div id="statsSummary" class="empty">加载中…</div>
+    </div>
+
+    <div class="card">
+      <h2>检查记录明细</h2>
+      <div class="sub">点击可查看照片。</div>
+      <div class="list" id="statList"><div class="empty">暂无记录</div></div>
+    </div>
+  </section>
+
+  <div class="footer">数据仅用于课题组内部安全管理 · 建议每晚检查后确认已提交</div>
+</main>
+
+<div class="modal" id="settings">
+  <div class="box">
+    <h3>数据连接设置</h3>
+    <p class="hint">配置后全组共享同一份记录；不配置则只保存在当前浏览器（仅用于试用）。</p>
+    <label class="f"><span>接口地址（Cloudflare Worker）</span><input type="text" id="stApi" placeholder="https://lab-api.xxx.workers.dev" /></label>
+    <label class="f"><span>实验室代码</span><input type="text" id="stCode" placeholder="向管理员索取" /></label>
+    <label class="f"><span>我的名字（自动填充）</span><input type="text" id="stMe" placeholder="可选" /></label>
+    <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;font-size:13px;color:#475569">
+      <input type="checkbox" id="stForce" style="margin-top:4px" />
+      <span>临时开放（忽略 21:00 / 21:30 时间限制，用于测试或补录；用完请关闭）</span>
+    </label>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <button class="btn primary" id="stSave">保存</button>
+      <button class="btn" id="stCancel">取消</button>
+      <button class="btn ghost" id="stTest" style="margin-left:auto">测试连接</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------------- 规则与常量 ---------------- */
+  var RULE = { usageOpen: 21 * 60, checkOpen: 21 * 60 + 30, closeAt: 23 * 60 + 59 };
+  var HAZARDS = ['高温', '高压', '易燃易爆', '有毒有害', '腐蚀性', '低温', '真空', '高电压', '辐射', '其他'];
+  var LS = {
+    records: 'lab:records:v1',
+    usage: 'lab:usage:v1',
+    cfg: 'lab:cfg:v1',
+    me: 'lab:me:v1'
+  };
+
+  /* ---------------- 工具 ---------------- */
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function pad(n) { return String(n).padStart(2, '0'); }
+
+  /* 统一用北京时间 */
+  function now() {
+    var p = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+    }).formatToParts(new Date()).reduce(function (m, x) { m[x.type] = x.value; return m; }, {});
+    return {
+      y: +p.year, m: +p.month, d: +p.day, h: +p.hour, mi: +p.minute, s: +p.second,
+      date: p.year + '-' + p.month + '-' + p.day,
+      hm: pad(p.hour) + ':' + pad(p.minute),
+      month: p.year + '-' + p.month,
+      minutes: (+p.hour) * 60 + (+p.minute)
+    };
+  }
+
+  function toast(msg, ms) {
+    var el = $('#toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.classList.remove('show'); }, ms || 2600);
+  }
+
+  function uid(prefix) {
+    return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  }
+
+  /* ---------------- 配置 ---------------- */
+  function getCfg() {
+    try { return JSON.parse(localStorage.getItem(LS.cfg) || '{}'); } catch (e) { return {}; }
+  }
+  function setCfg(c) { localStorage.setItem(LS.cfg, JSON.stringify(c)); }
+  function cloudOn() { var c = getCfg(); return !!(c.api && c.code); }
+
+  /* ---------------- 数据层（云端优先，本地兜底） ---------------- */
+  var Store = {
+    async list(from, to) {
+      var cfg = getCfg();
+      if (cfg.api && cfg.code) {
+        var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/list?from=' + encodeURIComponent(from) +
+          '&to=' + encodeURIComponent(to) + '&code=' + encodeURIComponent(cfg.code));
+        if (!r.ok) throw new Error('云端读取失败（' + r.status + '）');
+        var j = await r.json();
+        return j.records || [];
+      }
+      return localAll().filter(function (x) { return x.date >= from && x.date <= to; });
+    },
+    async submit(record, photos) {
+      var cfg = getCfg();
+      if (cfg.api && cfg.code) {
+        var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: cfg.code, record: record, photos: photos || [] })
+        });
+        var j = null;
+        try { j = await r.json(); } catch (e) { /* ignore */ }
+        if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('提交失败（' + r.status + '）'));
+        return true;
+      }
+      /* 本地模式 */
+      var all = localAll();
+      all.push(record);
+      localStorage.setItem(LS.records, JSON.stringify(all));
+      if (photos && photos.length) {
+        var imgs = photoStore();
+        photos.forEach(function (p) { imgs[p.id] = p.dataUrl; });
+        try { localStorage.setItem('lab:photos:v1', JSON.stringify(imgs)); } catch (e) { /* 容量不足 */ }
+      }
+      return true;
+    },
+    photoUrl(id) {
+      var cfg = getCfg();
+      if (cfg.api && cfg.code) {
+        return cfg.api.replace(/\/+$/, '') + '/api/photo?id=' + encodeURIComponent(id) + '&code=' + encodeURIComponent(cfg.code);
+      }
+      var imgs = photoStore();
+      return imgs[id] || '';
+    }
+  };
+
+  function localAll() {
+    try { return JSON.parse(localStorage.getItem(LS.records) || '[]'); } catch (e) { return []; }
+  }
+  function photoStore() {
+    try { return JSON.parse(localStorage.getItem('lab:photos:v1') || '{}'); } catch (e) { return {}; }
+  }
+
+  /* ---------------- 时间门禁 ---------------- */
+  function forceOpen() {
+    try { return localStorage.getItem('lab:forceOpen') === '1'; } catch (e) { return false; }
+  }
+  function canSubmitUsage(t) { return forceOpen() || (t.minutes >= RULE.usageOpen && t.minutes <= RULE.closeAt); }
+  function canSubmitCheck(t) { return forceOpen() || (t.minutes >= RULE.checkOpen && t.minutes <= RULE.closeAt); }
+
+  /* ---------------- 图片压缩 ---------------- */
+  function compress(file, maxSize, quality) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.onload = function () {
+        try {
+          var scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+          var w = Math.max(1, Math.round(img.width * scale));
+          var h = Math.max(1, Math.round(img.height * scale));
+          var cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          cv.getContext('2d').drawImage(img, 0, 0, w, h);
+          URL.revokeObjectURL(url);
+          resolve(cv.toDataURL('image/jpeg', quality));
+        } catch (e) { URL.revokeObjectURL(url); reject(e); }
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('图片读取失败')); };
+      img.src = url;
+    });
+  }
+
+  /* ---------------- 状态 ---------------- */
+  var state = { tab: 'usage', today: null, usage: [], checks: [], photos: {}, devicePool: [] };
+
+  function todayKey() { return now().date; }
+
+  /* ---------------- 渲染：顶栏 ---------------- */
+  function renderTop() {
+    var t = now();
+    $('#today').textContent = t.date + ' 周' + '日一二三四五六'.charAt(new Date(t.y + '-' + pad(t.m) + '-' + pad(t.d)).getDay());
+    $('#clock').textContent = t.hm;
+    var b = $('#modeBadge');
+    if (cloudOn()) { b.className = 'badge ok'; b.textContent = '☁ 云端同步'; }
+    else { b.className = 'badge warn'; b.textContent = '本地模式（未连接云端）'; }
+    $('#ruleUsage').textContent = '21:00';
+    $('#ruleCheck').textContent = '21:30';
+  }
+
+  /* ---------------- 渲染：备案 ---------------- */
+  function hazardsHtml(list) {
+    if (!list || !list.length) return '';
+    return '<div class="tags">' + list.map(function (h) {
+      var cls = /易燃|爆|有毒|腐蚀/.test(h) ? 'hot' : 'warn';
+      return '<span class="tag ' + cls + '">' + esc(h) + '</span>';
+    }).join('') + '</div>';
+  }
+
+  function renderUsageList() {
+    var host = $('#uList');
+    var list = state.usage.filter(function (r) { return r.date === todayKey(); });
+    $('#uCount').textContent = '今晚 ' + list.length + ' 条';
+
+    if (!list.length) { host.innerHTML = '<div class="empty">还没有人提交备案</div>'; return; }
+    host.innerHTML = list.map(function (r) {
+      return '<div class="item">' +
+        '<div class="t">' + esc(r.device) + ' · ' + esc(r.name) + '</div>' +
+        '<div class="m">' + esc(r.hours) + ' 小时' + (r.endTime ? ' · 预计到 ' + esc(r.endTime) : '') +
+        ' · ' + esc(r.reaction) + '</div>' +
+        hazardsHtml(r.hazards) +
+        (r.note ? '<div class="m" style="margin-top:4px">备注：' + esc(r.note) + '</div>' : '') +
+        '</div>';
+    }).join('');
+
+    var set = {};
+    state.usage.forEach(function (r) { if (r.device) set[r.device] = 1; });
+    $('#deviceList').innerHTML = Object.keys(set).map(function (d) { return '<option value="' + esc(d) + '">'; }).join('');
+  }
+
+  function renderUsageGate() {
+    var t = now(), can = canSubmitUsage(t), el = $('#usageGate'), txt = $('#usageGateText');
+    if (can) {
+      el.style.borderStyle = 'solid'; el.style.background = 'var(--ok-bg)'; el.style.color = 'var(--ok)';
+      txt.innerHTML = forceOpen()
+        ? '已临时开放（忽略时间限制，可在「设置」里关闭）。'
+        : '现在可以填写（开放时间 21:00 – 23:59）。';
+      $('#uSubmit').disabled = false;
+    } else {
+      el.style.borderStyle = 'dashed'; el.style.background = '#f7fafd'; el.style.color = 'var(--muted)';
+      txt.innerHTML = '今晚 ' + t.hm + '，备案尚未开放。开放时间 <b>21:00</b>，届时刷新页面即可填写。';
+      $('#uSubmit').disabled = true;
+    }
+  }
+
+  /* ---------------- 渲染：检查 ---------------- */
+  function renderCheckGate() {
+    var t = now(), can = canSubmitCheck(t);
+    var el = $('#checkGate'), txt = $('#checkGateText');
+    if (can) {
+      el.style.borderStyle = 'solid'; el.style.background = 'var(--ok-bg)'; el.style.color = 'var(--ok)';
+      txt.innerHTML = forceOpen()
+        ? '已临时开放（忽略时间限制，可在「设置」里关闭）。'
+        : '检查任务已开放（21:30 – 23:59）。';
+    } else {
+      el.style.borderStyle = 'dashed'; el.style.background = '#f7fafd'; el.style.color = 'var(--muted)';
+      txt.innerHTML = '现在 ' + t.hm + '，检查任务未开放。开放时间 <b>21:30</b>。';
+    }
+    $('#cSubmit').disabled = !can;
+  }
+
+  function renderPhotoTargets() {
+    var host = $('#photoTargets');
+    var list = state.usage.filter(function (r) { return r.date === todayKey(); });
+
+    if (!list.length) {
+      host.innerHTML = '<div class="empty">今晚还没有设备备案，可只做整体检查。</div>';
+      return;
+    }
+    host.innerHTML = list.map(function (r) {
+      var photos = state.photos[r.id] || [];
+      return '<div class="item" data-usage="' + esc(r.id) + '">' +
+        '<div class="t">' + esc(r.device) + ' <span class="m" style="font-weight:400">· ' + esc(r.name) + '</span></div>' +
+        '<div class="m">' + esc(r.reaction) + '</div>' +
+        hazardsHtml(r.hazards) +
+        '<div class="photos">' +
+        photos.map(function (p, i) {
+          return '<div class="photo"><img src="' + p + '" alt="photo" /><button type="button" class="x" data-del-photo="' + esc(r.id) + '" data-idx="' + i + '">×</button></div>';
+        }).join('') +
+        '<button type="button" class="addphoto" data-add-photo="' + esc(r.id) + '"><span style="font-size:18px">📷</span><span>拍照</span></button>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  function renderCheckDone() {
+    var done = state.checks.filter(function (r) { return r.date === todayKey(); })[0];
+    var box = $('#checkDone');
+    if (done) {
+      box.classList.remove('hidden');
+      $('#checkDoneTitle').textContent = '今晚已完成检查：' + done.name + '（' + done.time + '）';
+      $('#checkDoneMeta').textContent = done.verdict === 'ok' ? '结论：无异常' : ('结论：发现异常 — ' + (done.issue || ''));
+      $('#checkForm').classList.add('hidden');
+    } else {
+      box.classList.add('hidden');
+      $('#checkForm').classList.remove('hidden');
+    }
+  }
+
+  /* ---------------- 渲染：统计 ---------------- */
+  function renderStats() {
+    var month = $('#sMonth').value || now().month;
+    $('#sMonth').value = month;
+
+    var from = month + '-01', to = month + '-31';
+    Promise.all([Store.list(from, to), Store.list(from, to)]).then(function () { /* noop */ });
+
+    Store.list(from, to).then(function (all) {
+      var checks = all.filter(function (r) { return r.type === 'check'; });
+      var usages = all.filter(function (r) { return r.type === 'usage'; });
+
+      var byName = {};
+      checks.forEach(function (c) {
+        byName[c.name] = byName[c.name] || { name: c.name, checks: 0, issues: 0 };
+        byName[c.name].checks++;
+        if (c.verdict === 'issue') byName[c.name].issues++;
+      });
+      var rows = Object.keys(byName).map(function (k) { return byName[k]; })
+        .sort(function (a, b) { return b.checks - a.checks; });
+
+      var sum = $('#statsSummary');
+      if (!checks.length) {
+        sum.className = 'empty';
+        sum.textContent = month + ' 还没有检查记录';
+      } else {
+        sum.className = '';
+        sum.innerHTML = '<table class="tb"><thead><tr><th>#</th><th>检查人</th><th class="num">检查次数</th><th class="num">发现异常</th></tr></thead><tbody>' +
+          rows.map(function (r, i) {
+            return '<tr><td><span class="rank' + (i === 0 ? ' gold' : '') + '">' + (i + 1) + '</span></td>' +
+              '<td><b>' + esc(r.name) + '</b></td>' +
+              '<td class="num">' + r.checks + '</td>' +
+              '<td class="num">' + (r.issues || '—') + '</td></tr>';
+          }).join('') + '</tbody></table>' +
+          '<div class="m" style="margin-top:10px;color:var(--muted);font-size:12.5px">本月共 ' + checks.length +
+          ' 次检查、' + usages.length + ' 条设备备案。</div>';
+      }
+
+      var list = $('#statList');
+      if (!checks.length) { list.innerHTML = '<div class="empty">暂无记录</div>'; return; }
+      checks.sort(function (a, b) { return (b.date + b.time).localeCompare(a.date + a.time); });
+      list.innerHTML = checks.map(function (c) {
+        var ph = (c.photos || []).slice(0, 4).map(function (pid) {
+          var u = Store.photoUrl(pid);
+          return u ? '<div class="photo"><img src="' + u + '" alt="photo" loading="lazy" /></div>' : '';
+        }).join('');
+        return '<div class="item">' +
+          '<div class="t">' + esc(c.date) + ' ' + esc(c.time) + ' · ' + esc(c.name) +
+          ' <span class="badge ' + (c.verdict === 'ok' ? 'ok' : 'err') + '" style="margin-left:6px">' +
+          (c.verdict === 'ok' ? '无异常' : '发现异常') + '</span></div>' +
+          '<div class="m">' + (c.verdict === 'ok' ? '水电气与设备均已检查' : esc(c.issue || '')) + '</div>' +
+          (ph ? '<div class="photos">' + ph + '</div>' : '') +
+          '</div>';
+      }).join('');
+    }).catch(function (e) {
+      $('#statsSummary').className = 'empty';
+      $('#statsSummary').textContent = '读取失败：' + e.message;
+    });
+  }
+
+  /* ---------------- 数据加载 ---------------- */
+  function loadToday() {
+    var d = todayKey();
+    return Store.list(d, d).then(function (all) {
+      state.usage = all.filter(function (r) { return r.type === 'usage'; });
+      state.checks = all.filter(function (r) { return r.type === 'check'; });
+      state.devicePool = state.usage.map(function (r) { return r.device; });
+
+      /* 为检查页准备照片列表 */
+      state.photos = {};
+      state.usage.forEach(function (r) { state.photos[r.id] = []; });
+
+      renderUsageList();
+      renderPhotoTargets();
+      renderCheckDone();
+    }).catch(function (e) {
+      toast('读取今日数据失败：' + e.message, 4000);
+    });
+  }
+
+  /* ---------------- 事件：备案 ---------------- */
+  function bindUsage() {
+    $$('#uHazards .chip').forEach(function (b) {
+      b.addEventListener('click', function () {
+        b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+      });
+    });
+
+    $('#usageForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var t = now();
+      if (!canSubmitUsage(t)) { toast('还没到开放时间（21:00 起）'); return; }
+
+      var name = $('#uName').value.trim();
+      var device = $('#uDevice').value.trim();
+      var hours = parseFloat($('#uHours').value);
+      var reaction = $('#uReaction').value.trim();
+      if (!name || !device || !reaction) { toast('请填写姓名、设备与实验内容'); return; }
+      if (!hours || hours <= 0 || hours > 24) { toast('请填写合理的时长（0.5–24 小时）'); return; }
+
+      var hazards = $$('#uHazards .chip').filter(function (b) { return b.getAttribute('aria-pressed') === 'true'; })
+        .map(function (b) { return b.getAttribute('data-v'); });
+
+      var rec = {
+        id: uid('u'), type: 'usage', date: t.date,
+        name: name, device: device, hours: hours,
+        endTime: $('#uEnd').value.trim(),
+        reaction: reaction, hazards: hazards,
+        note: $('#uNote').value.trim(),
+        createdAt: new Date().toISOString()
+      };
+
+      var btn = $('#uSubmit');
+      btn.disabled = true; btn.textContent = '提交中…';
+      try {
+        await Store.submit(rec, []);
+        localStorage.setItem(LS.me, name);
+        toast('备案已提交，今晚检查会核对这台设备');
+        $('#usageForm').reset();
+        $$('#uHazards .chip').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+        await loadToday();
+      } catch (err) {
+        toast('提交失败：' + err.message, 4200);
+      } finally {
+        btn.disabled = false; btn.textContent = '提交备案';
+        renderUsageGate();
+      }
+    });
+  }
+
+  /* ---------------- 事件：检查 ---------------- */
+  function bindCheck() {
+    /* 分段按钮 */
+    $$('#checksBox .check').forEach(function (row) {
+      var key = row.getAttribute('data-key');
+      $$('.seg button', row).forEach(function (b) {
+        b.addEventListener('click', function () {
+          $$('.seg button', row).forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
+          b.setAttribute('aria-pressed', 'true');
+          if (b.getAttribute('data-v') === 'bad') {
+            $('#verdict').querySelector('[data-v="issue"]').setAttribute('aria-pressed', 'true');
+            $('#verdict').querySelector('[data-v="ok"]').setAttribute('aria-pressed', 'false');
+            $('#issueWrap').style.display = '';
+          }
+        });
+      });
+    });
+
+    $$('#verdict .chip').forEach(function (b) {
+      b.addEventListener('click', function () {
+        $$('#verdict .chip').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
+        b.setAttribute('aria-pressed', 'true');
+        $('#issueWrap').style.display = b.getAttribute('data-v') === 'issue' ? '' : 'none';
+        if (b.getAttribute('data-v') === 'issue') $('#cIssue').focus();
+      });
+    });
+
+    /* 拍照 */
+    var pendingId = null;
+    var fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.setAttribute('capture', 'environment');
+    fileInput.multiple = true;
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+
+    document.addEventListener('click', async function (e) {
+      var addBtn = e.target.closest && e.target.closest('[data-add-photo]');
+      if (addBtn) { pendingId = addBtn.getAttribute('data-add-photo'); fileInput.click(); return; }
+
+      var delBtn = e.target.closest && e.target.closest('[data-del-photo]');
+      if (delBtn) {
+        var id = delBtn.getAttribute('data-del-photo');
+        var i = parseInt(delBtn.getAttribute('data-idx'), 10);
+        var list = state.photos[id] || [];
+        list.splice(i, 1);
+        state.photos[id] = list;
+        renderPhotoTargets();
+      }
+    });
+
+    fileInput.addEventListener('change', async function () {
+      var files = Array.prototype.slice.call(fileInput.files || []);
+      fileInput.value = '';
+      if (!pendingId || !files.length) return;
+      var list = state.photos[pendingId] || (state.photos[pendingId] = []);
+      for (var i = 0; i < files.length && list.length < 4; i++) {
+        try {
+          var dataUrl = await compress(files[i], 1000, 0.6);
+          list.push(dataUrl);
+        } catch (err) { toast('有照片处理失败：' + err.message); }
+      }
+      renderPhotoTargets();
+    });
+
+    /* 提交 */
+    $('#checkForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var t = now();
+      if (!canSubmitCheck(t)) { toast('还没到检查开放时间（21:30 起）'); return; }
+
+      var name = $('#cName').value.trim();
+      if (!name) { toast('请填写检查人姓名'); return; }
+      if (!$('#cConfirm').checked) { toast('请勾选确认已实地检查'); return; }
+
+      var checks = {};
+      var any = false, bad = false;
+      $$('#checksBox .check').forEach(function (row) {
+        var key = row.getAttribute('data-key');
+        var on = $('.seg button[aria-pressed="true"]', row);
+        if (on) { checks[key] = on.getAttribute('data-v') === 'ok'; any = true; if (!checks[key]) bad = true; }
+      });
+      if (!any) { toast('请至少完成四项检查'); return; }
+
+      var verdictChip = $('#verdict .chip[aria-pressed="true"]');
+      var verdict = verdictChip ? verdictChip.getAttribute('data-v') : 'ok';
+      if (bad && verdict === 'ok') { toast('有项目标为异常，请把结论改为「发现异常」'); return; }
+
+      var issue = $('#cIssue').value.trim();
+      if (verdict === 'issue' && !issue) { toast('请填写异常描述'); return; }
+
+      var photosPayload = [];
+      var photoIds = [];
+      var usage = state.usage.filter(function (r) { return r.date === t.date; });
+      usage.forEach(function (r) {
+        (state.photos[r.id] || []).forEach(function (dataUrl) {
+          var pid = uid('p');
+          photoIds.push(pid);
+          photosPayload.push({ id: pid, usageId: r.id, dataUrl: dataUrl });
+        });
+      });
+
+      var rec = {
+        id: uid('c'), type: 'check', date: t.date, time: t.hm,
+        name: name, checks: checks, verdict: verdict, issue: issue,
+        usageIds: usage.map(function (r) { return r.id; }),
+        photos: photoIds,
+        createdAt: new Date().toISOString()
+      };
+
+      var btn = $('#cSubmit');
+      btn.disabled = true; btn.textContent = '提交中…';
+      try {
+        await Store.submit(rec, photosPayload);
+        localStorage.setItem(LS.me, name);
+        toast('检查记录已提交，辛苦啦 🌙');
+        await loadToday();
+      } catch (err) {
+        toast('提交失败：' + err.message, 4200);
+      } finally {
+        btn.disabled = false; btn.textContent = '提交检查记录';
+        renderCheckGate();
+      }
+    });
+  }
+
+  /* ---------------- 事件：统计 ---------------- */
+  function bindStats() {
+    $('#sRefresh').addEventListener('click', renderStats);
+    $('#sExport').addEventListener('click', function () {
+      var month = $('#sMonth').value || now().month;
+      Store.list(month + '-01', month + '-31').then(function (all) {
+        var rows = [['日期', '时间', '检查人', '结论', '异常描述', '照片数']];
+        all.filter(function (r) { return r.type === 'check'; })
+          .sort(function (a, b) { return (a.date + a.time).localeCompare(b.date + b.time); })
+          .forEach(function (c) {
+            rows.push([c.date, c.time, c.name, c.verdict === 'ok' ? '无异常' : '发现异常', c.issue || '', (c.photos || []).length]);
+          });
+        var csv = '\ufeff' + rows.map(function (r) {
+          return r.map(function (v) { return '"' + String(v).replace(/"/g, '""') + '"'; }).join(',');
+        }).join('\r\n');
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+        a.download = '实验室检查记录_' + month + '.csv';
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+      });
+    });
+  }
+
+  /* ---------------- 事件：设置 ---------------- */
+  function bindSettings() {
+    $('#settingsBtn').addEventListener('click', function () {
+      var c = getCfg();
+      $('#stApi').value = c.api || '';
+      $('#stCode').value = c.code || '';
+      $('#stMe').value = localStorage.getItem(LS.me) || '';
+      $('#stForce').checked = forceOpen();
+      $('#settings').classList.add('open');
+    });
+    $('#stCancel').addEventListener('click', function () { $('#settings').classList.remove('open'); });
+    $('#stSave').addEventListener('click', function () {
+      var api = $('#stApi').value.trim().replace(/\/+$/, '');
+      var code = $('#stCode').value.trim();
+      var me = $('#stMe').value.trim();
+      setCfg({ api: api, code: code });
+      if (me) localStorage.setItem(LS.me, me);
+      if ($('#stForce').checked) localStorage.setItem('lab:forceOpen', '1');
+      else localStorage.removeItem('lab:forceOpen');
+      $('#settings').classList.remove('open');
+      renderTop();
+      refreshAll();
+      loadToday().then(refreshAll);
+      toast(api && code ? '已连接云端' : '已切换为本地模式');
+    });
+    $('#stTest').addEventListener('click', async function () {
+      var api = $('#stApi').value.trim().replace(/\/+$/, '');
+      var code = $('#stCode').value.trim();
+      if (!api) { toast('请先填写接口地址'); return; }
+      try {
+        var r = await fetch(api + '/api/ping');
+        var j = await r.json();
+        toast(j.ok ? '接口可用' + (code ? '（记得保存）' : '') : '接口返回异常', 3000);
+      } catch (e) { toast('连接失败：' + e.message, 3500); }
+    });
+  }
+
+  /* ---------------- 标签页 ---------------- */
+  function showTab(name) {
+    state.tab = name;
+    $$('.tab').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-tab') === name); });
+    ['usage', 'check', 'stats'].forEach(function (k) {
+      $('#tab-' + k).classList.toggle('hidden', k !== name);
+    });
+    if (name === 'stats') renderStats();
+  }
+
+  function refreshAll() {
+    renderTop();
+    renderUsageGate();
+    renderCheckGate();
+    renderUsageList();
+    renderPhotoTargets();
+    renderCheckDone();
+  }
+
+  /* ---------------- 启动 ---------------- */
+  function boot() {
+    var me = localStorage.getItem(LS.me);
+    if (me) { $('#uName').value = me; $('#cName').value = me; }
+    $('#cTime').value = now().hm;
+
+    $$('.tab').forEach(function (b) {
+      b.addEventListener('click', function () { showTab(b.getAttribute('data-tab')); });
+    });
+
+    bindUsage();
+    bindCheck();
+    bindStats();
+    bindSettings();
+
+    /* 默认勾选四项正常 */
+    $$('#checksBox .check').forEach(function (row) {
+      $('.seg button.good', row).setAttribute('aria-pressed', 'true');
+    });
+
+    refreshAll();
+    loadToday().then(refreshAll);
+
+    /* 每分钟刷新时钟与门禁 */
+    setInterval(function () {
+      refreshAll();
+      $('#cTime').value = now().hm;
+    }, 30000);
+  }
+
+  document.addEventListener('DOMContentLoaded', boot);
+})();
+</script>
+</body>
+</html>
