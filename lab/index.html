@@ -622,9 +622,11 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
     if (cfg.token) {
       try {
-        var cur = await ghGetFile('options.json', cfg.token);
-        await ghPutText('options.json', JSON.stringify(opts, null, 1), cfg.token,
-          '更新实验室选项（成员 / 设备 / 时长）', cur && cur.sha);
+        await withToken(async function (token) {
+          var cur = await ghGetFile('options.json', token);
+          await ghPutText('options.json', JSON.stringify(opts, null, 1), token,
+            '更新实验室选项（成员 / 设备 / 时长）', cur && cur.sha);
+        });
       } catch (e) {
         syncOk = false;
         toast('已存到本机，但提交 GitHub 失败：' + e.message, 4500);
@@ -859,9 +861,9 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       try {
         if (cfg.token) {
           try {
-            await ghSubmit(record, photos, cfg.token);
+            await withToken(function (token) { return ghSubmit(record, photos, token); });
           } catch (e1) {
-            /* 令牌失效（401/403）时退回 Worker，避免整站提交不了 */
+            /* 仍然失败（401/403）时退回 Worker，避免整站提交不了 */
             if (/40[13]/.test(String(e1.message))) {
               await workerSubmit(cfg, record, photos);
             } else {
@@ -895,7 +897,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       for (var i = 0; i < list.length; i++) {
         try {
           if (cfg.token) {
-            await ghSubmit(list[i], [], cfg.token);
+            await withToken(function (token) { return ghSubmit(list[i], [], token); });
           } else {
             var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/submit', {
               method: 'POST',
@@ -1653,21 +1655,39 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     $('#editModal').classList.add('open');
   }
 
-  async function saveAdminRecords(records, message) {
+  /* 统一的令牌选择：自定义令牌失效（401/403）时自动退回内置令牌，并清掉坏的 */
+  async function withToken(fn) {
     var cfg = getCfg();
-    if (!cfg.token) throw new Error('未配置写入令牌');
-    for (var attempt = 0; attempt < 2; attempt++) {
-      var cur = await ghGetFile('records.json', cfg.token);
-      var body = { updatedAt: new Date().toISOString(), records: records };
-      try {
-        await ghPutText('records.json', JSON.stringify(body, null, 1), cfg.token, message, cur && cur.sha);
-        return true;
-      } catch (e) {
-        if (attempt === 1) throw e;
-        await new Promise(function (res) { setTimeout(res, 800); });
-      }
+    var builtin = builtinToken();
+    var custom = (cfg.token && cfg.token !== builtin) ? cfg.token : null;
+
+    if (!custom) return await fn(builtin);
+
+    try {
+      return await fn(custom);
+    } catch (e) {
+      if (!/40[13]/.test(String(e.message))) throw e;
+      try { setCfg({ api: cfg.api, token: '' }); } catch (x) { /* 忽略 */ }
+      toast('自定义令牌失效，已改用内置令牌', 3500);
+      return await fn(builtin);
     }
-    return true;
+  }
+
+  async function saveAdminRecords(records, message) {
+    return await withToken(async function (token) {
+      for (var attempt = 0; attempt < 2; attempt++) {
+        var cur = await ghGetFile('records.json', token);
+        var body = { updatedAt: new Date().toISOString(), records: records };
+        try {
+          await ghPutText('records.json', JSON.stringify(body, null, 1), token, message, cur && cur.sha);
+          return true;
+        } catch (e) {
+          if (attempt === 1) throw e;
+          await new Promise(function (res) { setTimeout(res, 800); });
+        }
+      }
+      return true;
+    });
   }
 
   function bindAdmin() {
@@ -1789,7 +1809,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       await loadDay(todayKey(), true).catch(function () { /* 忽略 */ });
       toast('已保存');
     } catch (e) {
-      toast('保存失败：' + e.message, 4500);
+      toast('保存失败：' + e.message + '（可到「⚙ 设置」点「测试连接」检查写入令牌）', 5500);
     } finally {
       btn.disabled = false; btn.textContent = '保存';
     }
@@ -1806,7 +1826,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       await loadDay(todayKey(), true).catch(function () { /* 忽略 */ });
       toast('已删除');
     } catch (e) {
-      toast('删除失败：' + e.message, 4500);
+      toast('删除失败：' + e.message + '（可到「⚙ 设置」点「测试连接」检查写入令牌）', 5500);
     }
   }
 
@@ -1834,13 +1854,19 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       toast(token ? '已保存令牌，提交将直接写入 GitHub' : '已保存（未填令牌，提交走 Cloudflare）');
     });
     $('#stTest').addEventListener('click', async function () {
-      var api = $('#stApi').value.trim().replace(/\/+$/, '') || DEFAULT_API;
-      if (!api) { toast('请先填写接口地址'); return; }
+      var t = $('#stToken').value.trim() || builtinToken();
+      var label = $('#stToken').value.trim() ? '自定义令牌' : '内置令牌';
       try {
-        var r = await fetch(api + '/api/ping?t=' + Date.now());
-        var j = await r.json();
-        toast(j.ok ? '接口可用' : '接口返回异常', 3000);
-      } catch (e) { toast('连接失败：' + e.message, 3500); }
+        var r = await fetch('https://api.github.com/repos/ZJU-ICED-DATA/lab-data/contents/records.json', {
+          headers: { Authorization: 'Bearer ' + t, Accept: 'application/vnd.github+json' },
+          cache: 'no-store'
+        });
+        if (r.ok) toast(label + '可用 ✅', 3000);
+        else if (r.status === 401) toast(label + '无效（401）——请清空输入框后保存', 5000);
+        else toast(label + '返回 HTTP ' + r.status, 4000);
+      } catch (e) {
+        toast('连不上 GitHub：' + e.message, 5000);
+      }
     });
   }
 
