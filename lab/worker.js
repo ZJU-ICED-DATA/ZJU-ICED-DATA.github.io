@@ -19,9 +19,9 @@
      GET  /api/photo?id&code              返回图片
    ========================================================================= */
 
-const RECORDS_PATH = 'lab/data/records.json';
-const OPTIONS_PATH = 'lab/data/options.json';
-const PHOTO_DIR = 'lab/data/photos/';
+const RECORDS_PATH = 'records.json';
+const OPTIONS_PATH = 'options.json';
+const PHOTO_DIR = 'photos/';
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 
 export default {
@@ -123,7 +123,7 @@ function gh(env, path, init) {
 }
 
 function repoPath(env, sub) {
-  return '/repos/' + env.REPO + sub;
+  return '/repos/' + (env.REPO || 'ZJU-ICED-DATA/lab-data') + sub;
 }
 
 async function readRecords(env) {

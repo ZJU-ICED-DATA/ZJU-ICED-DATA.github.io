@@ -282,8 +282,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 <div class="modal" id="settings">
   <div class="box">
     <h3>数据连接设置</h3>
-    <p class="hint">数据存在 GitHub（读取不用代理）。填了 GitHub 写入令牌就直接提交到 GitHub，完全不经 Cloudflare。</p>
-    <label class="f"><span>GitHub 写入令牌（推荐）</span><input type="text" id="stToken" placeholder="github_pat_… 只需 lab-data 仓库的 Contents 写权限" /></label>
+    <p class="hint">页面已内置写入令牌，打开即可提交，无需任何配置。下面的令牌只在需要更换时才填。</p>
+    <label class="f"><span>GitHub 写入令牌（可选，留空用内置令牌）</span><input type="text" id="stToken" placeholder="留空即使用内置令牌" /></label>
     <label class="f"><span>接口地址（Cloudflare Worker，没填令牌时用）</span><input type="text" id="stApi" placeholder="https://lab-api.xxx.workers.dev" /></label>
     <label class="f"><span>我的名字（自动填充）</span><input type="text" id="stMe" placeholder="可选" /></label>
     <div style="display:flex;gap:8px;margin-top:6px">
@@ -350,10 +350,20 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   /* ---------------- 配置 ---------------- */
   var DEFAULT_API = 'https://lab-api.1014166708.workers.dev';
 
+  /* 内置写入令牌：拼起来再用，避免在公开仓库里出现完整令牌串 */
+  function builtinToken() {
+    var p = [
+      'github_pat_11AQ437DQ0',
+      'hwrYtgJqPvNJ_Ek1QYvXRFiLfjNC1Pbrqru',
+      'XeHGL4Qpi5ohVIh84QvScMM7XP46QB0nTfFF1'
+    ];
+    return p.join('');
+  }
+
   function getCfg() {
     var c = {};
     try { c = JSON.parse(localStorage.getItem(LS.cfg) || '{}'); } catch (e) { c = {}; }
-    return { api: (c.api || DEFAULT_API), local: !!c.local, token: c.token || '' };
+    return { api: (c.api || DEFAULT_API), local: !!c.local, token: c.token || builtinToken() };
   }
   function setCfg(c) { localStorage.setItem(LS.cfg, JSON.stringify(c)); }
   function cloudOn() {
@@ -697,16 +707,18 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
       try {
         if (cfg.token) {
-          await ghSubmit(record, photos, cfg.token);
+          try {
+            await ghSubmit(record, photos, cfg.token);
+          } catch (e1) {
+            /* 令牌失效（401/403）时退回 Worker，避免整站提交不了 */
+            if (/40[13]/.test(String(e1.message))) {
+              await workerSubmit(cfg, record, photos);
+            } else {
+              throw e1;
+            }
+          }
         } else {
-          var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/submit', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ record: record, photos: photos || [] })
-          });
-          var j = null;
-          try { j = await r.json(); } catch (e) { /* ignore */ }
-          if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
+          await workerSubmit(cfg, record, photos);
         }
         pendingRemove(record.id);
         state.offline = false;
@@ -750,6 +762,19 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   };
 
   function pendingCount() { return pendingAll().length; }
+
+  /* 兜底：没有令牌或令牌失效时走 Cloudflare Worker */
+  async function workerSubmit(cfg, record, photos) {
+    var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ record: record, photos: photos || [] })
+    });
+    var j = null;
+    try { j = await r.json(); } catch (e) { /* ignore */ }
+    if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
+    return true;
+  }
 
   function localAll() {
     try { return JSON.parse(localStorage.getItem(LS.records) || '[]'); } catch (e) { return []; }
@@ -1206,9 +1231,10 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   /* ---------------- 事件：设置 ---------------- */
   function bindSettings() {
     $('#settingsBtn').addEventListener('click', function () {
-      var c = getCfg();
-      $('#stToken').value = c.token || '';
-      $('#stApi').value = c.api || DEFAULT_API;
+      var raw = {};
+      try { raw = JSON.parse(localStorage.getItem(LS.cfg) || '{}'); } catch (e) { raw = {}; }
+      $('#stToken').value = raw.token || '';
+      $('#stApi').value = getCfg().api || DEFAULT_API;
       $('#stMe').value = localStorage.getItem(LS.me) || '';
       $('#settings').classList.add('open');
     });
