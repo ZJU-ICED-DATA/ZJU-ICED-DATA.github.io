@@ -74,7 +74,12 @@
       ionicSteps: 0,
       isVasp: false,
       magnetization: null,    // 总磁矩 (μB)
-      magPerAtom: []          // 每个原子的磁矩 (μB)
+      magPerAtom: [],         // 每个原子的磁矩 (μB)
+      nelect: null,           // NELECT 电子数
+      nbands: null,           // 能带数
+      encut: null,            // 截断能 (eV)
+      ispin: null,            // 1 = 非自旋极化, 2 = 自旋极化
+      converged: null         // 是否达到收敛判据
     };
 
     if (typeof text !== 'string' || !text.trim()) {
@@ -116,6 +121,20 @@
     }
 
     out.magPerAtom = parseMagPerAtom(text);
+
+    const nelect = lastMatch(text, /NELECT\s*=\s*(-?[\d.]+)/g);
+    if (nelect) out.nelect = toFloat(nelect[1]);
+
+    const nbands = lastMatch(text, /NBANDS\s*=\s*(\d+)/g);
+    if (nbands) out.nbands = parseInt(nbands[1], 10);
+
+    const encut = lastMatch(text, /ENCUT\s*=\s*([\d.]+)/g);
+    if (encut) out.encut = toFloat(encut[1]);
+
+    const ispin = lastMatch(text, /ISPIN\s*=\s*(\d+)/g);
+    if (ispin) out.ispin = parseInt(ispin[1], 10);
+
+    out.converged = /reached required accuracy/i.test(text);
 
     if (out.totalEnergy === null && out.energySigma0 !== null) {
       out.totalEnergy = out.energySigma0;

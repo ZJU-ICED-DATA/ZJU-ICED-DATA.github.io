@@ -1101,3 +1101,11 @@ td.formula { font-weight: 650; }
   padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border);
   background: #f7fafd; position: sticky; top: 0;
 }
+.ok-tag {
+  display: inline-block; padding: 1px 8px; border-radius: 5px;
+  background: #e7f6ee; color: #1f7a4d; font-size: 11.5px; font-weight: 700;
+}
+.warn-tag {
+  display: inline-block; padding: 1px 8px; border-radius: 5px;
+  background: #fef3c7; color: #92400e; font-size: 11.5px; font-weight: 700;
+}

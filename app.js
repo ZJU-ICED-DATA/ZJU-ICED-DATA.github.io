@@ -1477,6 +1477,9 @@
   function moleculeMag(d) {
     return (d && d.outcar && isNum(d.outcar.magnetization)) ? d.outcar.magnetization : null;
   }
+  function moleculeGap(d) {
+    return (d && d.eigen && isNum(d.eigen.gap)) ? d.eigen.gap : null;
+  }
 
   function moleculeCardHtml(d) {
     const s = structureOf(d);
@@ -1492,6 +1495,7 @@
       (chips ? '<div class="mol-chips">' + chips + '</div>' : '') +
       '<div class="mol-meta">' +
       '<span><i>E</i> ' + (isNum(e) ? e.toFixed(4) : '—') + '</span>' +
+      '<span><i>Gap</i> ' + (isNum(moleculeGap(d)) ? moleculeGap(d).toFixed(2) : '—') + '</span>' +
       '<span><i>M</i> ' + (isNum(m) ? m.toFixed(2) + ' μB' : '—') + '</span>' +
       '</div></div>';
   }
@@ -1564,6 +1568,15 @@
     const e = moleculeEnergy(d);
     const m = moleculeMag(d);
     const mags = (oc && Array.isArray(oc.magPerAtom)) ? oc.magPerAtom : [];
+
+    const eg = d.eigen || null;
+    const gap = (eg && isNum(eg.gap)) ? eg.gap : null;
+    const homo = (eg && isNum(eg.homo)) ? eg.homo : null;
+    const lumo = (eg && isNum(eg.lumo)) ? eg.lumo : null;
+    const nelect = (eg && isNum(eg.nelect)) ? eg.nelect : (oc && isNum(oc.nelect) ? oc.nelect : null);
+    const nb = (eg && isNum(eg.nbands)) ? eg.nbands : (oc && isNum(oc.nbands) ? oc.nbands : null);
+    const nk = (eg && isNum(eg.nkpts)) ? eg.nkpts : null;
+    const conv = (oc && typeof oc.converged === 'boolean') ? oc.converged : null;
     const s2 = s && s.cell ? ['a=' + (isNum(s.cell.a) ? s.cell.a : '–'), 'b=' + (isNum(s.cell.b) ? s.cell.b : '–'),
       'c=' + (isNum(s.cell.c) ? s.cell.c : '–'), 'α=' + (isNum(s.cell.alpha) ? s.cell.alpha + '°' : '–'),
       'β=' + (isNum(s.cell.beta) ? s.cell.beta + '°' : '–'), 'γ=' + (isNum(s.cell.gamma) ? s.cell.gamma + '°' : '–')].join('  ') : '';
@@ -1584,13 +1597,28 @@
 
       '<div class="detail-body">' +
       '<div>' +
-      '<div class="section-label">计算结果</div>' +
+      '<div class="section-label">电子结构</div>' +
       '<div class="field-grid">' +
       fieldHtml('总能 E (eV)', isNum(e) ? e.toFixed(6) : '—') +
       fieldHtml('磁矩 (μB)', isNum(m) ? m.toFixed(3) : '—') +
-      fieldHtml('能量 σ→0 (eV)', oc && isNum(oc.energySigma0) ? oc.energySigma0.toFixed(6) : '—') +
-      fieldHtml('E-fermi (eV)', oc && isNum(oc.fermi) ? oc.fermi.toFixed(4) : '—') +
+      fieldHtml('HOMO–LUMO gap (eV)', gap !== null ? gap.toFixed(3) : '—') +
+      fieldHtml('电子数 NELECT', nelect !== null ? esc(String(nelect)) : '—') +
+      fieldHtml('HOMO (eV)', homo !== null ? homo.toFixed(3) : '—') +
+      fieldHtml('LUMO (eV)', lumo !== null ? lumo.toFixed(3) : '—') +
       '</div>' +
+
+      '<div class="section-label">计算设置</div>' +
+      '<div class="field-grid">' +
+      fieldHtml('收敛状态', conv === true
+        ? '<span class="ok-tag">已收敛</span>'
+        : (conv === false ? '<span class="warn-tag">未收敛</span>' : '—')) +
+      fieldHtml('截断能 ENCUT (eV)', oc && isNum(oc.encut) ? oc.encut : '—') +
+      fieldHtml('自旋极化 ISPIN', oc && isNum(oc.ispin) ? esc(String(oc.ispin)) : '—') +
+      fieldHtml('能带数 NBANDS', nb !== null ? esc(String(nb)) : '—') +
+      fieldHtml('k 点数 NKPTS', nk !== null ? esc(String(nk)) : '—') +
+      fieldHtml('离子步', oc && isNum(oc.ionicSteps) ? esc(String(oc.ionicSteps)) : '—') +
+      '</div>' +
+      '<p class="form-hint" style="margin:-4px 0 10px">能量取 free energy TOTEN；gap 取 EIGENVAL 中占据态最高与空态最低之差。</p>' +
 
       (s ? '<div class="section-label">构型信息</div>' +
         '<div class="field-grid">' +
@@ -2957,7 +2985,7 @@
       '<button type="button" class="btn" id="pickFolder">选择文件夹</button>' +
       '<span class="muted">可多选；选文件夹时里面的子目录会各自成为一条记录</span>' +
       '</div>' +
-      '<input type="file" id="fileInput" accept=".cif,.mcif,.out,.txt,POSCAR,CONTCAR,OUTCAR" multiple hidden />' +
+      '<input type="file" id="fileInput" accept=".cif,.mcif,.out,.txt,POSCAR,CONTCAR,OUTCAR,EIGENVAL" multiple hidden />' +
       '<input type="file" id="dirInput" webkitdirectory directory multiple hidden />';
 
     if (foot) {
@@ -3115,6 +3143,15 @@
     return null;
   }
 
+  function isEigenvalName(name) { return /eigenval/i.test(baseName(name)); }
+
+  function pickEigenval(files) {
+    for (let i = 0; i < files.length; i++) {
+      if (isEigenvalName(files[i].path)) return { kind: 'eigenval', file: files[i].file, path: files[i].path };
+    }
+    return null;
+  }
+
   function parseStructureFile(kind, text, file) {
     if (kind === 'cif') {
       const info = window.CIFParser ? window.CIFParser.parse(text) : null;
@@ -3136,7 +3173,7 @@
     };
   }
 
-  function makeItem(name, structure, outcar, dir) {
+  function makeItem(name, structure, outcar, dir, eigen) {
     const g = structure ? guessFrom(structure) : { metal: '', support: '' };
     return {
       name: name,
@@ -3144,6 +3181,7 @@
       dir: dir || '',
       structure: structure,
       outcar: outcar,
+      eigenval: eigen || null,
       metal: g.metal,
       support: g.support,
       energy: outcar && isNum(outcar.info.totalEnergy) ? outcar.info.totalEnergy : null
@@ -3189,7 +3227,17 @@
           if (oinfo && oinfo.ok) outcar = { file: baseName(oc.path), text: otext, info: oinfo };
           else unmatched.push(baseName(oc.path));
         }
-        items.push(makeItem(name, parsed.structure, outcar, dir));
+
+        let eigen = null;
+        const ev = pickEigenval(files);
+        if (ev) {
+          const etext = await readText(ev.file);
+          const einfo = window.EigenvalParser ? window.EigenvalParser.parse(etext) : null;
+          if (einfo && einfo.ok) eigen = { file: baseName(ev.path), text: etext, info: einfo };
+          else if (einfo) unmatched.push(baseName(ev.path));
+        }
+
+        items.push(makeItem(name, parsed.structure, outcar, dir, eigen));
       } catch (e) {
         uploadError(name, '文件读取失败');
         return;
@@ -3783,7 +3831,22 @@
         volume: info.volume,
         ionicSteps: info.ionicSteps,
         magnetization: info.magnetization,
-        magPerAtom: Array.isArray(info.magPerAtom) ? info.magPerAtom : []
+        magPerAtom: Array.isArray(info.magPerAtom) ? info.magPerAtom : [],
+        nelect: info.nelect,
+        nbands: info.nbands,
+        encut: info.encut,
+        ispin: info.ispin,
+        converged: info.converged
+      } : null,
+      eigen: (it.eigenval && it.eigenval.info) ? {
+        file: it.eigenval.file,
+        nelect: it.eigenval.info.nelect,
+        nkpts: it.eigenval.info.nkpts,
+        nbands: it.eigenval.info.nbands,
+        ispin: it.eigenval.info.ispin,
+        homo: it.eigenval.info.homo,
+        lumo: it.eigenval.info.lumo,
+        gap: it.eigenval.info.gap
       } : null,
       addedAt: new Date().toISOString()
     };
