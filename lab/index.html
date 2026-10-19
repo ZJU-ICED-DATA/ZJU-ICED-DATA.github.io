@@ -750,8 +750,71 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     return r.json();
   }
 
-  /* 直接写 GitHub：先传照片，再改 records.json（带重试，防止并发冲突） */
+  /* 直接读 GitHub 上的最新文件（不走 Pages 缓存），用于「今天是否已检查」这类判断 */
+  async function fetchFreshRecords() {
+    var cfg = getCfg();
+    if (cfg.token) {
+      try {
+        var cur = await ghGetFile('records.json', cfg.token);
+        if (cur) {
+          var d = JSON.parse(cur.text);
+          return Array.isArray(d) ? d : (d.records || []);
+        }
+      } catch (e) { /* 回退到静态文件 */ }
+    }
+    return await fetchStaticRecords();
+  }
+
+  /* 合并本机「待同步」和「已提交但 Pages 未刷新」的记录 */
+  function mergeLocal(list) {
+    var merged = (list || []).slice();
+    recentAll().forEach(function (x) {
+      if (x && x.rec && !merged.some(function (y) { return y.id === x.rec.id; })) merged.push(x.rec);
+    });
+    pendingAll().forEach(function (p) {
+      if (!merged.some(function (x) { return x.id === p.id; })) merged.push(p);
+    });
+    return merged;
+  }
+
+  async function refreshDayFresh(date) {
+    var list;
+    try { list = mergeLocal(await fetchFreshRecords()); } catch (e) { return; }
+
+    var usage = list.filter(function (r) {
+      return r.type === 'usage' && r.date >= shiftDate(date, -30) && r.date <= date;
+    });
+    var checks = list.filter(function (r) { return r.type === 'check' && r.date === date; });
+
+    state.days[date] = { usage: usage, checks: checks };
+    state.windowUsage = usage;
+    renderUsageList();
+    renderPhotoTargets();
+    renderCheckDone();
+  }
+
+  /* 直接写 GitHub：先查重（检查一天只能一条），再传照片，最后改 records.json */
   async function ghSubmit(record, photos, token) {
+    function findDup(list) {
+      if (record.type !== 'check') return null;
+      return list.filter(function (r) {
+        return r.type === 'check' && r.date === record.date;
+      })[0] || null;
+    }
+    function dupError(dup) {
+      var e = new Error('今天已完成检查：' + (dup.name || '') + '（' + (dup.time || '') + '），不需要重复提交');
+      e.duplicate = dup;
+      return e;
+    }
+
+    /* 1) 预检：已经有人交过就不再传照片、不再写 */
+    var pre = await ghGetFile('records.json', token);
+    var preList = pre ? JSON.parse(pre.text) : { records: [] };
+    preList = Array.isArray(preList) ? preList : (preList.records || []);
+    var dupPre = findDup(preList);
+    if (dupPre) throw dupError(dupPre);
+
+    /* 2) 上传照片 */
     var list = photos || [];
     for (var i = 0; i < list.length; i++) {
       var b64 = String(list[i].dataUrl || '').split(',')[1] || '';
@@ -762,10 +825,15 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     var label = record.type === 'check' ? '实验室夜间检查' : '设备使用备案';
     var message = label + '：' + record.date + ' ' + record.name;
 
+    /* 3) 写入（冲突重试时会重新查重，防止两人同时提交） */
     for (var attempt = 0; attempt < 2; attempt++) {
       var cur = await ghGetFile('records.json', token);
       var data = cur ? JSON.parse(cur.text) : { records: [] };
       if (!Array.isArray(data.records)) data.records = [];
+
+      var dup = findDup(data.records);
+      if (dup) throw dupError(dup);
+
       if (!data.records.some(function (r) { return r.id === record.id; })) data.records.push(record);
       data.updatedAt = new Date().toISOString();
 
@@ -828,19 +896,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       }
 
       /* 合并本机「待同步」和「已提交但 Pages 未刷新」的记录 */
-      var pending = pendingAll();
-      var merged = all.slice();
-
       recentPrune(all);
-      recentAll().forEach(function (x) {
-        var r = x.rec;
-        if (!merged.some(function (y) { return y.id === r.id; })) merged.push(r);
-      });
-      pending.forEach(function (p) {
-        if (!merged.some(function (x) { return x.id === p.id; })) merged.push(p);
-      });
-
-      return merged.filter(function (x) { return x.date >= from && x.date <= to; });
+      return mergeLocal(all).filter(function (x) { return x.date >= from && x.date <= to; });
     },
 
     async submit(record, photos) {
@@ -878,6 +935,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         state.offline = false;
         return { ok: true };
       } catch (e) {
+        /* 重复检查不算失败，不进待同步队列 */
+        if (e && e.duplicate) { state.offline = false; throw e; }
         pendingAdd(record);
         state.offline = true;
         throw new Error(e.message + '（已暂存到本机，可稍后点「重试同步」）');
@@ -995,6 +1054,11 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     renderUsageList();
     renderPhotoTargets();
     renderCheckDone();
+
+    /* 后台再拉一次最新数据（GitHub 直读），让「今天是否已检查」立刻准确 */
+    if (getCfg().token) {
+      refreshDayFresh(date).catch(function () { /* 忽略 */ });
+    }
   }
 
   /* 仍在运行（未封存）的备案：今天的 + 之前提交但仍未封存的（含长期） */
@@ -1499,6 +1563,17 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       var btn = $('#cSubmit');
       btn.disabled = true; btn.textContent = '提交中…';
       try {
+        /* 提交前再确认一次：今天是否已经有人完成检查（读 GitHub 最新文件，不依赖缓存） */
+        var fresh = await fetchFreshRecords();
+        var exists = fresh.filter(function (r) {
+          return r.type === 'check' && r.date === date;
+        })[0];
+        if (exists) {
+          toast('今天已完成检查：' + (exists.name || '') + '（' + (exists.time || '') + '），不需要重复提交', 5000);
+          await loadDay(date, true).catch(function () { /* 忽略 */ });
+          return;
+        }
+
         await Store.submit(rec, photosPayload);
         localStorage.setItem(LS.me, name);
         toast('检查记录已提交（' + date + ' ' + time + '），约 1 分钟后全组可见 🌙', 3500);

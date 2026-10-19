@@ -59,6 +59,20 @@ export default {
         }
 
         const photos = Array.isArray(body.photos) ? body.photos : [];
+
+        /* 检查记录一天只能一条：先读最新文件，已有人交过就直接拒绝 */
+        if (record.type === 'check') {
+          const existing = await readRecords(env);
+          const dup = existing.filter(r => r.type === 'check' && r.date === record.date)[0];
+          if (dup) {
+            return json({
+              ok: false,
+              duplicate: true,
+              error: '今天已完成检查：' + (dup.name || '') + '（' + (dup.time || '') + '），不需要重复提交'
+            }, 409, cors);
+          }
+        }
+
         const files = [];
         for (const p of photos) {
           if (!p || !p.id || typeof p.dataUrl !== 'string') continue;
