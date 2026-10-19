@@ -1,4 +1,23 @@
 {
- "updatedAt": "2026-10-19T10:51:01.016Z",
- "records": []
+ "updatedAt": "2026-10-19T11:27:26.878Z",
+ "records": [
+  {
+   "id": "u_mvf66oyd4p892",
+   "type": "usage",
+   "date": "2026-10-19",
+   "time": "19:27",
+   "name": "张铭甲",
+   "device": "管式炉 1 号",
+   "hours": 3,
+   "endTime": "22:27",
+   "reaction": "600度",
+   "hazards": [
+    "高温",
+    "高压"
+   ],
+   "note": "",
+   "createdAt": "2026-10-19T11:27:25.141Z",
+   "serverTime": "2026-10-19T11:27:26.462Z"
+  }
+ ]
 }
