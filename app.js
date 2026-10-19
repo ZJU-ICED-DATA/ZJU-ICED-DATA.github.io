@@ -1222,9 +1222,11 @@
 
   /* ============================ 视图：数据总览 ============================ */
   function kpiCard(value, label, sub, color, icon) {
+    /* 防御：误传数组时取长度，避免界面出现 [object Object] */
+    const v = Array.isArray(value) ? value.length : value;
     return '<div class="kpi" style="--kpi-color:' + (color || 'var(--primary)') + '">' +
       (icon ? '<div class="kpi-ico">' + icon + '</div>' : '') +
-      '<div class="kpi-value">' + value + '</div>' +
+      '<div class="kpi-value">' + v + '</div>' +
       '<div class="kpi-label">' + esc(label) + '</div>' +
       (sub ? '<div class="kpi-sub">' + esc(sub) + '</div>' : '') + '</div>';
   }
@@ -1524,7 +1526,7 @@
       '<div class="kpi-grid four">' +
       kpiCard(rows.length, '小分子', '去重分子数', '#2b7ac4', '⬢') +
       kpiCard(withStruct.length, '构型', totalAtoms + ' 个原子', '#31a354', '🧬') +
-      kpiCard(withEnergy, '有总能', 'OUTCAR 已识别', '#e8710a', '📉') +
+      kpiCard(withEnergy.length, '有总能', 'OUTCAR 已识别', '#e8710a', '📉') +
       kpiCard(isNum(avgMag) ? avgMag.toFixed(2) : '—', '平均磁矩', mags.length + ' 条有数据', '#7b5ea7', '🧲') +
       '</div>' +
 
