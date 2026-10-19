@@ -100,7 +100,7 @@ window.SITE_CONTENT = {
 
   reactions: {
     'ch4-combustion': {
-      name: '甲烷燃烧',
+      name: '催化甲烷燃烧',
       en: 'CH4 Combustion',
       summary: '甲烷低温完全氧化的 DFT 研究体系，关注 CH4 第一步 C–H 解离能垒与含氧中间体的吸附强度。',
       conditions: [
@@ -117,7 +117,7 @@ window.SITE_CONTENT = {
       ]
     },
     'c2h6-combustion': {
-      name: '乙烷燃烧',
+      name: '催化乙烷燃烧',
       en: 'C2H6 Combustion',
       summary: '乙烷完全氧化的 DFT 研究体系，C–C 与 C–H 键的解离竞争决定产物分布，需比较两条路径的能垒。',
       conditions: [

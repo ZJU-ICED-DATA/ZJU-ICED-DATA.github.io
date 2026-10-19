@@ -16,7 +16,7 @@
 
 **反应子库（左侧栏）**
 
-- 目前收录三个体系：**甲烷燃烧**（Methane Combustion）、**乙烷燃烧**（Ethane Combustion）、**CO2 加氢**（CO2 Hydrogenation）
+- 目前收录三个体系：**催化甲烷燃烧**（Methane Combustion）、**催化乙烷燃烧**（Ethane Combustion）、**CO2 加氢**（CO2 Hydrogenation）
 - 每个体系独立页面：计算设置、DFT 描述符定义、体系要点
 - 专属 KPI（催化剂数、平均 Ea、平均 Eads、结构数）、Ea–Eads 散点图、金属分布
 - 只收录该反应的条目
