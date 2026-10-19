@@ -154,10 +154,6 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
           </label>
         </div>
         <div class="row">
-          <label class="f"><span>日期（可修改，用于补录）</span><input type="date" id="uDate" /></label>
-          <label class="f"><span>提交时间（可修改）</span><input type="time" id="uTime" /></label>
-        </div>
-        <div class="row">
           <label class="f"><span>使用时长（小时） <em>*</em></span><select id="uHours"></select></label>
           <label class="f"><span>预计结束时间（自动计算）</span><input type="text" id="uEnd" readonly placeholder="选择时长后自动生成" /></label>
         </div>
@@ -229,11 +225,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
             <select id="cName"></select>
             <input type="text" id="cNameOther" class="hidden" style="margin-top:6px" placeholder="输入姓名" />
           </label>
-          <label class="f"><span>检查日期（可修改）</span><input type="date" id="cDate" /></label>
-        </div>
-        <div class="row">
-          <label class="f"><span>离开时间（可修改）</span><input type="time" id="cTime" /></label>
-          <label class="f"><span>&nbsp;</span><span class="badge idle" style="align-self:flex-start">检查记录会记入所选日期</span></label>
+          <label class="f"><span>离开时间（自动记录）</span><input type="text" id="cTime" readonly /></label>
         </div>
         <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:14px;font-size:13px;color:#475569">
           <input type="checkbox" id="cConfirm" style="margin-top:4px" />
@@ -627,10 +619,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   }
 
   /* ---------------- 渲染：备案 ---------------- */
-  function selectedDate(id) {
-    var el = document.getElementById(id);
-    return (el && el.value) || todayKey();
-  }
+  function selectedDate() { return todayKey(); }
 
   function hazardsHtml(list) {
     if (!list || !list.length) return '';
@@ -642,7 +631,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
   function renderUsageList() {
     var host = $('#uList');
-    var day = selectedDate('uDate');
+    var day = selectedDate();
     var list = dayOf(day).usage;
     $('#uCount').textContent = day + ' 共 ' + list.length + ' 条';
 
@@ -665,8 +654,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     el.style.background = open ? 'var(--ok-bg)' : '#f7fafd';
     el.style.color = open ? 'var(--ok)' : 'var(--muted)';
     txt.innerHTML = open
-      ? '现在是开放时段（21:00 – 23:59），可以直接提交。提交时间可以在下面改成任意时刻。'
-      : '现在 ' + t.hm + '，不在推荐时段（21:00 – 23:59）。<b>仍然可以提交</b>，日期和提交时间都可以手动修改，用于补录。';
+      ? '现在是推荐时段（21:00 – 23:59），随时都可以提交。'
+      : '现在 ' + t.hm + '，不在推荐时段（21:00 – 23:59）。<b>任何时间都可以提交</b>，记录按提交时刻自动保存。';
     $('#uSubmit').disabled = false;
   }
 
@@ -679,14 +668,14 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     el.style.background = open ? 'var(--ok-bg)' : '#f7fafd';
     el.style.color = open ? 'var(--ok)' : 'var(--muted)';
     txt.innerHTML = open
-      ? '现在是推荐检查时段（21:30 – 23:59）。检查日期和离开时间都可以手动修改。'
-      : '现在 ' + t.hm + '，不在推荐时段（21:30 – 23:59）。<b>仍然可以提交</b>，检查日期与离开时间可手动修改。';
+      ? '现在是推荐检查时段（21:30 – 23:59），随时都可以提交。'
+      : '现在 ' + t.hm + '，不在推荐时段（21:30 – 23:59）。<b>任何时间都可以提交</b>，离开时间按提交时刻自动记录。';
     $('#cSubmit').disabled = false;
   }
 
   function renderPhotoTargets() {
     var host = $('#photoTargets');
-    var day = selectedDate('cDate');
+    var day = selectedDate();
     var list = dayOf(day).usage;
 
     if (!list.length) {
@@ -709,7 +698,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   }
 
   function renderCheckDone() {
-    var day = selectedDate('cDate');
+    var day = selectedDate();
     var done = dayOf(day).checks[0];
     var box = $('#checkDone');
     if (done) {
@@ -785,7 +774,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
   /* ---------------- 数据加载 ---------------- */
   function loadToday() {
-    return loadDay(todayKey()).then(function () { return loadDay(selectedDate('uDate')); });
+    return loadDay(todayKey());
   }
 
   /* ---------------- 事件：备案 ---------------- */
@@ -799,8 +788,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     $('#usageForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       var t = now();
-      var date = ($('#uDate').value || t.date);
-      var time = ($('#uTime').value || t.hm);
+      var date = t.date;
+      var time = t.hm;
 
       var name = readPick('uName', 'uNameOther');
       var device = readPick('uDevice', 'uDeviceOther');
@@ -826,11 +815,10 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       try {
         await Store.submit(rec, []);
         localStorage.setItem(LS.me, name);
-        toast('备案已提交（' + date + ' ' + time + '）');
+        toast('备案已提交（' + time + '）');
         $('#usageForm').reset();
         $$('#uHazards .chip').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
-        $('#uDate').value = date;
-        $('#uTime').value = now().hm;
+        $('#uEnd').value = '';
         await loadDay(date, true);
       } catch (err) {
         toast('提交失败：' + err.message, 4200);
@@ -911,8 +899,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     $('#checkForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       var t = now();
-      var date = ($('#cDate').value || t.date);
-      var time = ($('#cTime').value || t.hm);
+      var date = t.date;
+      var time = t.hm;
 
       var name = readPick('cName', 'cNameOther');
       if (!name) { toast('请选择检查人姓名'); return; }
@@ -1027,24 +1015,14 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     });
   }
 
-  /* ---------------- 预计结束时间：所选时间 + 时长 ---------------- */
+  /* ---------------- 预计结束时间 = 提交时刻 + 时长 ---------------- */
   function computeEnd() {
     var el = $('#uEnd'), sel = $('#uHours');
     if (!el || !sel) return;
     var h = parseFloat(sel.value);
     if (!h) { el.value = ''; return; }
 
-    var d = $('#uDate') ? $('#uDate').value : '';
-    var tm = $('#uTime') ? $('#uTime').value : '';
-    var baseMin;
-    if (tm) {
-      var parts = tm.split(':');
-      baseMin = (+parts[0]) * 60 + (+parts[1]);
-    } else {
-      baseMin = now().minutes;
-    }
-
-    var total = baseMin + Math.round(h * 60);
+    var total = now().minutes + Math.round(h * 60);
     var nextDay = total >= 1440;
     var rem = total % 1440;
     el.value = pad(Math.floor(rem / 60)) + ':' + pad(rem % 60) + (nextDay ? '（次日）' : '');
@@ -1081,27 +1059,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         if (s2 && Array.prototype.some.call(s2.options, function (o) { return o.value === me; })) s2.value = me;
       }, 50);
     }
-    /* 日期与时间：默认当前，可任意修改（用于补录） */
-    var t0 = now();
-    ['uDate', 'cDate'].forEach(function (id) { var el = $('#' + id); if (el) el.value = t0.date; });
-    ['uTime', 'cTime'].forEach(function (id) { var el = $('#' + id); if (el) el.value = t0.hm; });
-
-    ['uTime', 'cTime'].forEach(function (id) {
-      var el = $('#' + id);
-      if (el) el.addEventListener('input', function () { el._touched = true; });
-    });
-
-    ['uDate', 'cDate'].forEach(function (id) {
-      var el = $('#' + id);
-      if (el) el.addEventListener('change', function () {
-        loadDay(el.value || todayKey()).catch(function (e) { toast('读取失败：' + e.message); });
-      });
-    });
-
-    ['uTime'].forEach(function (id) {
-      var el = $('#' + id);
-      if (el) el.addEventListener('change', computeEnd);
-    });
+    /* 离开时间只做展示，提交时按当时时间记录 */
+    $('#cTime').value = now().hm;
 
     var hoursSel = $('#uHours');
     if (hoursSel) hoursSel.addEventListener('change', computeEnd);
@@ -1141,10 +1100,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     setInterval(function () {
       refreshAll();
       var t = now();
-      ['uTime', 'cTime'].forEach(function (id) {
-        var el = $('#' + id);
-        if (el && !el._touched) el.value = t.hm;
-      });
+      var ct = $('#cTime');
+      if (ct) ct.value = t.hm;
     }, 30000);
   }
 
