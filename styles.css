@@ -55,6 +55,31 @@ a { color: var(--primary); }
   top: 0;
   height: 100vh;
   z-index: 30;
+  transition: margin-left .24s ease, transform .24s ease;
+}
+
+/* 桌面端收起：整栏滑出视野，正文自动占满 */
+.app.collapsed .sidebar { margin-left: calc(var(--sidebar-w) * -1); }
+
+.sidebar-collapse {
+  margin-left: auto;
+  width: 26px; height: 26px; flex-shrink: 0;
+  border: 1px solid var(--border); background: #fff; color: var(--muted);
+  border-radius: 7px; font-size: 15px; line-height: 1; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: border-color .15s, color .15s, background .15s;
+}
+.sidebar-collapse:hover { border-color: var(--primary); color: var(--primary-dark); background: var(--primary-soft); }
+
+.sidebar-backdrop {
+  position: fixed; inset: 0; z-index: 29;
+  background: rgba(15, 23, 42, .35);
+  opacity: 0; pointer-events: none;
+  transition: opacity .2s ease;
+}
+.sidebar-backdrop.show { opacity: 1; pointer-events: auto; }
+@media (min-width: 861px) {
+  .sidebar-backdrop { display: none; }
 }
 
 .sidebar-head {
@@ -133,11 +158,14 @@ a { color: var(--primary); }
   position: sticky; top: 0; z-index: 20;
 }
 .menu-btn {
-  display: none;
+  display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--border); background: #fff;
   border-radius: 8px; width: 34px; height: 34px;
-  font-size: 15px; line-height: 1;
+  font-size: 15px; line-height: 1; cursor: pointer;
+  color: var(--text);
+  transition: border-color .15s, background .15s;
 }
+.menu-btn:hover { border-color: var(--primary); background: var(--primary-soft); }
 .crumb { font-size: 13.5px; color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .crumb b { color: var(--text); font-weight: 650; }
 .topbar-actions { display: flex; gap: 8px; align-items: center; position: relative; }
@@ -508,6 +536,9 @@ td.formula { font-weight: 650; }
     box-shadow: var(--shadow-lg);
   }
   .sidebar.open { transform: translateX(0); }
+  /* 手机端用抽屉，不参与桌面端的「收起」逻辑 */
+  .app.collapsed .sidebar { margin-left: 0; }
+  .sidebar-collapse { display: none; }
   .menu-btn { display: inline-flex; align-items: center; justify-content: center; }
   .view { padding: 16px; }
   .kpi-value { font-size: 20px; }

@@ -4326,18 +4326,68 @@
     const exportBtn = $('#exportBtn');
     if (exportBtn) exportBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleExportMenu(exportBtn); });
 
+    /* ---------- 侧边栏：桌面可收起，手机为抽屉 ---------- */
+    const SIDEBAR_KEY = 'iced-db:sidebar:v1';
+    const appEl = document.querySelector('.app');
+    const sidebarEl = $('#sidebar');
+    const backdropEl = $('#sidebarBackdrop');
+
+    const isMobile = function () { return window.innerWidth <= 860; };
+    const setBackdrop = function (on) { if (backdropEl) backdropEl.classList.toggle('show', !!on); };
+    const closeMobileSidebar = function () {
+      if (sidebarEl) sidebarEl.classList.remove('open');
+      setBackdrop(false);
+    };
+    const openMobileSidebar = function () {
+      if (sidebarEl) sidebarEl.classList.add('open');
+      setBackdrop(true);
+    };
+
+    try {
+      if (localStorage.getItem(SIDEBAR_KEY) === 'collapsed' && appEl) appEl.classList.add('collapsed');
+    } catch (e) { /* 忽略 */ }
+
+    const toggleSidebar = function () {
+      if (isMobile()) {
+        if (sidebarEl && sidebarEl.classList.contains('open')) closeMobileSidebar();
+        else openMobileSidebar();
+        return;
+      }
+      const next = !(appEl && appEl.classList.contains('collapsed'));
+      if (appEl) appEl.classList.toggle('collapsed', next);
+      try { localStorage.setItem(SIDEBAR_KEY, next ? 'collapsed' : ''); } catch (e) { /* 忽略 */ }
+
+      /* 收起后正文变宽，图表需要重算尺寸 */
+      setTimeout(function () {
+        Object.keys(chartRefs).forEach(function (k) {
+          if (chartRefs[k]) { try { chartRefs[k].resize(); } catch (e) { /* 忽略 */ } }
+        });
+      }, 280);
+    };
+
     const menuBtn = $('#menuBtn');
-    if (menuBtn) {
-      menuBtn.addEventListener('click', function () {
-        const sb = $('#sidebar');
-        if (sb) sb.classList.toggle('open');
-      });
-    }
+    if (menuBtn) menuBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleSidebar(); });
+
+    const collapseBtn = $('#sidebarCollapse');
+    if (collapseBtn) collapseBtn.addEventListener('click', function (e) { e.stopPropagation(); toggleSidebar(); });
+
+    if (backdropEl) backdropEl.addEventListener('click', closeMobileSidebar);
+
+    /* 手机端点任意导航项后自动收起抽屉 */
+    document.addEventListener('click', function (e) {
+      if (!isMobile()) return;
+      if (e.target.closest && e.target.closest('#sidebarNav a, #sidebarAdmin a, #uploadBtn')) closeMobileSidebar();
+    });
+
+    window.addEventListener('resize', function () {
+      if (!isMobile()) closeMobileSidebar();
+    });
 
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
         closeUpload();
         closeDrawer();
+        closeMobileSidebar();
         const gm = $('#genericModal');
         if (gm) gm.classList.remove('open');
         const m = $('#exportMenu');
