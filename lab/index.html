@@ -140,7 +140,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     <div class="card">
       <h2>设备使用备案</h2>
       <div class="sub">每天晚上 <b id="ruleUsage">21:00</b> 开放填写，登记今晚要用的设备、时长、反应内容与危险源。</div>
-      <div class="gate" id="usageGate"><span class="ic">🌙</span><span id="usageGateText">加载中…</span><button type="button" class="btn sm" id="usageGateBtn" style="margin-left:auto">临时开放</button></div>
+      <div class="gate" id="usageGate"><span class="ic">🌙</span><span id="usageGateText">加载中…</span></div>
 
       <form id="usageForm">
         <div class="row">
@@ -152,6 +152,10 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
             <select id="uDevice"></select>
             <input type="text" id="uDeviceOther" class="hidden" style="margin-top:6px" placeholder="输入设备名称" />
           </label>
+        </div>
+        <div class="row">
+          <label class="f"><span>日期（可修改，用于补录）</span><input type="date" id="uDate" /></label>
+          <label class="f"><span>提交时间（可修改）</span><input type="time" id="uTime" /></label>
         </div>
         <div class="row">
           <label class="f"><span>使用时长（小时） <em>*</em></span><select id="uHours"></select></label>
@@ -191,7 +195,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     <div class="card">
       <h2>夜间安全检查</h2>
       <div class="sub">每晚 <b id="ruleCheck">21:30</b> 开放。最后一个离开实验室的同学完成检查，对备案装置拍照，署名提交。</div>
-      <div class="gate" id="checkGate"><span class="ic">🔦</span><span id="checkGateText">加载中…</span><button type="button" class="btn sm" id="checkGateBtn" style="margin-left:auto">临时开放</button></div>
+      <div class="gate" id="checkGate"><span class="ic">🔦</span><span id="checkGateText">加载中…</span></div>
 
       <div id="checkDone" class="hidden">
         <div class="item" style="border-color:var(--ok);background:var(--ok-bg)">
@@ -225,7 +229,11 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
             <select id="cName"></select>
             <input type="text" id="cNameOther" class="hidden" style="margin-top:6px" placeholder="输入姓名" />
           </label>
-          <label class="f"><span>离开时间</span><input type="text" id="cTime" readonly /></label>
+          <label class="f"><span>检查日期（可修改）</span><input type="date" id="cDate" /></label>
+        </div>
+        <div class="row">
+          <label class="f"><span>离开时间（可修改）</span><input type="time" id="cTime" /></label>
+          <label class="f"><span>&nbsp;</span><span class="badge idle" style="align-self:flex-start">检查记录会记入所选日期</span></label>
         </div>
         <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:14px;font-size:13px;color:#475569">
           <input type="checkbox" id="cConfirm" style="margin-top:4px" />
@@ -284,10 +292,6 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     <label class="f"><span>接口地址（Cloudflare Worker）</span><input type="text" id="stApi" placeholder="https://lab-api.xxx.workers.dev" /></label>
     <label class="f"><span>实验室代码</span><input type="text" id="stCode" placeholder="向管理员索取" /></label>
     <label class="f"><span>我的名字（自动填充）</span><input type="text" id="stMe" placeholder="可选" /></label>
-    <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;font-size:13px;color:#475569">
-      <input type="checkbox" id="stForce" style="margin-top:4px" />
-      <span>临时开放（忽略 21:00 / 21:30 时间限制，用于测试或补录；用完请关闭）</span>
-    </label>
     <div style="display:flex;gap:8px;margin-top:6px">
       <button class="btn primary" id="stSave">保存</button>
       <button class="btn" id="stCancel">取消</button>
@@ -498,14 +502,6 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     if (syncOk) toast('选项已保存');
   }
 
-  /* ---------------- 时间门禁开关 ---------------- */
-  function setForceOpen(on) {
-    if (on) localStorage.setItem('lab:forceOpen', '1');
-    else localStorage.removeItem('lab:forceOpen');
-    refreshAll();
-    toast(on ? '已临时开放（记得用完关掉）' : '已恢复按时间开放');
-  }
-
   /* ---------------- 数据层（云端优先，本地兜底） ---------------- */
   var Store = {
     async list(from, to) {
@@ -560,12 +556,10 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     try { return JSON.parse(localStorage.getItem('lab:photos:v1') || '{}'); } catch (e) { return {}; }
   }
 
-  /* ---------------- 时间门禁 ---------------- */
-  function forceOpen() {
-    try { return localStorage.getItem('lab:forceOpen') === '1'; } catch (e) { return false; }
-  }
-  function canSubmitUsage(t) { return forceOpen() || (t.minutes >= RULE.usageOpen && t.minutes <= RULE.closeAt); }
-  function canSubmitCheck(t) { return forceOpen() || (t.minutes >= RULE.checkOpen && t.minutes <= RULE.closeAt); }
+  /* ---------------- 时间：不再限制提交，仅做提示 ---------------- */
+  function canSubmitUsage() { return true; }
+  function canSubmitCheck() { return true; }
+  function inWindow(t) { return t.minutes >= RULE.usageOpen && t.minutes <= RULE.closeAt; }
 
   /* ---------------- 图片压缩 ---------------- */
   function compress(file, maxSize, quality) {
@@ -590,7 +584,33 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   }
 
   /* ---------------- 状态 ---------------- */
-  var state = { tab: 'usage', today: null, usage: [], checks: [], photos: {}, devicePool: [], options: null };
+  var state = {
+    tab: 'usage', today: null, photos: {}, devicePool: [],
+    options: null,
+    days: {}            /* date -> { usage: [], checks: [] } */
+  };
+
+  function dayOf(date) { return state.days[date] || { usage: [], checks: [] }; }
+
+  async function ensureDay(date) {
+    if (state.days[date]) return state.days[date];
+    var all = await Store.list(date, date);
+    state.days[date] = {
+      usage: all.filter(function (r) { return r.type === 'usage'; }),
+      checks: all.filter(function (r) { return r.type === 'check'; })
+    };
+    return state.days[date];
+  }
+
+  async function loadDay(date, force) {
+    if (force || !state.days[date]) {
+      delete state.days[date];
+      await ensureDay(date);
+    }
+    renderUsageList();
+    renderPhotoTargets();
+    renderCheckDone();
+  }
 
   function todayKey() { return now().date; }
 
@@ -607,6 +627,11 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   }
 
   /* ---------------- 渲染：备案 ---------------- */
+  function selectedDate(id) {
+    var el = document.getElementById(id);
+    return (el && el.value) || todayKey();
+  }
+
   function hazardsHtml(list) {
     if (!list || !list.length) return '';
     return '<div class="tags">' + list.map(function (h) {
@@ -617,61 +642,52 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
   function renderUsageList() {
     var host = $('#uList');
-    var list = state.usage.filter(function (r) { return r.date === todayKey(); });
-    $('#uCount').textContent = '今晚 ' + list.length + ' 条';
+    var day = selectedDate('uDate');
+    var list = dayOf(day).usage;
+    $('#uCount').textContent = day + ' 共 ' + list.length + ' 条';
 
-    if (!list.length) { host.innerHTML = '<div class="empty">还没有人提交备案</div>'; return; }
+    if (!list.length) { host.innerHTML = '<div class="empty">这一天还没有备案</div>'; return; }
     host.innerHTML = list.map(function (r) {
       return '<div class="item">' +
         '<div class="t">' + esc(r.device) + ' · ' + esc(r.name) + '</div>' +
-        '<div class="m">' + esc(r.hours) + ' 小时' + (r.endTime ? ' · 预计到 ' + esc(r.endTime) : '') +
-        ' · ' + esc(r.reaction) + '</div>' +
+        '<div class="m">' + esc(r.date) + (r.time ? ' ' + esc(r.time) : '') + ' · ' + esc(r.hours) + ' 小时' +
+        (r.endTime ? ' · 预计到 ' + esc(r.endTime) : '') + ' · ' + esc(r.reaction) + '</div>' +
         hazardsHtml(r.hazards) +
         (r.note ? '<div class="m" style="margin-top:4px">备注：' + esc(r.note) + '</div>' : '') +
         '</div>';
     }).join('');
-
-    /* 设备清单由「选项管理」维护，这里不再动态生成 datalist */
   }
 
   function renderUsageGate() {
-    var t = now(), can = canSubmitUsage(t), el = $('#usageGate'), txt = $('#usageGateText');
-    var btn = $('#usageGateBtn');
-    if (btn) btn.textContent = forceOpen() ? '关闭临时开放' : '临时开放';
-    if (can) {
-      el.style.borderStyle = 'solid'; el.style.background = 'var(--ok-bg)'; el.style.color = 'var(--ok)';
-      txt.innerHTML = forceOpen()
-        ? '已临时开放（忽略时间限制，点右侧按钮可关闭）。'
-        : '现在可以填写（开放时间 21:00 – 23:59）。';
-      $('#uSubmit').disabled = false;
-    } else {
-      el.style.borderStyle = 'dashed'; el.style.background = '#f7fafd'; el.style.color = 'var(--muted)';
-      txt.innerHTML = '今晚 ' + t.hm + '，备案尚未开放。开放时间 <b>21:00</b>，届时刷新页面即可填写。';
-      $('#uSubmit').disabled = true;
-    }
+    var t = now(), el = $('#usageGate'), txt = $('#usageGateText');
+    var open = inWindow(t);
+    el.style.borderStyle = open ? 'solid' : 'dashed';
+    el.style.background = open ? 'var(--ok-bg)' : '#f7fafd';
+    el.style.color = open ? 'var(--ok)' : 'var(--muted)';
+    txt.innerHTML = open
+      ? '现在是开放时段（21:00 – 23:59），可以直接提交。提交时间可以在下面改成任意时刻。'
+      : '现在 ' + t.hm + '，不在推荐时段（21:00 – 23:59）。<b>仍然可以提交</b>，日期和提交时间都可以手动修改，用于补录。';
+    $('#uSubmit').disabled = false;
   }
 
   /* ---------------- 渲染：检查 ---------------- */
   function renderCheckGate() {
-    var t = now(), can = canSubmitCheck(t);
+    var t = now();
     var el = $('#checkGate'), txt = $('#checkGateText');
-    var btn = $('#checkGateBtn');
-    if (btn) btn.textContent = forceOpen() ? '关闭临时开放' : '临时开放';
-    if (can) {
-      el.style.borderStyle = 'solid'; el.style.background = 'var(--ok-bg)'; el.style.color = 'var(--ok)';
-      txt.innerHTML = forceOpen()
-        ? '已临时开放（忽略时间限制，可在「设置」里关闭）。'
-        : '检查任务已开放（21:30 – 23:59）。';
-    } else {
-      el.style.borderStyle = 'dashed'; el.style.background = '#f7fafd'; el.style.color = 'var(--muted)';
-      txt.innerHTML = '现在 ' + t.hm + '，检查任务未开放。开放时间 <b>21:30</b>。';
-    }
-    $('#cSubmit').disabled = !can;
+    var open = t.minutes >= RULE.checkOpen && t.minutes <= RULE.closeAt;
+    el.style.borderStyle = open ? 'solid' : 'dashed';
+    el.style.background = open ? 'var(--ok-bg)' : '#f7fafd';
+    el.style.color = open ? 'var(--ok)' : 'var(--muted)';
+    txt.innerHTML = open
+      ? '现在是推荐检查时段（21:30 – 23:59）。检查日期和离开时间都可以手动修改。'
+      : '现在 ' + t.hm + '，不在推荐时段（21:30 – 23:59）。<b>仍然可以提交</b>，检查日期与离开时间可手动修改。';
+    $('#cSubmit').disabled = false;
   }
 
   function renderPhotoTargets() {
     var host = $('#photoTargets');
-    var list = state.usage.filter(function (r) { return r.date === todayKey(); });
+    var day = selectedDate('cDate');
+    var list = dayOf(day).usage;
 
     if (!list.length) {
       host.innerHTML = '<div class="empty">今晚还没有设备备案，可只做整体检查。</div>';
@@ -693,7 +709,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   }
 
   function renderCheckDone() {
-    var done = state.checks.filter(function (r) { return r.date === todayKey(); })[0];
+    var day = selectedDate('cDate');
+    var done = dayOf(day).checks[0];
     var box = $('#checkDone');
     if (done) {
       box.classList.remove('hidden');
@@ -768,22 +785,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
   /* ---------------- 数据加载 ---------------- */
   function loadToday() {
-    var d = todayKey();
-    return Store.list(d, d).then(function (all) {
-      state.usage = all.filter(function (r) { return r.type === 'usage'; });
-      state.checks = all.filter(function (r) { return r.type === 'check'; });
-      state.devicePool = state.usage.map(function (r) { return r.device; });
-
-      /* 为检查页准备照片列表 */
-      state.photos = {};
-      state.usage.forEach(function (r) { state.photos[r.id] = []; });
-
-      renderUsageList();
-      renderPhotoTargets();
-      renderCheckDone();
-    }).catch(function (e) {
-      toast('读取今日数据失败：' + e.message, 4000);
-    });
+    return loadDay(todayKey()).then(function () { return loadDay(selectedDate('uDate')); });
   }
 
   /* ---------------- 事件：备案 ---------------- */
@@ -797,7 +799,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     $('#usageForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       var t = now();
-      if (!canSubmitUsage(t)) { toast('还没到开放时间（21:00 起）'); return; }
+      var date = ($('#uDate').value || t.date);
+      var time = ($('#uTime').value || t.hm);
 
       var name = readPick('uName', 'uNameOther');
       var device = readPick('uDevice', 'uDeviceOther');
@@ -810,7 +813,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         .map(function (b) { return b.getAttribute('data-v'); });
 
       var rec = {
-        id: uid('u'), type: 'usage', date: t.date,
+        id: uid('u'), type: 'usage', date: date, time: time,
         name: name, device: device, hours: hours,
         endTime: $('#uEnd').value.trim(),
         reaction: reaction, hazards: hazards,
@@ -823,10 +826,12 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       try {
         await Store.submit(rec, []);
         localStorage.setItem(LS.me, name);
-        toast('备案已提交，今晚检查会核对这台设备');
+        toast('备案已提交（' + date + ' ' + time + '）');
         $('#usageForm').reset();
         $$('#uHazards .chip').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
-        await loadToday();
+        $('#uDate').value = date;
+        $('#uTime').value = now().hm;
+        await loadDay(date, true);
       } catch (err) {
         toast('提交失败：' + err.message, 4200);
       } finally {
@@ -906,7 +911,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     $('#checkForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       var t = now();
-      if (!canSubmitCheck(t)) { toast('还没到检查开放时间（21:30 起）'); return; }
+      var date = ($('#cDate').value || t.date);
+      var time = ($('#cTime').value || t.hm);
 
       var name = readPick('cName', 'cNameOther');
       if (!name) { toast('请选择检查人姓名'); return; }
@@ -930,7 +936,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
       var photosPayload = [];
       var photoIds = [];
-      var usage = state.usage.filter(function (r) { return r.date === t.date; });
+      var usage = dayOf(date).usage;
       usage.forEach(function (r) {
         (state.photos[r.id] || []).forEach(function (dataUrl) {
           var pid = uid('p');
@@ -940,7 +946,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       });
 
       var rec = {
-        id: uid('c'), type: 'check', date: t.date, time: t.hm,
+        id: uid('c'), type: 'check', date: date, time: time,
         name: name, checks: checks, verdict: verdict, issue: issue,
         usageIds: usage.map(function (r) { return r.id; }),
         photos: photoIds,
@@ -952,8 +958,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       try {
         await Store.submit(rec, photosPayload);
         localStorage.setItem(LS.me, name);
-        toast('检查记录已提交，辛苦啦 🌙');
-        await loadToday();
+        toast('检查记录已提交（' + date + ' ' + time + '），辛苦啦 🌙');
+        await loadDay(date, true);
       } catch (err) {
         toast('提交失败：' + err.message, 4200);
       } finally {
@@ -994,7 +1000,6 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       $('#stApi').value = c.api || DEFAULT_API;
       $('#stCode').value = c.code || '';
       $('#stMe').value = localStorage.getItem(LS.me) || '';
-      $('#stForce').checked = forceOpen();
       $('#settings').classList.add('open');
     });
     $('#stCancel').addEventListener('click', function () { $('#settings').classList.remove('open'); });
@@ -1004,8 +1009,6 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       var me = $('#stMe').value.trim();
       setCfg({ api: api, code: code });
       if (me) localStorage.setItem(LS.me, me);
-      if ($('#stForce').checked) localStorage.setItem('lab:forceOpen', '1');
-      else localStorage.removeItem('lab:forceOpen');
       $('#settings').classList.remove('open');
       renderTop();
       refreshAll();
@@ -1024,14 +1027,24 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     });
   }
 
-  /* ---------------- 预计结束时间：现在 + 时长 ---------------- */
+  /* ---------------- 预计结束时间：所选时间 + 时长 ---------------- */
   function computeEnd() {
     var el = $('#uEnd'), sel = $('#uHours');
     if (!el || !sel) return;
     var h = parseFloat(sel.value);
     if (!h) { el.value = ''; return; }
-    var t = now();
-    var total = t.minutes + Math.round(h * 60);
+
+    var d = $('#uDate') ? $('#uDate').value : '';
+    var tm = $('#uTime') ? $('#uTime').value : '';
+    var baseMin;
+    if (tm) {
+      var parts = tm.split(':');
+      baseMin = (+parts[0]) * 60 + (+parts[1]);
+    } else {
+      baseMin = now().minutes;
+    }
+
+    var total = baseMin + Math.round(h * 60);
     var nextDay = total >= 1440;
     var rem = total % 1440;
     el.value = pad(Math.floor(rem / 60)) + ':' + pad(rem % 60) + (nextDay ? '（次日）' : '');
@@ -1068,30 +1081,44 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         if (s2 && Array.prototype.some.call(s2.options, function (o) { return o.value === me; })) s2.value = me;
       }, 50);
     }
-    $('#cTime').value = now().hm;
+    /* 日期与时间：默认当前，可任意修改（用于补录） */
+    var t0 = now();
+    ['uDate', 'cDate'].forEach(function (id) { var el = $('#' + id); if (el) el.value = t0.date; });
+    ['uTime', 'cTime'].forEach(function (id) { var el = $('#' + id); if (el) el.value = t0.hm; });
 
+    ['uTime', 'cTime'].forEach(function (id) {
+      var el = $('#' + id);
+      if (el) el.addEventListener('input', function () { el._touched = true; });
+    });
+
+    ['uDate', 'cDate'].forEach(function (id) {
+      var el = $('#' + id);
+      if (el) el.addEventListener('change', function () {
+        loadDay(el.value || todayKey()).catch(function (e) { toast('读取失败：' + e.message); });
+      });
+    });
+
+    ['uTime'].forEach(function (id) {
+      var el = $('#' + id);
+      if (el) el.addEventListener('change', computeEnd);
+    });
+
+    var hoursSel = $('#uHours');
+    if (hoursSel) hoursSel.addEventListener('change', computeEnd);
+
+    /* 标签页与表单事件 */
     $$('.tab').forEach(function (b) {
       b.addEventListener('click', function () { showTab(b.getAttribute('data-tab')); });
     });
+
+    bindPick('uName', 'uNameOther');
+    bindPick('uDevice', 'uDeviceOther');
+    bindPick('cName', 'cNameOther');
 
     bindUsage();
     bindCheck();
     bindStats();
     bindSettings();
-
-    /* 下拉框与自动结束时间 */
-    bindPick('uName', 'uNameOther');
-    bindPick('uDevice', 'uDeviceOther');
-    bindPick('cName', 'cNameOther');
-
-    var hoursSel = $('#uHours');
-    if (hoursSel) hoursSel.addEventListener('change', computeEnd);
-
-    /* 门禁「临时开放」按钮 */
-    var ub = $('#usageGateBtn');
-    if (ub) ub.addEventListener('click', function () { setForceOpen(!forceOpen()); });
-    var cb = $('#checkGateBtn');
-    if (cb) cb.addEventListener('click', function () { setForceOpen(!forceOpen()); });
 
     /* 选项管理 */
     var os = $('#optSave');
@@ -1110,10 +1137,14 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       return loadToday();
     }).then(refreshAll);
 
-    /* 每分钟刷新时钟与门禁 */
+    /* 每 30 秒刷新时钟；未被手动改过的时间字段跟随当前时间 */
     setInterval(function () {
       refreshAll();
-      $('#cTime').value = now().hm;
+      var t = now();
+      ['uTime', 'cTime'].forEach(function (id) {
+        var el = $('#' + id);
+        if (el && !el._touched) el.value = t.hm;
+      });
     }, 30000);
   }
 
