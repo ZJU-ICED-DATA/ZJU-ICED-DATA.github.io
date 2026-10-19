@@ -540,6 +540,27 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   var GH_API = 'https://api.github.com/repos/' + GH_REPO + '/contents/';
 
   var PENDING_KEY = 'lab:pending:v1';
+  var RECENT_KEY = 'lab:recent:v1';   /* 刚提交成功、但 Pages 还没重新构建的记录 */
+
+  function recentAll() {
+    try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function recentSave(list) {
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch (e) { /* 忽略 */ }
+  }
+  function recentAdd(rec) {
+    var now = Date.now();
+    var list = recentAll().filter(function (x) { return x.rec && x.rec.id !== rec.id && (now - x.at) < 3600000; });
+    list.push({ at: now, rec: rec });
+    recentSave(list);
+  }
+  function recentPrune(staticRecords) {
+    if (!staticRecords || !staticRecords.length) return;
+    var have = {};
+    staticRecords.forEach(function (r) { have[r.id] = 1; });
+    var kept = recentAll().filter(function (x) { return !have[x.rec.id]; });
+    if (kept.length !== recentAll().length) recentSave(kept);
+  }
 
   function b64encUtf8(str) {
     var bytes = new TextEncoder().encode(str);
@@ -680,9 +701,15 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         }
       }
 
-      /* 合并本机「待同步」记录，保证刚提交的能立刻看到 */
+      /* 合并本机「待同步」和「已提交但 Pages 未刷新」的记录 */
       var pending = pendingAll();
       var merged = all.slice();
+
+      recentPrune(all);
+      recentAll().forEach(function (x) {
+        var r = x.rec;
+        if (!merged.some(function (y) { return y.id === r.id; })) merged.push(r);
+      });
       pending.forEach(function (p) {
         if (!merged.some(function (x) { return x.id === p.id; })) merged.push(p);
       });
@@ -721,6 +748,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
           await workerSubmit(cfg, record, photos);
         }
         pendingRemove(record.id);
+        recentAdd(record);
         state.offline = false;
         return { ok: true };
       } catch (e) {
@@ -1060,7 +1088,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       try {
         await Store.submit(rec, []);
         localStorage.setItem(LS.me, name);
-        toast('备案已提交（' + time + '）');
+        toast('备案已提交（' + time + '），约 1 分钟后全组可见', 3500);
         $('#usageForm').reset();
         $$('#uHazards .chip').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
         $('#uEnd').value = '';
@@ -1192,7 +1220,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       try {
         await Store.submit(rec, photosPayload);
         localStorage.setItem(LS.me, name);
-        toast('检查记录已提交（' + date + ' ' + time + '），辛苦啦 🌙');
+        toast('检查记录已提交（' + date + ' ' + time + '），约 1 分钟后全组可见 🌙', 3500);
         await loadDay(date, true);
       } catch (err) {
         toast(err.message, 5200);
