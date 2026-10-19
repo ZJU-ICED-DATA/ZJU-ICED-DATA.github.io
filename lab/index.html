@@ -160,6 +160,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   <button class="tab" data-tab="check"><span class="dot"></span>② 夜间检查</button>
   <button class="tab" data-tab="stats"><span class="dot"></span>③ 记录与统计</button>
   <button class="tab" data-tab="options"><span class="dot"></span>④ 选项管理</button>
+  <button class="tab" data-tab="admin"><span class="dot"></span>⑤ 数据管理</button>
 </div>
 
 <main>
@@ -302,6 +303,43 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     </div>
   </section>
 
+  <!-- ================= 数据管理 ================= -->
+  <section id="tab-admin" class="hidden">
+    <div class="card" id="adminLoginCard">
+      <h2>数据管理登录</h2>
+      <div class="sub">仅管理员可编辑、删除记录。账号密码向课题组负责人索取。</div>
+      <form id="adminLoginForm">
+        <div class="row">
+          <label class="f"><span>用户名</span><input type="text" id="admUser" autocomplete="username" /></label>
+          <label class="f"><span>密码</span><input type="password" id="admPass" autocomplete="current-password" /></label>
+        </div>
+        <div class="login-error" id="admError" style="color:var(--danger);font-size:12.5px;min-height:18px"></div>
+        <button class="btn primary" type="submit">登录</button>
+      </form>
+    </div>
+
+    <div id="adminPanel" class="hidden">
+      <div class="card">
+        <h2>数据管理</h2>
+        <div class="sub">可以修改或删除任意备案与检查记录；修改会直接写入 GitHub。</div>
+        <div class="row" style="align-items:flex-end;margin-bottom:10px">
+          <label class="f" style="flex:0 0 150px"><span>类型</span>
+            <select id="admType">
+              <option value="">全部</option>
+              <option value="usage">设备备案</option>
+              <option value="check">夜间检查</option>
+            </select>
+          </label>
+          <label class="f" style="flex:0 0 170px"><span>日期（可空）</span><input type="date" id="admDate" /></label>
+          <button class="btn sm" id="admReload" style="flex:0 0 auto;align-self:center">刷新</button>
+          <button class="btn sm ghost" id="admLogout" style="flex:0 0 auto;align-self:center;margin-left:auto">退出登录</button>
+        </div>
+        <div id="admState" class="muted" style="font-size:12.5px;margin-bottom:8px"></div>
+        <div class="table-scroll"><table class="tb" id="admTable"></table></div>
+      </div>
+    </div>
+  </section>
+
   <div class="footer">数据仅用于课题组内部安全管理 · 建议每晚检查后确认已提交 · <span id="buildStamp"></span></div>
 </main>
 
@@ -328,6 +366,38 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     <div style="display:flex;gap:8px;margin-top:14px">
       <a class="btn" id="pmOpen" target="_blank" rel="noopener">在新标签打开</a>
       <button class="btn primary" id="pmClose" style="margin-left:auto">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="editModal">
+  <div class="box" style="width:min(560px,96vw)">
+    <h3 id="editTitle">编辑记录</h3>
+    <p class="hint" id="editHint"></p>
+    <div class="row">
+      <label class="f"><span>日期</span><input type="date" id="edDate" /></label>
+      <label class="f"><span>时间</span><input type="time" id="edTime" /></label>
+    </div>
+    <div class="row">
+      <label class="f"><span>姓名</span><input type="text" id="edName" /></label>
+      <label class="f"><span>设备</span><input type="text" id="edDevice" /></label>
+    </div>
+    <div class="row">
+      <label class="f"><span>时长（小时，或「长期」）</span><input type="text" id="edHours" /></label>
+      <label class="f"><span>结束时间</span><input type="text" id="edEnd" /></label>
+    </div>
+    <label class="f"><span>反应 / 内容</span><textarea id="edReaction" rows="2"></textarea></label>
+    <label class="f"><span>备注</span><input type="text" id="edNote" /></label>
+    <div id="edCheckBox" class="hidden">
+      <div class="row">
+        <label class="f"><span>结论（ok / issue）</span><input type="text" id="edVerdict" /></label>
+        <label class="f"><span>异常描述</span><input type="text" id="edIssue" /></label>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">
+      <button class="btn primary" id="edSave">保存</button>
+      <button class="btn" id="edCancel">取消</button>
+      <button class="btn" id="edDelete" style="margin-left:auto;background:var(--danger);color:#fff;border-color:var(--danger)">删除这条</button>
     </div>
   </div>
 </div>
@@ -1465,6 +1535,281 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     });
   }
 
+  /* ---------------- 数据管理（管理员） ---------------- */
+  var ADMIN = {
+    user: 'admin',
+    salt: 'lab-admin-9f3c2a',
+    hash: '796930e3a9bef9ffd73f2d1b2575b1e8e4530f903c3f8997fe739234d6481990',
+    key: 'lab:admin:v1'
+  };
+  var adminFails = 0;
+
+  async function sha256Hex(str) {
+    var buf = new TextEncoder().encode(str);
+    var d = await crypto.subtle.digest('SHA-256', buf);
+    return Array.prototype.map.call(new Uint8Array(d), function (b) {
+      return b.toString(16).padStart(2, '0');
+    }).join('');
+  }
+
+  function isAdmin() {
+    try { return sessionStorage.getItem(ADMIN.key) === 'ok'; } catch (e) { return false; }
+  }
+  function setAdmin(on) {
+    try {
+      if (on) sessionStorage.setItem(ADMIN.key, 'ok');
+      else sessionStorage.removeItem(ADMIN.key);
+    } catch (e) { /* 忽略 */ }
+  }
+
+  function renderAdmin() {
+    var login = $('#adminLoginCard');
+    var panel = $('#adminPanel');
+    if (!login || !panel) return;
+
+    if (isAdmin()) {
+      login.classList.add('hidden');
+      panel.classList.remove('hidden');
+      loadAdminRecords();
+    } else {
+      login.classList.remove('hidden');
+      panel.classList.add('hidden');
+    }
+  }
+
+  async function loadAdminRecords() {
+    var st = $('#admState');
+    if (st) st.textContent = '读取中…';
+    try {
+      var all = await fetchStaticRecords();
+      state.adminRecords = all;
+      renderAdminTable();
+      if (st) st.textContent = '共 ' + all.length + ' 条记录';
+    } catch (e) {
+      if (st) st.textContent = '读取失败：' + e.message;
+    }
+  }
+
+  function renderAdminTable() {
+    var t = $('#admTable');
+    if (!t) return;
+    var type = ($('#admType') || {}).value || '';
+    var date = ($('#admDate') || {}).value || '';
+
+    var rows = (state.adminRecords || []).filter(function (r) {
+      if (type && r.type !== type) return false;
+      if (date && r.date !== date) return false;
+      return true;
+    }).sort(function (a, b) { return (b.date + (b.time || '')).localeCompare(a.date + (a.time || '')); });
+
+    if (!rows.length) {
+      t.innerHTML = '<tbody><tr><td class="empty" style="padding:20px 0">没有匹配的记录</td></tr></tbody>';
+      return;
+    }
+
+    t.innerHTML = '<thead><tr><th>日期</th><th>时间</th><th>类型</th><th>姓名</th><th>设备</th>' +
+      '<th>内容</th><th class="num">时长</th><th>结论</th><th>照片</th><th>操作</th></tr></thead><tbody>' +
+      rows.map(function (r) {
+        var isCheck = r.type === 'check';
+        return '<tr>' +
+          '<td>' + esc(r.date) + '</td>' +
+          '<td>' + esc(r.time || '') + '</td>' +
+          '<td>' + (isCheck ? '检查' : '备案') + '</td>' +
+          '<td>' + esc(r.name || '') + '</td>' +
+          '<td>' + esc(r.device || '') + '</td>' +
+          '<td class="cell-clip" title="' + esc(r.reaction || r.issue || '') + '">' +
+          esc(isCheck ? (r.verdict === 'issue' ? (r.issue || '发现异常') : '无异常') : (r.reaction || '')) + '</td>' +
+          '<td class="num">' + (isCheck ? '—' : esc(r.hours || '')) + '</td>' +
+          '<td>' + (isCheck ? (r.verdict === 'issue' ? '<span class="badge err">异常</span>' : '<span class="badge ok">正常</span>') : '—') + '</td>' +
+          '<td class="num">' + ((r.photos || []).length || '—') + '</td>' +
+          '<td style="white-space:nowrap">' +
+          '<button class="btn sm" data-edit="' + esc(r.id) + '">编辑</button> ' +
+          '<button class="btn sm" data-del="' + esc(r.id) + '" style="color:var(--danger)">删除</button>' +
+          '</td></tr>';
+      }).join('') + '</tbody>';
+  }
+
+  function openEditor(id) {
+    var rec = (state.adminRecords || []).filter(function (r) { return r.id === id; })[0];
+    if (!rec) return;
+    state.editing = rec;
+
+    var isCheck = rec.type === 'check';
+    $('#editTitle').textContent = isCheck ? '编辑检查记录' : '编辑设备备案';
+    $('#editHint').textContent = '记录 ID：' + rec.id;
+    $('#edDate').value = rec.date || '';
+    $('#edTime').value = rec.time || '';
+    $('#edName').value = rec.name || '';
+    $('#edDevice').value = rec.device || '';
+    $('#edHours').value = rec.hours == null ? '' : rec.hours;
+    $('#edEnd').value = rec.endTime || '';
+    $('#edReaction').value = rec.reaction || '';
+    $('#edNote').value = rec.note || '';
+    $('#edCheckBox').classList.toggle('hidden', !isCheck);
+    if (isCheck) {
+      $('#edVerdict').value = rec.verdict || 'ok';
+      $('#edIssue').value = rec.issue || '';
+    }
+    $('#editModal').classList.add('open');
+  }
+
+  async function saveAdminRecords(records, message) {
+    var cfg = getCfg();
+    if (!cfg.token) throw new Error('未配置写入令牌');
+    for (var attempt = 0; attempt < 2; attempt++) {
+      var cur = await ghGetFile('records.json', cfg.token);
+      var body = { updatedAt: new Date().toISOString(), records: records };
+      try {
+        await ghPutText('records.json', JSON.stringify(body, null, 1), cfg.token, message, cur && cur.sha);
+        return true;
+      } catch (e) {
+        if (attempt === 1) throw e;
+        await new Promise(function (res) { setTimeout(res, 800); });
+      }
+    }
+    return true;
+  }
+
+  function bindAdmin() {
+    var form = $('#adminLoginForm');
+    if (form) form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      var u = $('#admUser').value.trim();
+      var p = $('#admPass').value;
+      var err = $('#admError');
+
+      if (adminFails >= 5) { err.textContent = '尝试次数过多，请刷新页面后再试'; return; }
+
+      var okUser = u === ADMIN.user;
+      var okPass = false;
+      try {
+        okPass = (await sha256Hex(ADMIN.salt + ':' + p)) === ADMIN.hash;
+      } catch (ex) { okPass = false; }
+
+      if (okUser && okPass) {
+        adminFails = 0;
+        setAdmin(true);
+        err.textContent = '';
+        $('#admPass').value = '';
+        renderAdmin();
+        toast('已登录数据管理');
+      } else {
+        adminFails++;
+        err.textContent = '用户名或密码不正确（还可尝试 ' + (5 - adminFails) + ' 次）';
+        $('#admPass').value = '';
+      }
+    });
+
+    var logout = $('#admLogout');
+    if (logout) logout.addEventListener('click', function () {
+      setAdmin(false);
+      renderAdmin();
+      toast('已退出');
+    });
+
+    var reload = $('#admReload');
+    if (reload) reload.addEventListener('click', loadAdminRecords);
+
+    var typeSel = $('#admType');
+    if (typeSel) typeSel.addEventListener('change', renderAdminTable);
+    var dateInp = $('#admDate');
+    if (dateInp) dateInp.addEventListener('change', renderAdminTable);
+
+    document.addEventListener('click', function (e) {
+      var ed = e.target.closest && e.target.closest('[data-edit]');
+      if (ed) { openEditor(ed.getAttribute('data-edit')); return; }
+
+      var del = e.target.closest && e.target.closest('[data-del]');
+      if (del) {
+        var id = del.getAttribute('data-del');
+        var rec = (state.adminRecords || []).filter(function (r) { return r.id === id; })[0];
+        var who = rec ? (rec.name + ' · ' + (rec.device || '检查记录') + ' · ' + rec.date) : id;
+        if (!window.confirm('确定删除这条记录吗？\n' + who + '\n（照片文件不会删除）')) return;
+        deleteRecord(id);
+      }
+    });
+
+    var cancel = $('#edCancel');
+    if (cancel) cancel.addEventListener('click', function () { $('#editModal').classList.remove('open'); });
+
+    var save = $('#edSave');
+    if (save) save.addEventListener('click', saveEdited);
+
+    var delBtn = $('#edDelete');
+    if (delBtn) delBtn.addEventListener('click', function () {
+      var rec = state.editing;
+      if (!rec) return;
+      if (!window.confirm('确定删除这条记录吗？\n' + rec.name + ' · ' + rec.date)) return;
+      $('#editModal').classList.remove('open');
+      deleteRecord(rec.id);
+    });
+  }
+
+  async function saveEdited() {
+    var rec = state.editing;
+    if (!rec) return;
+
+    var patch = {
+      date: $('#edDate').value || rec.date,
+      time: $('#edTime').value || rec.time,
+      name: $('#edName').value.trim(),
+      note: $('#edNote').value.trim()
+    };
+    if (!patch.name) { toast('姓名不能为空'); return; }
+
+    if (rec.type === 'check') {
+      patch.verdict = ($('#edVerdict').value || 'ok').trim() === 'issue' ? 'issue' : 'ok';
+      patch.issue = $('#edIssue').value.trim();
+    } else {
+      patch.device = $('#edDevice').value.trim();
+      var h = $('#edHours').value.trim();
+      patch.hours = (/^长期$/.test(h)) ? '长期' : (parseFloat(h) || rec.hours);
+      patch.longTerm = patch.hours === '长期';
+      patch.endTime = $('#edEnd').value.trim() || rec.endTime;
+      patch.reaction = $('#edReaction').value.trim();
+    }
+
+    var next = (state.adminRecords || []).map(function (r) {
+      if (r.id !== rec.id) return r;
+      var c = JSON.parse(JSON.stringify(r));
+      Object.keys(patch).forEach(function (k) { if (patch[k] !== undefined) c[k] = patch[k]; });
+      c.updatedAt = new Date().toISOString();
+      return c;
+    });
+
+    var btn = $('#edSave');
+    btn.disabled = true; btn.textContent = '保存中…';
+    try {
+      await saveAdminRecords(next, '修改记录：' + rec.date + ' ' + rec.name);
+      state.adminRecords = next;
+      delete state.days[todayKey()];
+      try { localStorage.removeItem(RECENT_KEY); } catch (e) { /* 忽略 */ }
+      $('#editModal').classList.remove('open');
+      renderAdminTable();
+      await loadDay(todayKey(), true).catch(function () { /* 忽略 */ });
+      toast('已保存');
+    } catch (e) {
+      toast('保存失败：' + e.message, 4500);
+    } finally {
+      btn.disabled = false; btn.textContent = '保存';
+    }
+  }
+
+  async function deleteRecord(id) {
+    var next = (state.adminRecords || []).filter(function (r) { return r.id !== id; });
+    try {
+      await saveAdminRecords(next, '删除记录：' + id);
+      state.adminRecords = next;
+      delete state.days[todayKey()];
+      try { localStorage.removeItem(RECENT_KEY); } catch (e) { /* 忽略 */ }
+      renderAdminTable();
+      await loadDay(todayKey(), true).catch(function () { /* 忽略 */ });
+      toast('已删除');
+    } catch (e) {
+      toast('删除失败：' + e.message, 4500);
+    }
+  }
+
   /* ---------------- 事件：设置 ---------------- */
   function bindSettings() {
     $('#settingsBtn').addEventListener('click', function () {
@@ -1566,11 +1911,12 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   function showTab(name) {
     state.tab = name;
     $$('.tab').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-tab') === name); });
-    ['usage', 'check', 'stats', 'options'].forEach(function (k) {
+    ['usage', 'check', 'stats', 'options', 'admin'].forEach(function (k) {
       $('#tab-' + k).classList.toggle('hidden', k !== name);
     });
     if (name === 'stats') renderStats();
     if (name === 'options') { renderOptionsForm(); }
+    if (name === 'admin') renderAdmin();
   }
 
   function refreshAll() {
@@ -1662,6 +2008,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     bindCheck();
     bindStats();
     bindSettings();
+    bindAdmin();
     bindPhotoModal();
 
     /* 选项管理 */
