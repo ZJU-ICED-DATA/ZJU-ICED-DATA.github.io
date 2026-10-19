@@ -1506,8 +1506,10 @@
     const rows = moleculeRows();
     const withStruct = rows.filter(function (d) { return structureOf(d); });
     const withEnergy = rows.filter(function (d) { return isNum(moleculeEnergy(d)); });
-    const mags = rows.map(moleculeMag).filter(isNum);
-    const avgMag = mags.length ? mags.reduce(function (a, b) { return a + b; }, 0) / mags.length : null;
+    /* 自旋极化计算：ISPIN=2（有磁矩输出的那些） */
+    const spinRows = rows.filter(function (d) {
+      return d && d.outcar && (d.outcar.ispin === 2 || isNum(d.outcar.magnetization));
+    });
     const totalAtoms = withStruct.reduce(function (n, d) {
       const s = structureOf(d);
       return n + (isNum(s.totalAtoms) ? s.totalAtoms : 0);
@@ -1527,7 +1529,7 @@
       kpiCard(rows.length, '小分子', '去重分子数', '#2b7ac4', '⬢') +
       kpiCard(withStruct.length, '构型', totalAtoms + ' 个原子', '#31a354', '🧬') +
       kpiCard(withEnergy.length, '有总能', 'OUTCAR 已识别', '#e8710a', '📉') +
-      kpiCard(isNum(avgMag) ? avgMag.toFixed(2) : '—', '平均磁矩', mags.length + ' 条有数据', '#7b5ea7', '🧲') +
+      kpiCard(spinRows.length, '自旋极化', '组计算数据（ISPIN=2）', '#7b5ea7', '🧲') +
       '</div>' +
 
       '<div class="panel"><div class="panel-head"><div class="panel-title">分子列表</div>' +
