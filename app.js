@@ -494,7 +494,7 @@
     return [[a, 0, 0], [b * cosG, b * sinG, 0], [cx, cy, Math.sqrt(cz2)]];
   }
 
-  /* 笛卡尔坐标 → 分数坐标（上三角方程组直接回代） */
+  /* 笛卡尔 → 分数坐标（上三角方程组直接回代） */
   function cartToFrac(atoms, cell) {
     const m = cellMatrix(cell);
     if (!m || !atoms || !atoms.length) return null;
@@ -506,6 +506,38 @@
       const fx = (row[1] - fy * bx - fz * cx) / a;
       return [row[0], round4(fx), round4(fy), round4(fz)];
     });
+  }
+
+  /* 分数 → 笛卡尔坐标 */
+  function fracToCart(atoms, cell) {
+    const m = cellMatrix(cell);
+    if (!m || !atoms || !atoms.length) return null;
+    return atoms.map(function (row) {
+      const fx = row[1], fy = row[2], fz = row[3];
+      return [
+        row[0],
+        round4(fx * m[0][0] + fy * m[1][0] + fz * m[2][0]),
+        round4(fy * m[1][1] + fz * m[2][1]),
+        round4(fz * m[2][2])
+      ];
+    });
+  }
+
+  /* 按共价半径判定成键，返回 {i, j, len} 列表 */
+  function bondsFromCart(atoms) {
+    const out = [];
+    if (!atoms || atoms.length < 2 || atoms.length > 400) return out;
+
+    for (let i = 0; i < atoms.length; i++) {
+      for (let j = i + 1; j < atoms.length; j++) {
+        const a = atoms[i], b = atoms[j];
+        const dx = a[1] - b[1], dy = a[2] - b[2], dz = a[3] - b[3];
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const lim = (covRadius(a[0]) + covRadius(b[0])) * 1.25 + 0.1;
+        if (d > 0.4 && d <= lim) out.push({ i: i, j: j, len: d });
+      }
+    }
+    return out;
   }
 
   function structureToText(s) {
@@ -1569,6 +1601,15 @@
     const s = structureOf(d);
     const oc = d.outcar || null;
     const model3d = structureToText(s);
+
+    /* 几何用笛卡尔坐标算键长 */
+    const cartAtoms = (function () {
+      if (!s || !Array.isArray(s.atoms) || !s.atoms.length) return [];
+      if (s.coord === 'cart') return s.atoms;
+      return fracToCart(s.atoms, s.cell) || [];
+    })();
+    const bondList = bondsFromCart(cartAtoms);
+
     const e = moleculeEnergy(d);
     const m = moleculeMag(d);
     const mags = (oc && Array.isArray(oc.magPerAtom)) ? oc.magPerAtom : [];
@@ -1645,7 +1686,8 @@
       (model3d
         ? '<div class="section-label">构型查看</div>' +
           '<div class="viewer3d" id="molViewer" style="height:340px"></div>' +
-          '<div class="bond-info" id="bondInfo">点击任意化学键，显示键长</div>'
+          '<div class="bond-info" id="bondInfo">点击任意化学键，显示键长</div>' +
+          bondListHtml(cartAtoms, bondList)
         : '<div class="section-label">构型查看</div>' +
           '<div class="viewer3d"><div class="viewer-note">这条记录没有坐标数据。</div></div>') +
       '</div>' +
@@ -1660,17 +1702,63 @@
       el.classList.toggle('active', el.getAttribute('data-mol-id') === d.id);
     });
 
-    if (model3d) renderMolecule3D($('#molViewer'), model3d, $('#bondInfo'));
+    if (model3d) {
+      const infoEl = $('#bondInfo');
+
+      const selectBond = function (i, j, api) {
+        const a1 = cartAtoms[i], a2 = cartAtoms[j];
+        if (!a1 || !a2) return;
+        const len = Math.sqrt(
+          (a1[1] - a2[1]) * (a1[1] - a2[1]) +
+          (a1[2] - a2[2]) * (a1[2] - a2[2]) +
+          (a1[3] - a2[3]) * (a1[3] - a2[3])
+        );
+        if (infoEl) {
+          infoEl.innerHTML = '<b>' + esc(a1[0]) + (i + 1) + ' — ' + esc(a2[0]) + (j + 1) + '</b>　' +
+            '键长 <b class="bond-len">' + len.toFixed(3) + ' Å</b>';
+        }
+        $$('.bond-row').forEach(function (row) {
+          row.classList.toggle('active',
+            row.getAttribute('data-i') === String(i) && row.getAttribute('data-j') === String(j));
+        });
+        if (api && api.highlight) api.highlight(i, j, len.toFixed(3) + ' Å');
+      };
+
+      const api = renderMolecule3D($('#molViewer'), model3d, cartAtoms, bondList, selectBond);
+
+      $$('.bond-row').forEach(function (row) {
+        row.addEventListener('click', function () {
+          selectBond(parseInt(row.getAttribute('data-i'), 10), parseInt(row.getAttribute('data-j'), 10), api);
+        });
+      });
+    }
+  }
+
+  function bondListHtml(cartAtoms, bondList) {
+    if (!bondList || !bondList.length) return '';
+    const rows = bondList.map(function (b) {
+      return '<div class="bond-row" data-i="' + b.i + '" data-j="' + b.j + '">' +
+        '<span class="b-atoms">' + esc(cartAtoms[b.i][0]) + (b.i + 1) + ' — ' +
+        esc(cartAtoms[b.j][0]) + (b.j + 1) + '</span>' +
+        '<span class="b-len">' + b.len.toFixed(3) + ' Å</span></div>';
+    }).join('');
+    return '<div class="bond-list"><div class="bond-list-head">全部化学键' +
+      '<span class="muted">共 ' + bondList.length + ' 根 · 点一行也能高亮</span></div>' +
+      '<div class="bond-rows">' + rows + '</div></div>';
   }
 
   /* 分子 3D：点键显示键长 */
-  function renderMolecule3D(container, model, infoEl) {
-    if (!container) return;
-    if (!HAS_3DMOL) { container.innerHTML = '<div class="viewer-note">3D 预览不可用（3Dmol 未加载）</div>'; return; }
+  function renderMolecule3D(container, model, cartAtoms, bondList, onPick) {
+    if (!container) return null;
+    if (!HAS_3DMOL) {
+      container.innerHTML = '<div class="viewer-note">3D 预览不可用（3Dmol 未加载）</div>';
+      return null;
+    }
 
     try {
       if (currentViewer) { try { currentViewer.clear(); } catch (e) { /* 忽略 */ } currentViewer = null; }
       container.innerHTML = '';
+
       const viewer = $3Dmol.createViewer(container, { backgroundColor: 'white' });
       if (!viewer) throw new Error('viewer 创建失败');
 
@@ -1678,60 +1766,87 @@
       viewer.setStyle({}, { stick: { radius: 0.14 }, sphere: { scale: 0.28 } });
       viewer.zoomTo();
       viewer.render();
-
-      const atoms = m.selectedAtoms ? m.selectedAtoms({}) : [];
-      const bonds = bondsFromAtoms(atoms);
       currentViewer = viewer;
 
-      const symOf = function (a) { return a.elem || a.element || '?'; };
+      const modelAtoms = (m.selectedAtoms ? m.selectedAtoms({}) : []) || [];
+      const projAtoms = modelAtoms.length ? modelAtoms
+        : cartAtoms.map(function (a) { return { x: a[1], y: a[2], z: a[3] }; });
 
-      container.onclick = function (ev) {
-        if (!atoms.length) return;
-        const cx = ev.clientX, cy = ev.clientY;
-        let best = null, bestDist = 14;
+      /* 屏幕拾取：把每根键投影到屏幕，取离点击点最近的键。
+         兼容两种坐标基准（页面坐标 / 容器内坐标）。 */
+      const pick = function (clientX, clientY) {
+        if (!projAtoms.length || !bondList.length) return null;
+        const rect = container.getBoundingClientRect();
+        const bases = [[clientX, clientY], [clientX - rect.left, clientY - rect.top]];
+        let best = null;
+        let bestDist = 18;
 
-        for (let k = 0; k < bonds.length; k++) {
-          const b = bonds[k];
-          const a1 = atoms[b.i], a2 = atoms[b.j];
-          if (!a1 || !a2) continue;
-          const p1 = viewer.modelToScreen({ x: a1.x, y: a1.y, z: a1.z });
-          const p2 = viewer.modelToScreen({ x: a2.x, y: a2.y, z: a2.z });
-          if (!p1 || !p2) continue;
-          const dist = segDist(cx, cy, p1.x, p1.y, p2.x, p2.y);
-          if (dist < bestDist) { bestDist = dist; best = b; }
+        for (let b = 0; b < bases.length; b++) {
+          const bx = bases[b][0], by = bases[b][1];
+          for (let k = 0; k < bondList.length; k++) {
+            const bond = bondList[k];
+            const a1 = projAtoms[bond.i], a2 = projAtoms[bond.j];
+            if (!a1 || !a2) continue;
+            const p1 = viewer.modelToScreen({ x: a1.x, y: a1.y, z: a1.z });
+            const p2 = viewer.modelToScreen({ x: a2.x, y: a2.y, z: a2.z });
+            if (!p1 || !p2) continue;
+            const d = segDist(bx, by, p1.x, p1.y, p2.x, p2.y);
+            if (d < bestDist) { bestDist = d; best = bond; }
+          }
         }
+        return best;
+      };
 
-        if (!best) return;
-        const a1 = atoms[best.i], a2 = atoms[best.j];
-        const dx = a1.x - a2.x, dy = a1.y - a2.y, dz = a1.z - a2.z;
-        const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        const label = symOf(a1) + (best.i + 1) + ' — ' + symOf(a2) + (best.j + 1);
+      /* 3Dmol 自己的鼠标处理会 stopPropagation，所以挂在捕获阶段；
+         同时用 pointerdown/up 距离判断「点击」还是「拖动旋转」。 */
+      let downX = 0, downY = 0, lastPick = 0;
+      container.addEventListener('pointerdown', function (ev) {
+        downX = ev.clientX; downY = ev.clientY;
+      }, true);
 
-        if (infoEl) {
-          infoEl.innerHTML = '<b>' + esc(label) + '</b>　键长 <b class="bond-len">' + len.toFixed(3) + ' Å</b>' +
-            '<span class="muted">　（' + len.toFixed(4) + ' Å）</span>';
+      container.addEventListener('pointerup', function (ev) {
+        if (ev.button !== 0 && ev.pointerType === 'mouse') return;
+        if (Math.abs(ev.clientX - downX) > 6 || Math.abs(ev.clientY - downY) > 6) return;
+        const hit = pick(ev.clientX, ev.clientY);
+        if (!hit) return;
+        lastPick = Date.now();
+        onPick(hit.i, hit.j);
+      }, true);
+
+      /* 兜底：有些环境只派发 click */
+      container.addEventListener('click', function (ev) {
+        if (Date.now() - lastPick < 400) return;
+        const hit = pick(ev.clientX, ev.clientY);
+        if (hit) onPick(hit.i, hit.j);
+      }, true);
+
+      return {
+        viewer: viewer,
+        highlight: function (i, j, text) {
+          const a1 = projAtoms[i], a2 = projAtoms[j];
+          if (!a1 || !a2) return;
+          try {
+            viewer.removeAllShapes();
+            viewer.removeAllLabels();
+            viewer.addCylinder({
+              start: { x: a1.x, y: a1.y, z: a1.z },
+              end: { x: a2.x, y: a2.y, z: a2.z },
+              radius: 0.12, color: '#e8710a', fromCap: 1, toCap: 1
+            });
+            viewer.addLabel(String(text || ''), {
+              position: { x: (a1.x + a2.x) / 2, y: (a1.y + a2.y) / 2, z: (a1.z + a2.z) / 2 },
+              backgroundColor: '#ffffff', backgroundOpacity: 0.9,
+              fontColor: '#e8710a', fontSize: 12,
+              borderThickness: 1, borderColor: '#e8710a', inFront: true
+            });
+            viewer.render();
+          } catch (e) { /* 高亮失败不影响读数 */ }
         }
-
-        try {
-          viewer.removeAllShapes();
-          viewer.removeAllLabels();
-          viewer.addCylinder({
-            start: { x: a1.x, y: a1.y, z: a1.z },
-            end: { x: a2.x, y: a2.y, z: a2.z },
-            radius: 0.11, color: '#e8710a', fromCap: 1, toCap: 1
-          });
-          viewer.addLabel(len.toFixed(3) + ' Å', {
-            position: { x: (a1.x + a2.x) / 2, y: (a1.y + a2.y) / 2, z: (a1.z + a2.z) / 2 },
-            backgroundColor: '#ffffff', backgroundOpacity: 0.9,
-            fontColor: '#e8710a', fontSize: 12,
-            borderThickness: 1, borderColor: '#e8710a', inFront: true
-          });
-          viewer.render();
-        } catch (e) { /* 高亮失败不影响读数 */ }
       };
     } catch (e) {
       console.warn('分子 3D 渲染失败', e);
       container.innerHTML = '<div class="viewer-note">3D 渲染失败，可能是浏览器不支持 WebGL</div>';
+      return null;
     }
   }
 

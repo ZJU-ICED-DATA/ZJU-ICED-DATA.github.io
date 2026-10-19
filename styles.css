@@ -1109,3 +1109,22 @@ td.formula { font-weight: 650; }
   display: inline-block; padding: 1px 8px; border-radius: 5px;
   background: #fef3c7; color: #92400e; font-size: 11.5px; font-weight: 700;
 }
+
+/* 键长列表（3D 点击的兜底与对照） */
+.bond-list { margin-top: 10px; border: 1px solid var(--border); border-radius: 8px; background: #fff; overflow: hidden; }
+.bond-list-head {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  padding: 7px 10px; font-size: 11.5px; font-weight: 650; color: var(--muted);
+  background: #f7fafd; border-bottom: 1px solid var(--border);
+}
+.bond-rows { max-height: 172px; overflow-y: auto; }
+.bond-row {
+  display: flex; justify-content: space-between; gap: 10px;
+  padding: 5px 10px; font-size: 12px; cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+}
+.bond-row:last-child { border-bottom: none; }
+.bond-row:hover { background: var(--primary-soft); }
+.bond-row.active { background: #fff4e8; color: #b45309; font-weight: 700; }
+.bond-row .b-len { font-variant-numeric: tabular-nums; color: #475569; }
+.bond-row.active .b-len { color: #b45309; }
