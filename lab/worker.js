@@ -43,7 +43,6 @@ export default {
       }
 
       if (url.pathname === '/api/list') {
-        if (!checkCode(url.searchParams.get('code'), env)) return json({ ok: false, error: '实验室代码不正确' }, 401, cors);
         const from = url.searchParams.get('from') || '0000-00-00';
         const to = url.searchParams.get('to') || '9999-99-99';
         const all = await readRecords(env);
@@ -53,7 +52,6 @@ export default {
 
       if (url.pathname === '/api/submit' && request.method === 'POST') {
         const body = await request.json();
-        if (!checkCode(body.code, env)) return json({ ok: false, error: '实验室代码不正确' }, 401, cors);
 
         const record = body.record;
         if (!record || !record.type || !record.date || !record.name) {
@@ -78,13 +76,11 @@ export default {
 
       if (url.pathname === '/api/options') {
         if (request.method === 'GET') {
-          if (!checkCode(url.searchParams.get('code'), env)) return json({ ok: false, error: '实验室代码不正确' }, 401, cors);
           const opts = await readJsonFile(env, OPTIONS_PATH, {});
           return json({ ok: true, options: opts }, 200, cors);
         }
         if (request.method === 'POST') {
           const body = await request.json();
-          if (!checkCode(body.code, env)) return json({ ok: false, error: '实验室代码不正确' }, 401, cors);
           const opts = body.options || {};
           await writeJsonFile(env, OPTIONS_PATH, JSON.stringify(opts, null, 1), '更新实验室选项（成员 / 设备 / 时长）');
           return json({ ok: true }, 200, cors);
@@ -92,7 +88,6 @@ export default {
       }
 
       if (url.pathname === '/api/photo') {
-        if (!checkCode(url.searchParams.get('code'), env)) return new Response('forbidden', { status: 401 });
         const id = url.searchParams.get('id') || '';
         if (!/^[\w-]+$/.test(id)) return new Response('bad id', { status: 400 });
         return photoResponse(env, id);
@@ -112,11 +107,6 @@ function json(obj, status, headers) {
   });
 }
 
-function checkCode(code, env) {
-  const want = env.LAB_CODE || '';
-  if (!want) return true;             // 未设置则不校验（不推荐）
-  return String(code || '') === want;
-}
 
 function gh(env, path, init) {
   const base = 'https://api.github.com';

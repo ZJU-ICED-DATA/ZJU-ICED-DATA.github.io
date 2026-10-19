@@ -260,7 +260,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   <section id="tab-options" class="hidden">
     <div class="card">
       <h2>选项管理</h2>
-      <div class="sub">这里维护下拉框的内容：成员名单（姓名 / 检查人）、设备清单、使用时长。每行一项，保存后全组同步（需先填实验室代码）。</div>
+      <div class="sub">这里维护下拉框的内容：成员名单（姓名 / 检查人）、设备清单、使用时长。每行一项，保存后全组同步。</div>
       <div class="row">
         <label class="f"><span>成员名单（每行一个）</span><textarea id="optNames" rows="5" placeholder="张三&#10;李四"></textarea></label>
         <label class="f"><span>使用时长（每行一个，单位小时）</span><textarea id="optHours" rows="5" placeholder="1&#10;2&#10;4&#10;6"></textarea></label>
@@ -282,7 +282,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     <h3>数据连接设置</h3>
     <p class="hint">配置后全组共享同一份记录；不配置则只保存在当前浏览器（仅用于试用）。</p>
     <label class="f"><span>接口地址（Cloudflare Worker）</span><input type="text" id="stApi" placeholder="https://lab-api.xxx.workers.dev" /></label>
-    <label class="f"><span>实验室代码</span><input type="text" id="stCode" placeholder="向管理员索取" /></label>
+    <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;font-size:13px;color:#475569"><input type="checkbox" id="stLocal" style="margin-top:4px" /><span>仅在本机保存（不参与云端共享，一般不用勾）</span></label>
     <label class="f"><span>我的名字（自动填充）</span><input type="text" id="stMe" placeholder="可选" /></label>
     <div style="display:flex;gap:8px;margin-top:6px">
       <button class="btn primary" id="stSave">保存</button>
@@ -351,10 +351,10 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   function getCfg() {
     var c = {};
     try { c = JSON.parse(localStorage.getItem(LS.cfg) || '{}'); } catch (e) { c = {}; }
-    return { api: (c.api || DEFAULT_API), code: c.code || '' };
+    return { api: (c.api || DEFAULT_API), local: !!c.local };
   }
   function setCfg(c) { localStorage.setItem(LS.cfg, JSON.stringify(c)); }
-  function cloudOn() { var c = getCfg(); return !!(c.api && c.code); }
+  function cloudOn() { var c = getCfg(); return !c.local && !!c.api; }
 
   /* ---------------- 下拉选项（可在「④ 选项管理」里改） ---------------- */
   var DEFAULT_OPTIONS = {
@@ -442,7 +442,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     var cfg = getCfg(), raw = null;
     if (cloudOn()) {
       try {
-        var r = await fetch(cfg.api + '/api/options?code=' + encodeURIComponent(cfg.code));
+        var r = await fetch(cfg.api + '/api/options?t=' + Date.now());
         if (r.ok) { var j = await r.json(); raw = j.options || null; }
       } catch (e) { /* 网络失败就用本机缓存 */ }
     }
@@ -475,7 +475,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       try {
         var r = await fetch(cfg.api + '/api/options', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: cfg.code, options: opts })
+          body: JSON.stringify({ options: opts })
         });
         if (!r.ok) throw new Error('HTTP ' + r.status);
       } catch (e) {
@@ -498,22 +498,28 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   var Store = {
     async list(from, to) {
       var cfg = getCfg();
-      if (cfg.api && cfg.code) {
-        var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/list?from=' + encodeURIComponent(from) +
-          '&to=' + encodeURIComponent(to) + '&code=' + encodeURIComponent(cfg.code));
-        if (!r.ok) throw new Error('云端读取失败（' + r.status + '）');
-        var j = await r.json();
-        return j.records || [];
+      if (cloudOn()) {
+        try {
+          var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/list?from=' + encodeURIComponent(from) +
+            '&to=' + encodeURIComponent(to) + '&t=' + Date.now());
+          if (!r.ok) throw new Error('云端读取失败（' + r.status + '）');
+          var j = await r.json();
+          state.offline = false;
+          return j.records || [];
+        } catch (e) {
+          state.offline = true;
+          throw e;
+        }
       }
       return localAll().filter(function (x) { return x.date >= from && x.date <= to; });
     },
     async submit(record, photos) {
       var cfg = getCfg();
-      if (cfg.api && cfg.code) {
+      if (cloudOn()) {
         var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: cfg.code, record: record, photos: photos || [] })
+          body: JSON.stringify({ record: record, photos: photos || [] })
         });
         var j = null;
         try { j = await r.json(); } catch (e) { /* ignore */ }
@@ -533,8 +539,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     },
     photoUrl(id) {
       var cfg = getCfg();
-      if (cfg.api && cfg.code) {
-        return cfg.api.replace(/\/+$/, '') + '/api/photo?id=' + encodeURIComponent(id) + '&code=' + encodeURIComponent(cfg.code);
+      if (cloudOn()) {
+        return cfg.api.replace(/\/+$/, '') + '/api/photo?id=' + encodeURIComponent(id);
       }
       var imgs = photoStore();
       return imgs[id] || '';
@@ -579,6 +585,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   var state = {
     tab: 'usage', today: null, photos: {}, devicePool: [],
     options: null,
+    offline: false,
     days: {}            /* date -> { usage: [], checks: [] } */
   };
 
@@ -612,8 +619,9 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     $('#today').textContent = t.date + ' 周' + '日一二三四五六'.charAt(new Date(t.y + '-' + pad(t.m) + '-' + pad(t.d)).getDay());
     $('#clock').textContent = t.hm;
     var b = $('#modeBadge');
-    if (cloudOn()) { b.className = 'badge ok'; b.textContent = '☁ 云端同步'; }
-    else { b.className = 'badge warn'; b.textContent = '未填实验室代码（本地模式）'; }
+    if (!cloudOn()) { b.className = 'warn badge'; b.textContent = '仅本机保存'; }
+    else if (state.offline) { b.className = 'badge err'; b.textContent = '离线 · 连不上云端'; }
+    else { b.className = 'badge ok'; b.textContent = '☁ 云端同步'; }
     $('#ruleUsage').textContent = '21:00';
     $('#ruleCheck').textContent = '21:30';
   }
@@ -774,7 +782,10 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
   /* ---------------- 数据加载 ---------------- */
   function loadToday() {
-    return loadDay(todayKey());
+    return loadDay(todayKey()).catch(function (e) {
+      renderTop();
+      toast('云端读取失败：' + e.message + '（可在右上角设置里切到「仅在本机保存」）', 5000);
+    });
   }
 
   /* ---------------- 事件：备案 ---------------- */
@@ -986,31 +997,30 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     $('#settingsBtn').addEventListener('click', function () {
       var c = getCfg();
       $('#stApi').value = c.api || DEFAULT_API;
-      $('#stCode').value = c.code || '';
+      $('#stLocal').checked = !!c.local;
       $('#stMe').value = localStorage.getItem(LS.me) || '';
       $('#settings').classList.add('open');
     });
     $('#stCancel').addEventListener('click', function () { $('#settings').classList.remove('open'); });
     $('#stSave').addEventListener('click', function () {
-      var api = $('#stApi').value.trim().replace(/\/+$/, '');
-      var code = $('#stCode').value.trim();
+      var api = $('#stApi').value.trim().replace(/\/+$/, '') || DEFAULT_API;
       var me = $('#stMe').value.trim();
-      setCfg({ api: api, code: code });
+      var local = !!$('#stLocal').checked;
+      setCfg({ api: api, local: local });
       if (me) localStorage.setItem(LS.me, me);
       $('#settings').classList.remove('open');
       renderTop();
       refreshAll();
       loadToday().then(refreshAll);
-      toast(api && code ? '已连接云端' : '已切换为本地模式');
+      toast(local ? '已切换为仅本机保存' : '已连接云端，全组共享');
     });
     $('#stTest').addEventListener('click', async function () {
-      var api = $('#stApi').value.trim().replace(/\/+$/, '');
-      var code = $('#stCode').value.trim();
+      var api = $('#stApi').value.trim().replace(/\/+$/, '') || DEFAULT_API;
       if (!api) { toast('请先填写接口地址'); return; }
       try {
-        var r = await fetch(api + '/api/ping');
+        var r = await fetch(api + '/api/ping?t=' + Date.now());
         var j = await r.json();
-        toast(j.ok ? '接口可用' + (code ? '（记得保存）' : '') : '接口返回异常', 3000);
+        toast(j.ok ? '接口可用' : '接口返回异常', 3000);
       } catch (e) { toast('连接失败：' + e.message, 3500); }
     });
   }
@@ -1091,17 +1101,23 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     });
 
     refreshAll();
-    loadOptions().then(function () {
+    loadOptions().catch(function () { /* 忽略 */ }).then(function () {
       refreshAll();
       return loadToday();
-    }).then(refreshAll);
+    }).then(refreshAll).catch(function () { /* 已在内部提示 */ });
 
-    /* 每 30 秒刷新时钟；未被手动改过的时间字段跟随当前时间 */
+    /* 每 30 秒刷新时钟；每 60 秒重新拉一次当天数据（别人提交后能自动看到） */
+    var tick = 0;
     setInterval(function () {
+      tick++;
       refreshAll();
       var t = now();
       var ct = $('#cTime');
       if (ct) ct.value = t.hm;
+
+      if (tick % 2 === 0 && document.visibilityState !== 'hidden') {
+        loadDay(todayKey(), true).catch(function () { /* 网络问题忽略 */ });
+      }
     }, 30000);
   }
 
