@@ -44,6 +44,8 @@ lab/data/photos/<id>.jpg    检查照片（前端已压缩到约 100 KB/张）
 https://lab-api.1014166708.workers.dev
 ```
 
+页面里这个地址已经是**默认值**，组员只需要在「⚙ 设置」里填一次实验室代码即可（代码保存在各自浏览器）。
+
 实验室代码当前为 `ICED-LAB-2026`（请自行修改后重新部署）。
 
 -worker 的 Secret：`GITHUB_TOKEN`（有 repo 写权限）、`LAB_CODE`

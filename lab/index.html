@@ -322,8 +322,12 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   }
 
   /* ---------------- 配置 ---------------- */
+  var DEFAULT_API = 'https://lab-api.1014166708.workers.dev';
+
   function getCfg() {
-    try { return JSON.parse(localStorage.getItem(LS.cfg) || '{}'); } catch (e) { return {}; }
+    var c = {};
+    try { c = JSON.parse(localStorage.getItem(LS.cfg) || '{}'); } catch (e) { c = {}; }
+    return { api: (c.api || DEFAULT_API), code: c.code || '' };
   }
   function setCfg(c) { localStorage.setItem(LS.cfg, JSON.stringify(c)); }
   function cloudOn() { var c = getCfg(); return !!(c.api && c.code); }
@@ -423,7 +427,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     $('#clock').textContent = t.hm;
     var b = $('#modeBadge');
     if (cloudOn()) { b.className = 'badge ok'; b.textContent = '☁ 云端同步'; }
-    else { b.className = 'badge warn'; b.textContent = '本地模式（未连接云端）'; }
+    else { b.className = 'badge warn'; b.textContent = '未填实验室代码（本地模式）'; }
     $('#ruleUsage').textContent = '21:00';
     $('#ruleCheck').textContent = '21:30';
   }
@@ -811,7 +815,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   function bindSettings() {
     $('#settingsBtn').addEventListener('click', function () {
       var c = getCfg();
-      $('#stApi').value = c.api || '';
+      $('#stApi').value = c.api || DEFAULT_API;
       $('#stCode').value = c.code || '';
       $('#stMe').value = localStorage.getItem(LS.me) || '';
       $('#stForce').checked = forceOpen();
