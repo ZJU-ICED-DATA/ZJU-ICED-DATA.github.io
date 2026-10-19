@@ -124,6 +124,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   <div class="spacer"></div>
   <div class="clock"><b id="today"></b> <span id="clock"></span></div>
   <span class="badge idle" id="modeBadge">未连接云端</span>
+  <button class="btn sm" id="refreshBtn" title="重新读取云端数据">↻ 刷新</button>
   <button class="btn sm" id="settingsBtn">⚙ 设置</button>
 </div>
 
@@ -274,7 +275,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     </div>
   </section>
 
-  <div class="footer">数据仅用于课题组内部安全管理 · 建议每晚检查后确认已提交</div>
+  <div class="footer">数据仅用于课题组内部安全管理 · 建议每晚检查后确认已提交 · <span id="buildStamp"></span></div>
 </main>
 
 <div class="modal" id="settings">
@@ -1060,7 +1061,24 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   }
 
   /* ---------------- 启动 ---------------- */
+  var BUILD = '2026-10-19 19:40';
+
   function boot() {
+    var bs = $('#buildStamp');
+    if (bs) bs.textContent = '版本 ' + BUILD;
+
+    var rf = $('#refreshBtn');
+    if (rf) rf.addEventListener('click', async function () {
+      rf.disabled = true;
+      try {
+        await loadDay(todayKey(), true);
+        toast('已刷新');
+      } catch (e) {
+        toast('刷新失败：' + e.message);
+      } finally {
+        rf.disabled = false;
+      }
+    });
     var me = localStorage.getItem(LS.me);
     if (me) {
       setTimeout(function () {

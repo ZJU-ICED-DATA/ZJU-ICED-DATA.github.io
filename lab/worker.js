@@ -103,7 +103,10 @@ export default {
 function json(obj, status, headers) {
   return new Response(JSON.stringify(obj), {
     status: status || 200,
-    headers: Object.assign({ 'Content-Type': 'application/json; charset=utf-8' }, headers || {})
+    headers: Object.assign({
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate'
+    }, headers || {})
   });
 }
 
