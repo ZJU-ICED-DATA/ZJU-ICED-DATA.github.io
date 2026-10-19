@@ -1054,3 +1054,50 @@ td.formula { font-weight: 650; }
 @media (max-width: 980px) {
   .detail-body { grid-template-columns: 1fr; gap: 18px; }
 }
+
+/* ================= 小分子 ================= */
+.mol-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap: 10px;
+}
+.mol-card {
+  border: 1px solid var(--border); border-radius: 9px; background: #fff;
+  padding: 11px 12px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.mol-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 3px 10px rgba(16, 42, 67, .09);
+  transform: translateY(-1px);
+}
+.mol-card.active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-light); }
+.mol-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.mol-sub { font-size: 10.5px; color: var(--faint); }
+.mol-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0; }
+.mol-card .chip { margin: 0; padding: 1px 6px; font-size: 10.5px; border-radius: 4px; background: #f1f5f9; color: #475569; }
+.mol-card .chip sub { font-size: 8.5px; color: #94a3b8; vertical-align: baseline; }
+.mol-meta {
+  display: flex; justify-content: space-between; gap: 6px;
+  font-size: 10.5px; color: #475569; font-variant-numeric: tabular-nums;
+  border-top: 1px dashed var(--border); padding-top: 5px; margin-top: 2px;
+}
+.mol-meta i { font-style: normal; color: var(--faint); margin-right: 2px; }
+.mol-result { font-size: 12.5px; color: #475569; line-height: 1.6; }
+
+.bond-info {
+  margin-top: 8px; padding: 9px 12px;
+  border: 1px dashed var(--border); border-radius: 8px;
+  background: #fbfcfe; font-size: 12.5px; color: var(--muted);
+  text-align: center;
+}
+.bond-info .bond-len { color: #e8710a; font-size: 15px; }
+.bond-info b { color: #1f2933; }
+
+.mag-wrap { max-height: 230px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+.el-table th {
+  font-size: 11px; color: var(--muted); font-weight: 600;
+  padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border);
+  background: #f7fafd; position: sticky; top: 0;
+}

@@ -358,6 +358,11 @@
   function curated() { return Array.isArray(window.CATALYST_DATA) ? window.CATALYST_DATA : []; }
   function allRecords() { return loadDrafts().concat(curated()); }
 
+  /* 「小分子」与「催化剂」共用同一个数据文件，用 kind 区分 */
+  function isMolecule(d) { return !!d && d.kind === 'molecule'; }
+  function moleculeRows() { return allRecords().filter(isMolecule); }
+  function catalystRecords() { return allRecords().filter(function (d) { return !isMolecule(d); }); }
+
   /* GitHub Pages 给 data.js 设了 10 分钟缓存，普通刷新可能拿到旧数据。
      这里绕过缓存重新拉一次，只有内容真的变了才重渲染。 */
   async function refreshDataFromNetwork(options) {
@@ -602,6 +607,7 @@
     }
     if (parts[0] === 'about') return { view: 'about', reactionId: null };
     if (parts[0] === 'whatwedo') return { view: 'whatWeDo', reactionId: null };
+    if (parts[0] === 'molecules') return { view: 'molecules', reactionId: null };
     return { view: 'dashboard', reactionId: null };
   }
 
@@ -628,7 +634,7 @@
   function renderSidebar() {
     const nav = $('#sidebarNav');
     if (!nav) return;
-    const rows = allRecords();
+    const rows = catalystRecords();
     const counts = countByReaction(rows);
     const drafts = loadDrafts();
     const parts = [];
@@ -649,6 +655,9 @@
         '<span class="nav-count">' + (counts[r.id] || 0) + '</span></a>'
       );
     });
+
+    parts.push('<div class="nav-section">' + esc(cget('site.navMolecules', '小分子')) + '</div>');
+    parts.push(navItem('#/molecules', '⬢', cget('molecules.title', '小分子性质'), moleculeRows().length, state.view === 'molecules'));
 
     nav.innerHTML = parts.join('');
 
@@ -931,7 +940,7 @@
   }
 
   function baseRows() {
-    const all = allRecords();
+    const all = allRecords().filter(function (d) { return !isMolecule(d); });
     if (state.view === 'reaction' && state.reactionId) {
       const r = reactionById(state.reactionId);
       if (!r) return [];
@@ -1221,7 +1230,7 @@
   }
 
   function renderDashboard() {
-    const rows = allRecords();
+    const rows = catalystRecords();
     const s = overallStats(rows);
     const kpi = cget('dashboard.kpi', {}) || {};
 
@@ -1459,6 +1468,282 @@
       (ktChips ? '<div class="keytech"><span class="kt-label">' + esc(kt.title || '关键技术') + '</span>' +
         '<div class="kt-chips">' + ktChips + '</div></div>' : '') +
       '</div>';
+  }
+
+  /* ============================ 视图：小分子性质 ============================ */
+  function moleculeEnergy(d) {
+    return (d && d.outcar && isNum(d.outcar.totalEnergy)) ? d.outcar.totalEnergy : null;
+  }
+  function moleculeMag(d) {
+    return (d && d.outcar && isNum(d.outcar.magnetization)) ? d.outcar.magnetization : null;
+  }
+
+  function moleculeCardHtml(d) {
+    const s = structureOf(d);
+    const e = moleculeEnergy(d);
+    const m = moleculeMag(d);
+    const chips = s ? (s.elements || []).slice(0, 6).map(function (el) {
+      return '<span class="chip">' + esc(el) + '<sub>' + esc(fmtCount(s.atomCounts[el])) + '</sub></span>';
+    }).join('') : '';
+    return '<div class="mol-card" data-mol-id="' + esc(d.id) + '">' +
+      '<div class="mol-name">' + esc(d.name || d.formula || '未命名') + '</div>' +
+      '<div class="mol-sub">' + esc(s ? (s.formula || d.formula || '') : (d.formula || '')) +
+      (s && isNum(s.totalAtoms) ? ' · ' + s.totalAtoms + ' 原子' : '') + '</div>' +
+      (chips ? '<div class="mol-chips">' + chips + '</div>' : '') +
+      '<div class="mol-meta">' +
+      '<span><i>E</i> ' + (isNum(e) ? e.toFixed(4) : '—') + '</span>' +
+      '<span><i>M</i> ' + (isNum(m) ? m.toFixed(2) + ' μB' : '—') + '</span>' +
+      '</div></div>';
+  }
+
+  function renderMolecules() {
+    const rows = moleculeRows();
+    const withStruct = rows.filter(function (d) { return structureOf(d); });
+    const withEnergy = rows.filter(function (d) { return isNum(moleculeEnergy(d)); });
+    const mags = rows.map(moleculeMag).filter(isNum);
+    const avgMag = mags.length ? mags.reduce(function (a, b) { return a + b; }, 0) / mags.length : null;
+    const totalAtoms = withStruct.reduce(function (n, d) {
+      const s = structureOf(d);
+      return n + (isNum(s.totalAtoms) ? s.totalAtoms : 0);
+    }, 0);
+
+    const grid = rows.length
+      ? '<div class="mol-grid">' + rows.map(moleculeCardHtml).join('') + '</div>'
+      : '<div class="empty" style="padding:30px 0">还没有小分子数据。点右上角「上传小分子」把 VASP 的 CONTCAR/POSCAR 或 CIF 和同名 OUTCAR 一起传上来。</div>';
+
+    $('#view').innerHTML =
+      '<div class="page-head">' +
+      '<div class="page-head-row"><h1 class="page-title">' + esc(cget('molecules.title', '小分子性质')) + '</h1>' +
+      '<button class="btn btn-primary btn-mini" id="molUploadBtn" style="margin-left:auto">＋ 上传小分子</button></div>' +
+      '<p class="page-desc">' + esc(cget('molecules.desc', '收录小分子的 VASP 计算结果：构型、总能、磁矩。点开任意分子可查看三维构型，点击化学键即可读出键长。')) + '</p></div>' +
+
+      '<div class="kpi-grid four">' +
+      kpiCard(rows.length, '小分子', '去重分子数', '#2b7ac4', '⬢') +
+      kpiCard(withStruct.length, '构型', totalAtoms + ' 个原子', '#31a354', '🧬') +
+      kpiCard(withEnergy, '有总能', 'OUTCAR 已识别', '#e8710a', '📉') +
+      kpiCard(isNum(avgMag) ? avgMag.toFixed(2) : '—', '平均磁矩', mags.length + ' 条有数据', '#7b5ea7', '🧲') +
+      '</div>' +
+
+      '<div class="panel"><div class="panel-head"><div class="panel-title">分子列表</div>' +
+      '<span class="muted">共 ' + rows.length + ' 个小分子</span></div>' +
+      '<div class="panel-body">' + grid + '</div></div>' +
+
+      '<div id="detailArea" class="detail-area"></div>';
+
+    const up = $('#molUploadBtn');
+    if (up) up.addEventListener('click', openMoleculeUpload);
+
+    const byId = {};
+    rows.forEach(function (d) { byId[d.id] = d; });
+    $$('.mol-card').forEach(function (el) {
+      el.addEventListener('click', function () {
+        const rec = byId[el.getAttribute('data-mol-id')];
+        if (rec) openMoleculeDetail(rec);
+      });
+    });
+  }
+
+  /* ---------- 键长计算 ---------- */
+  function segDist(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1, dy = y2 - y1;
+    const len2 = dx * dx + dy * dy;
+    let t = len2 ? ((px - x1) * dx + (py - y1) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const cx = x1 + t * dx, cy = y1 + t * dy;
+    return Math.sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
+  }
+
+  function openMoleculeDetail(d) {
+    const host = $('#detailArea');
+    if (!host) return;
+    if (currentViewer) { try { currentViewer.clear(); } catch (e) { /* 忽略 */ } currentViewer = null; }
+
+    const s = structureOf(d);
+    const oc = d.outcar || null;
+    const model3d = structureToText(s);
+    const e = moleculeEnergy(d);
+    const m = moleculeMag(d);
+    const mags = (oc && Array.isArray(oc.magPerAtom)) ? oc.magPerAtom : [];
+    const s2 = s && s.cell ? ['a=' + (isNum(s.cell.a) ? s.cell.a : '–'), 'b=' + (isNum(s.cell.b) ? s.cell.b : '–'),
+      'c=' + (isNum(s.cell.c) ? s.cell.c : '–'), 'α=' + (isNum(s.cell.alpha) ? s.cell.alpha + '°' : '–'),
+      'β=' + (isNum(s.cell.beta) ? s.cell.beta + '°' : '–'), 'γ=' + (isNum(s.cell.gamma) ? s.cell.gamma + '°' : '–')].join('  ') : '';
+
+    let magRows = '';
+    if (mags.length) {
+      magRows = mags.map(function (v, i) {
+        return '<tr><td>' + (i + 1) + '</td><td class="num">' + (isNum(v) ? v.toFixed(3) : '—') + '</td></tr>';
+      }).join('');
+    }
+
+    host.innerHTML =
+      '<div class="detail-card">' +
+      '<div class="detail-head">' +
+      '<div><h3>' + esc(d.name || d.formula || '小分子') + (d.source === 'draft' ? '<span class="tag-draft">本地</span>' : '') + '</h3>' +
+      '<div class="sub">' + esc(d.id || '') + (s ? ' · ' + esc(s.file || '') : '') + '</div></div>' +
+      '<button class="btn btn-mini" id="detailClose">收起</button></div>' +
+
+      '<div class="detail-body">' +
+      '<div>' +
+      '<div class="section-label">计算结果</div>' +
+      '<div class="field-grid">' +
+      fieldHtml('总能 E (eV)', isNum(e) ? e.toFixed(6) : '—') +
+      fieldHtml('磁矩 (μB)', isNum(m) ? m.toFixed(3) : '—') +
+      fieldHtml('能量 σ→0 (eV)', oc && isNum(oc.energySigma0) ? oc.energySigma0.toFixed(6) : '—') +
+      fieldHtml('E-fermi (eV)', oc && isNum(oc.fermi) ? oc.fermi.toFixed(4) : '—') +
+      '</div>' +
+
+      (s ? '<div class="section-label">构型信息</div>' +
+        '<div class="field-grid">' +
+        fieldHtml('元素组成', esc(s.elements.join(' ') || '—')) +
+        fieldHtml('原子数', esc(String(s.totalAtoms || 0))) +
+        fieldHtml('化学式', esc(s.formula || '—')) +
+        fieldHtml('坐标类型', esc(s.coord === 'cart' ? '笛卡尔' : '分数')) +
+        '</div>' +
+        (s2 ? '<div class="field" style="margin-bottom:10px"><div class="k">晶胞参数</div>' +
+          '<div class="v" style="font-weight:500;font-size:12px">' + esc(s2) + '</div></div>' : '') : '') +
+
+      (magRows ? '<div class="section-label">逐原子磁矩 (μB)</div>' +
+        '<div class="mag-wrap"><table class="el-table"><thead><tr><th>#</th><th>M</th></tr></thead>' +
+        '<tbody>' + magRows + '</tbody></table></div>' : '') +
+
+      (d.note ? '<div class="section-label">备注</div><p style="font-size:13px;color:#475569">' + esc(d.note) + '</p>' : '') +
+      '</div>' +
+
+      '<div>' +
+      (model3d
+        ? '<div class="section-label">构型查看</div>' +
+          '<div class="viewer3d" id="molViewer" style="height:340px"></div>' +
+          '<div class="bond-info" id="bondInfo">点击任意化学键，显示键长</div>'
+        : '<div class="section-label">构型查看</div>' +
+          '<div class="viewer3d"><div class="viewer-note">这条记录没有坐标数据。</div></div>') +
+      '</div>' +
+      '</div></div>';
+
+    host.classList.add('open');
+
+    const closeBtn = $('#detailClose');
+    if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+
+    $$('.mol-card').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-mol-id') === d.id);
+    });
+
+    if (model3d) renderMolecule3D($('#molViewer'), model3d, $('#bondInfo'));
+  }
+
+  /* 分子 3D：点键显示键长 */
+  function renderMolecule3D(container, model, infoEl) {
+    if (!container) return;
+    if (!HAS_3DMOL) { container.innerHTML = '<div class="viewer-note">3D 预览不可用（3Dmol 未加载）</div>'; return; }
+
+    try {
+      if (currentViewer) { try { currentViewer.clear(); } catch (e) { /* 忽略 */ } currentViewer = null; }
+      container.innerHTML = '';
+      const viewer = $3Dmol.createViewer(container, { backgroundColor: 'white' });
+      if (!viewer) throw new Error('viewer 创建失败');
+
+      const m = viewer.addModel(model.text, model.format === 'xyz' ? 'xyz' : 'cif');
+      viewer.setStyle({}, { stick: { radius: 0.14 }, sphere: { scale: 0.28 } });
+      viewer.zoomTo();
+      viewer.render();
+
+      const atoms = m.selectedAtoms ? m.selectedAtoms({}) : [];
+      const bonds = bondsFromAtoms(atoms);
+      currentViewer = viewer;
+
+      const symOf = function (a) { return a.elem || a.element || '?'; };
+
+      container.onclick = function (ev) {
+        if (!atoms.length) return;
+        const cx = ev.clientX, cy = ev.clientY;
+        let best = null, bestDist = 14;
+
+        for (let k = 0; k < bonds.length; k++) {
+          const b = bonds[k];
+          const a1 = atoms[b.i], a2 = atoms[b.j];
+          if (!a1 || !a2) continue;
+          const p1 = viewer.modelToScreen({ x: a1.x, y: a1.y, z: a1.z });
+          const p2 = viewer.modelToScreen({ x: a2.x, y: a2.y, z: a2.z });
+          if (!p1 || !p2) continue;
+          const dist = segDist(cx, cy, p1.x, p1.y, p2.x, p2.y);
+          if (dist < bestDist) { bestDist = dist; best = b; }
+        }
+
+        if (!best) return;
+        const a1 = atoms[best.i], a2 = atoms[best.j];
+        const dx = a1.x - a2.x, dy = a1.y - a2.y, dz = a1.z - a2.z;
+        const len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const label = symOf(a1) + (best.i + 1) + ' — ' + symOf(a2) + (best.j + 1);
+
+        if (infoEl) {
+          infoEl.innerHTML = '<b>' + esc(label) + '</b>　键长 <b class="bond-len">' + len.toFixed(3) + ' Å</b>' +
+            '<span class="muted">　（' + len.toFixed(4) + ' Å）</span>';
+        }
+
+        try {
+          viewer.removeAllShapes();
+          viewer.removeAllLabels();
+          viewer.addCylinder({
+            start: { x: a1.x, y: a1.y, z: a1.z },
+            end: { x: a2.x, y: a2.y, z: a2.z },
+            radius: 0.11, color: '#e8710a', fromCap: 1, toCap: 1
+          });
+          viewer.addLabel(len.toFixed(3) + ' Å', {
+            position: { x: (a1.x + a2.x) / 2, y: (a1.y + a2.y) / 2, z: (a1.z + a2.z) / 2 },
+            backgroundColor: '#ffffff', backgroundOpacity: 0.9,
+            fontColor: '#e8710a', fontSize: 12,
+            borderThickness: 1, borderColor: '#e8710a', inFront: true
+          });
+          viewer.render();
+        } catch (e) { /* 高亮失败不影响读数 */ }
+      };
+    } catch (e) {
+      console.warn('分子 3D 渲染失败', e);
+      container.innerHTML = '<div class="viewer-note">3D 渲染失败，可能是浏览器不支持 WebGL</div>';
+    }
+  }
+
+  /* 共价半径（Å），用于按距离判定成键 */
+  const COV_RADII = {
+    H: 0.31, He: 0.28, Li: 1.28, Be: 0.96, B: 0.84, C: 0.76, N: 0.71, O: 0.66, F: 0.57, Ne: 0.58,
+    Na: 1.66, Mg: 1.41, Al: 1.21, Si: 1.11, P: 1.07, S: 1.05, Cl: 1.02, Ar: 1.06,
+    K: 2.03, Ca: 1.76, Sc: 1.70, Ti: 1.60, V: 1.53, Cr: 1.39, Mn: 1.39, Fe: 1.32, Co: 1.26, Ni: 1.24,
+    Cu: 1.32, Zn: 1.22, Ga: 1.22, Ge: 1.20, As: 1.19, Se: 1.20, Br: 1.20, Kr: 1.16,
+    Rb: 2.20, Sr: 1.95, Y: 1.90, Zr: 1.75, Nb: 1.64, Mo: 1.54, Tc: 1.47, Ru: 1.46, Rh: 1.42, Pd: 1.39,
+    Ag: 1.45, Cd: 1.44, In: 1.42, Sn: 1.39, Sb: 1.39, Te: 1.38, I: 1.39, Xe: 1.40,
+    Cs: 2.44, Ba: 2.15, La: 2.07, Ce: 2.04, Hf: 1.75, Ta: 1.70, W: 1.62, Re: 1.51, Os: 1.44, Ir: 1.41,
+    Pt: 1.36, Au: 1.36, Hg: 1.32, Tl: 1.45, Pb: 1.46, Bi: 1.48, Po: 1.40, At: 1.50, Rn: 1.50
+  };
+
+  function covRadius(sym) { return COV_RADII[sym] || 0.77; }
+
+  /* 优先用 3Dmol 解析出的键，没有就按共价半径 + 距离自己算 */
+  function bondsFromAtoms(atoms) {
+    if (!atoms || !atoms.length) return [];
+
+    const fromModel = [];
+    atoms.forEach(function (a, i) {
+      if (!a.bonds || !a.bonds.length) return;
+      a.bonds.forEach(function (j) {
+        if (typeof j === 'number' && j > i && j < atoms.length) fromModel.push({ i: i, j: j });
+      });
+    });
+    if (fromModel.length) return fromModel;
+
+    const out = [];
+    if (atoms.length > 400) return out;
+    for (let i = 0; i < atoms.length; i++) {
+      for (let j = i + 1; j < atoms.length; j++) {
+        const a = atoms[i], b = atoms[j];
+        const dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const symA = a.elem || a.element || '?';
+        const symB = b.elem || b.element || '?';
+        const lim = (covRadius(symA) + covRadius(symB)) * 1.25 + 0.1;
+        if (d > 0.4 && d <= lim) out.push({ i: i, j: j });
+      }
+    }
+    return out;
   }
 
   /* ============================ 视图：关于我们 ============================ */
@@ -3084,6 +3369,11 @@
 
   function uploadStep2() {
     if (!uploadState.items.length) { uploadStep1(); return; }
+    if (uploadState.mode === 'molecule') {
+      if (uploadState.items.length === 1) renderMolSingle(uploadState.items[0]);
+      else renderMolBatch();
+      return;
+    }
     if (uploadState.items.length === 1) renderSingle(uploadState.items[0]);
     else renderBatch();
   }
@@ -3242,6 +3532,17 @@
   function maxIdNumber() {
     let maxNum = 0;
     loadDrafts().concat(curated()).forEach(function (d) {
+      if (isMolecule(d)) return;
+      const m = String(d.id || '').match(/(\d+)/);
+      if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
+    });
+    return maxNum;
+  }
+
+  function maxMolNumber() {
+    let maxNum = 0;
+    loadDrafts().concat(curated()).forEach(function (d) {
+      if (!isMolecule(d)) return;
       const m = String(d.id || '').match(/(\d+)/);
       if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
     });
@@ -3430,6 +3731,227 @@
     return publishFromUpload(built.records);
   }
 
+  /* ============================ 小分子上传 ============================ */
+  function openMoleculeUpload() {
+    const modal = $('#uploadModal');
+    if (!modal) return;
+    uploadState = { items: [], unmatched: [], skipped: [], mode: 'molecule' };
+    modal.classList.add('open');
+    if (!isUploadAuthed()) renderUploadLogin();
+    else uploadStep1();
+  }
+
+  function molResultText(it) {
+    const info = it.outcar && it.outcar.info ? it.outcar.info : null;
+    if (!info) return '<span class="muted">未匹配到 OUTCAR</span>';
+    return '总能 <b>' + (isNum(info.totalEnergy) ? info.totalEnergy.toFixed(4) : '—') + '</b> eV' +
+      '　·　磁矩 <b>' + (isNum(info.magnetization) ? info.magnetization.toFixed(3) : '—') + '</b> μB';
+  }
+
+  function buildMoleculeRecord(it, f) {
+    const st = it.structure;
+    const cs = st ? compactStructure(st) : null;
+    const info = (it.outcar && it.outcar.info) ? it.outcar.info : null;
+
+    return {
+      id: 'MOL-' + String(f.seq).padStart(3, '0'),
+      kind: 'molecule',
+      name: f.name,
+      formula: f.name,
+      ref: f.ref || '',
+      note: f.note || '',
+      structure: st ? {
+        file: st.file,
+        format: st.kind,
+        formula: st.info.formula || '',
+        elements: st.info.elements.slice(),
+        atomCounts: st.info.atomCounts,
+        totalAtoms: st.info.totalAtoms,
+        cell: st.info.cell,
+        spaceGroup: st.info.spaceGroup || '',
+        z: isNum(st.info.z) ? st.info.z : null,
+        cif: st.text,
+        atoms: cs.atoms,
+        coord: cs.coord
+      } : null,
+      outcar: info ? {
+        file: it.outcar.file,
+        totalEnergy: info.totalEnergy,
+        energySigma0: info.energySigma0,
+        fermi: info.fermi,
+        nions: info.nions,
+        volume: info.volume,
+        ionicSteps: info.ionicSteps,
+        magnetization: info.magnetization,
+        magPerAtom: Array.isArray(info.magPerAtom) ? info.magPerAtom : []
+      } : null,
+      addedAt: new Date().toISOString()
+    };
+  }
+
+  function renderMolSingle(it) {
+    const st = it.structure;
+
+    $('#uploadBody').innerHTML =
+      '<div class="upload-grid">' +
+      '<div>' +
+      structureCardHtml(st) +
+      outcarCardHtml(it.outcar) +
+      noticesHtml() +
+      (st ? '<div class="viewer3d" id="uploadViewer" style="height:280px"></div>' : '') +
+      '</div>' +
+      '<div>' +
+      '<div class="form-row"><label>分子名称 *</label>' +
+      '<input id="mName" value="' + esc(it.name) + '" placeholder="如 CH4、CO2、C2H6" /></div>' +
+      '<div class="form-row"><label>计算结果（自动识别）</label>' +
+      '<div class="mol-result">' + molResultText(it) + '</div></div>' +
+      '<div class="form-row"><label>数据来源</label><input id="mRef" placeholder="计算任务编号 / 文献" /></div>' +
+      '<div class="form-row"><label>备注</label><textarea id="mNote" rows="2" placeholder="如：PBE/def2-TZVP，三重态"></textarea></div>' +
+      '<p class="form-hint">能量取 OUTCAR 的 free energy TOTEN，磁矩取 number of electron … magnetization。</p>' +
+      '</div></div>';
+
+    const footEl = $('#uploadFoot');
+    const canPublish = !!loadPublish();
+    if (footEl) {
+      footEl.innerHTML = '<button class="btn" id="uploadBack">重新选择</button>' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+        '<button class="btn" id="uploadSave">存入本地草稿</button>' +
+        (canPublish ? '<button class="btn btn-primary" id="uploadPublish">保存并发布</button>' : '') +
+        '</div>';
+    }
+
+    if (st) render3D($('#uploadViewer'), st.text, st.kind, true);
+
+    const back = $('#uploadBack');
+    if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [], skipped: [], mode: 'molecule' }; uploadStep1(); });
+    const save = $('#uploadSave');
+    if (save) save.addEventListener('click', function () { if (saveMolSingle(it)) closeUpload(); });
+    const pub = $('#uploadPublish');
+    if (pub) pub.addEventListener('click', function () {
+      const rec = buildMolFromSingle(it);
+      if (rec) publishFromUpload([rec]).then(function (ok) { if (ok) closeUpload(); });
+    });
+  }
+
+  function renderMolBatch() {
+    const items = uploadState.items;
+
+    const rows = items.map(function (it, idx) {
+      const info = it.structure ? it.structure.info : null;
+      const oc = it.outcar && it.outcar.info ? it.outcar.info : null;
+      return '<tr data-item="' + idx + '">' +
+        '<td class="fname" title="' + esc(it.dir || (it.structure ? it.structure.file : '')) + '">' +
+        (it.dir ? '📁 ' : '') + esc(it.name || (it.structure ? it.structure.file : '—')) + '</td>' +
+        '<td><input class="cell-in" data-field="name" value="' + esc(it.name) + '" placeholder="必填" /></td>' +
+        '<td class="num">' + (info ? info.elements.join(' ') : '—') + '</td>' +
+        '<td class="num">' + (info ? info.totalAtoms : '—') + '</td>' +
+        '<td class="num">' + (oc && isNum(oc.totalEnergy) ? oc.totalEnergy.toFixed(4) : '—') + '</td>' +
+        '<td class="num">' + (oc && isNum(oc.magnetization) ? oc.magnetization.toFixed(3) : '—') + '</td>' +
+        '<td><button type="button" class="icon-btn" data-remove-item>×</button></td>' +
+        '</tr>';
+    }).join('');
+
+    $('#uploadBody').innerHTML =
+      noticesHtml() +
+      '<div class="batch-summary">' +
+      '<span>共 <b>' + items.length + '</b> 个小分子</span>' +
+      '<span>已匹配 OUTCAR <b>' + items.filter(function (x) { return x.outcar; }).length + '</b> 个</span>' +
+      '<span class="muted">名称默认取文件名，可直接在表格里改</span>' +
+      '</div>' +
+      '<div class="batch-wrap"><table class="batch-table">' +
+      '<thead><tr><th>文件</th><th>分子名称 *</th><th>元素</th><th>原子</th><th>总能 (eV)</th><th>磁矩 (μB)</th><th></th></tr></thead>' +
+      '<tbody id="batchBody">' + rows + '</tbody></table></div>' +
+      '<div class="form-grid2" style="margin-top:16px">' +
+      '<div class="form-row"><label>数据来源</label><input id="mRef" placeholder="计算任务编号 / 文献" /></div>' +
+      '<div class="form-row"><label>备注</label><input id="mNote" placeholder="可选，应用到全部" /></div>' +
+      '</div>';
+
+    const footEl = $('#uploadFoot');
+    const canPublish = !!loadPublish();
+    if (footEl) {
+      footEl.innerHTML = '<button class="btn" id="uploadBack">重新选择</button>' +
+        '<div style="display:flex;gap:8px;align-items:center">' +
+        '<span class="muted" style="align-self:center">将保存 ' + items.length + ' 条</span>' +
+        '<button class="btn" id="uploadSaveAll">存入本地草稿</button>' +
+        (canPublish ? '<button class="btn btn-primary" id="uploadPublishAll">全部保存并发布</button>' : '') +
+        '</div>';
+    }
+
+    $$('#batchBody [data-remove-item]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const tr = btn.closest('tr');
+        const idx = parseInt(tr.getAttribute('data-item'), 10);
+        uploadState.items.splice(idx, 1);
+        if (!uploadState.items.length) { uploadStep1(); return; }
+        renderMolBatch();
+      });
+    });
+
+    const back = $('#uploadBack');
+    if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [], skipped: [], mode: 'molecule' }; uploadStep1(); });
+    const saveAll = $('#uploadSaveAll');
+    if (saveAll) saveAll.addEventListener('click', function () { if (saveMolBatch()) closeUpload(); });
+    const pubAll = $('#uploadPublishAll');
+    if (pubAll) pubAll.addEventListener('click', function () {
+      const recs = buildMolRecords();
+      if (recs.length) publishFromUpload(recs).then(function (ok) { if (ok) closeUpload(); });
+    });
+  }
+
+  function buildMolFromSingle(it) {
+    const name = (valueOf('mName') || it.name || '').trim();
+    if (!name) { showToast('请填写分子名称'); return null; }
+    return buildMoleculeRecord(it, {
+      seq: maxMolNumber() + 1,
+      name: name,
+      ref: valueOf('mRef'),
+      note: valueOf('mNote')
+    });
+  }
+
+  function buildMolRecords() {
+    const rows = $$('#batchBody tr[data-item]');
+    const ref = valueOf('mRef');
+    const note = valueOf('mNote');
+    const out = [];
+    let seq = maxMolNumber();
+
+    for (let i = 0; i < rows.length; i++) {
+      const tr = rows[i];
+      const idx = parseInt(tr.getAttribute('data-item'), 10);
+      const it = uploadState.items[idx];
+      if (!it) continue;
+      const nameEl = tr.querySelector('[data-field="name"]');
+      const name = nameEl ? String(nameEl.value || '').trim() : '';
+      if (!name) { showToast('有行未填写分子名称'); if (nameEl) nameEl.focus(); return []; }
+      seq++;
+      out.push(buildMoleculeRecord(it, { seq: seq, name: name, ref: ref, note: note }));
+    }
+    return out;
+  }
+
+  function saveMolSingle(it) {
+    const rec = buildMolFromSingle(it);
+    if (!rec) return false;
+    const drafts = loadDrafts();
+    drafts.push(rec);
+    if (!saveDrafts(drafts)) return false;
+    showToast('已保存到本地草稿：' + rec.name);
+    render();
+    return true;
+  }
+
+  function saveMolBatch() {
+    const recs = buildMolRecords();
+    if (!recs.length) return false;
+    const drafts = loadDrafts();
+    recs.forEach(function (r) { drafts.push(r); });
+    if (!saveDrafts(drafts)) return false;
+    showToast('已保存 ' + recs.length + ' 个小分子到本地草稿');
+    render();
+    return true;
+  }
+
   /* ============================ 导出 ============================ */
   function download(filename, content, mime) {
     const blob = new Blob([content], { type: mime || 'text/plain;charset=utf-8' });
@@ -3577,6 +4099,8 @@
       crumb.innerHTML = '<b>' + esc(cget('about.title', '关于我们')) + '</b>';
     } else if (state.view === 'whatWeDo') {
       crumb.innerHTML = '<b>' + esc(cget('whatWeDo.title', '我们做什么')) + '</b>';
+    } else if (state.view === 'molecules') {
+      crumb.innerHTML = '<b>' + esc(cget('molecules.title', '小分子性质')) + '</b>';
     } else {
       crumb.innerHTML = '<b>' + esc(cget('dashboard.title', '数据总览')) + '</b>';
     }
@@ -3597,6 +4121,8 @@
       renderAbout();
     } else if (state.view === 'whatWeDo') {
       renderWhatWeDo();
+    } else if (state.view === 'molecules') {
+      renderMolecules();
     } else {
       renderDashboard();
     }

@@ -28,6 +28,38 @@
     return isFinite(v) ? v : null;
   }
 
+  /* 解析「magnetization (x)」块，返回每个原子的总磁矩（μB）。
+     VASP 输出形如：
+        magnetization (x)
+        --------------------------------------
+          1     0.0000  0.000  0.000 ...
+         ...
+     每行第一个整数是原子序号，紧随其后的浮点数是该原子的总磁矩。 */
+  function parseMagPerAtom(text) {
+    const idx = text.lastIndexOf('magnetization (x)');
+    if (idx < 0) return [];
+
+    const lines = text.slice(idx).split(/\r?\n/);
+    const out = [];
+    let started = false;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+
+      if (!started) {
+        if (/^\s*-{5,}/.test(line)) started = true;
+        continue;
+      }
+      if (/^\s*-{5,}/.test(line)) break;             // 下一个分块
+      if (!line.trim()) { if (out.length) break; else continue; }
+
+      const m = line.match(/^\s*\d+\s+(-?\d+(?:\.\d+)?(?:[EeDd][-+]?\d+)?)/);
+      if (!m) { if (out.length) break; else continue; }
+      out.push(toFloat(String(m[1]).replace(/[Dd]/, 'E')));
+    }
+    return out;
+  }
+
   function parse(text) {
     const out = {
       ok: false,
@@ -40,7 +72,9 @@
       volume: null,           // 晶胞体积 (Å^3)
       nsw: null,
       ionicSteps: 0,
-      isVasp: false
+      isVasp: false,
+      magnetization: null,    // 总磁矩 (μB)
+      magPerAtom: []          // 每个原子的磁矩 (μB)
     };
 
     if (typeof text !== 'string' || !text.trim()) {
@@ -72,6 +106,16 @@
 
     const nsw = lastMatch(text, /NSW\s*=\s*(\d+)/g);
     if (nsw) out.nsw = parseInt(nsw[1], 10);
+
+    /* 总磁矩：优先取 "number of electron ... magnetization X"，再退回 "total magnetization" */
+    const mag = lastMatch(text, /number\s+of\s+electron\s+[-+]?\d+(?:\.\d+)?\s+magnetization\s+(-?\d+(?:\.\d+)?)/g);
+    if (mag) out.magnetization = toFloat(mag[1]);
+    if (out.magnetization === null) {
+      const mag2 = lastMatch(text, /total\s+magnetization\s*=\s*(-?\d+(?:\.\d+)?)/g);
+      if (mag2) out.magnetization = toFloat(mag2[1]);
+    }
+
+    out.magPerAtom = parseMagPerAtom(text);
 
     if (out.totalEnergy === null && out.energySigma0 !== null) {
       out.totalEnergy = out.energySigma0;
