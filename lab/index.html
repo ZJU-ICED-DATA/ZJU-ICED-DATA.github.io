@@ -123,7 +123,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   <div class="brand">🛡️ 实验室安全与设备管理<small>ZJU-ICED · 设备使用备案 / 夜间检查 / 月度统计</small></div>
   <div class="spacer"></div>
   <div class="clock"><b id="today"></b> <span id="clock"></span></div>
-  <span class="badge idle" id="modeBadge">未连接云端</span>
+  <span class="badge idle" id="modeBadge">加载中…</span>
+  <button class="btn sm hidden" id="syncBtn" title="把本机暂存的记录补交到云端">↻ 重试同步</button>
   <button class="btn sm" id="refreshBtn" title="重新读取云端数据">↻ 刷新</button>
   <button class="btn sm" id="settingsBtn">⚙ 设置</button>
 </div>
@@ -441,12 +442,21 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
   async function loadOptions() {
     var cfg = getCfg(), raw = null;
-    if (cloudOn()) {
+
+    /* 优先读 GitHub Pages 上的静态文件（同域名，不需要代理） */
+    try {
+      var r0 = await fetch('data/options.json?t=' + Date.now(), { cache: 'no-store' });
+      if (r0.ok) raw = await r0.json();
+    } catch (e) { /* 忽略 */ }
+
+    /* 再尝试 Worker */
+    if (!raw && cloudOn()) {
       try {
         var r = await fetch(cfg.api + '/api/options?t=' + Date.now());
         if (r.ok) { var j = await r.json(); raw = j.options || null; }
-      } catch (e) { /* 网络失败就用本机缓存 */ }
+      } catch (e) { /* 忽略 */ }
     }
+
     if (!raw) {
       try { raw = JSON.parse(localStorage.getItem('lab:options:v1') || 'null'); } catch (e) { raw = null; }
     }
@@ -495,28 +505,86 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     if (syncOk) toast('选项已保存');
   }
 
-  /* ---------------- 数据层（云端优先，本地兜底） ---------------- */
+  /* ---------------- 数据层 ----------------
+     读取：直接读 GitHub Pages 上的静态文件（同域名，不需要代理/梯子）
+     写入：POST 到 Cloudflare Worker，由它提交到 GitHub
+     写失败时先存本机「待同步」，网络恢复后可重试 */
+  var DATA_URL = 'data/records.json';
+  var PHOTO_URL = 'data/photos/';
+  var PENDING_KEY = 'lab:pending:v1';
+
+  function pendingAll() {
+    try { return JSON.parse(localStorage.getItem(PENDING_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function pendingSave(list) {
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify(list)); } catch (e) { /* 忽略 */ }
+  }
+  function pendingAdd(rec) {
+    var list = pendingAll().filter(function (x) { return x.id !== rec.id; });
+    list.push(rec);
+    pendingSave(list);
+  }
+  function pendingRemove(id) {
+    pendingSave(pendingAll().filter(function (x) { return x.id !== id; }));
+  }
+
+  async function fetchStaticRecords() {
+    var r = await fetch(DATA_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('读取数据文件失败（HTTP ' + r.status + '）');
+    var j = await r.json();
+    return Array.isArray(j) ? j : (j.records || []);
+  }
+
   var Store = {
     async list(from, to) {
-      var cfg = getCfg();
-      if (cloudOn()) {
-        try {
-          var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/list?from=' + encodeURIComponent(from) +
-            '&to=' + encodeURIComponent(to) + '&t=' + Date.now());
-          if (!r.ok) throw new Error('云端读取失败（' + r.status + '）');
-          var j = await r.json();
-          state.offline = false;
-          return j.records || [];
-        } catch (e) {
-          state.offline = true;
-          throw e;
+      var all;
+      try {
+        all = await fetchStaticRecords();
+        state.offline = false;
+      } catch (e) {
+        /* 静态文件读不到时，退回 Worker 接口，再退回本机 */
+        if (cloudOn()) {
+          try {
+            var r = await fetch(getCfg().api.replace(/\/+$/, '') + '/api/list?from=' + encodeURIComponent(from) +
+              '&to=' + encodeURIComponent(to) + '&t=' + Date.now());
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            var j = await r.json();
+            state.offline = false;
+            all = j.records || [];
+          } catch (e2) {
+            state.offline = true;
+            all = localAll();
+          }
+        } else {
+          all = localAll();
         }
       }
-      return localAll().filter(function (x) { return x.date >= from && x.date <= to; });
+
+      /* 合并本机「待同步」记录，保证刚提交的能立刻看到 */
+      var pending = pendingAll();
+      var merged = all.slice();
+      pending.forEach(function (p) {
+        if (!merged.some(function (x) { return x.id === p.id; })) merged.push(p);
+      });
+
+      return merged.filter(function (x) { return x.date >= from && x.date <= to; });
     },
+
     async submit(record, photos) {
       var cfg = getCfg();
-      if (cloudOn()) {
+      if (!cloudOn()) {
+        var localAllList = localAll();
+        localAllList.push(record);
+        localStorage.setItem(LS.records, JSON.stringify(localAllList));
+        if (photos && photos.length) {
+          var imgs = photoStore();
+          photos.forEach(function (p) { imgs[p.id] = p.dataUrl; });
+          try { localStorage.setItem('lab:photos:v1', JSON.stringify(imgs)); } catch (e) { /* 容量不足 */ }
+        }
+        return { ok: true, local: true };
+      }
+
+      try {
         var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -524,29 +592,45 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         });
         var j = null;
         try { j = await r.json(); } catch (e) { /* ignore */ }
-        if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('提交失败（' + r.status + '）'));
-        return true;
+        if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
+        pendingRemove(record.id);
+        state.offline = false;
+        return { ok: true };
+      } catch (e) {
+        /* 写不进去：先存本机，稍后重试 */
+        pendingAdd(record);
+        state.offline = true;
+        throw new Error(e.message + '（已暂存到本机，网络恢复后可点「重试同步」）');
       }
-      /* 本地模式 */
-      var all = localAll();
-      all.push(record);
-      localStorage.setItem(LS.records, JSON.stringify(all));
-      if (photos && photos.length) {
-        var imgs = photoStore();
-        photos.forEach(function (p) { imgs[p.id] = p.dataUrl; });
-        try { localStorage.setItem('lab:photos:v1', JSON.stringify(imgs)); } catch (e) { /* 容量不足 */ }
-      }
-      return true;
     },
+
     photoUrl(id) {
+      /* 照片也在 GitHub Pages 上，同域名可直接显示 */
+      return PHOTO_URL + id + '.jpg';
+    },
+
+    async retryPending() {
+      var list = pendingAll();
+      if (!list.length) return { ok: 0, fail: 0 };
       var cfg = getCfg();
-      if (cloudOn()) {
-        return cfg.api.replace(/\/+$/, '') + '/api/photo?id=' + encodeURIComponent(id);
+      var okCount = 0, failCount = 0;
+      for (var i = 0; i < list.length; i++) {
+        try {
+          var r = await fetch(cfg.api.replace(/\/+$/, '') + '/api/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ record: list[i], photos: [] })
+          });
+          var j = await r.json();
+          if (r.ok && j.ok) { pendingRemove(list[i].id); okCount++; }
+          else failCount++;
+        } catch (e) { failCount++; }
       }
-      var imgs = photoStore();
-      return imgs[id] || '';
+      return { ok: okCount, fail: failCount };
     }
   };
+
+  function pendingCount() { return pendingAll().length; }
 
   function localAll() {
     try { return JSON.parse(localStorage.getItem(LS.records) || '[]'); } catch (e) { return []; }
@@ -620,9 +704,13 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     $('#today').textContent = t.date + ' 周' + '日一二三四五六'.charAt(new Date(t.y + '-' + pad(t.m) + '-' + pad(t.d)).getDay());
     $('#clock').textContent = t.hm;
     var b = $('#modeBadge');
+    var pc = pendingCount();
+    var sb = $('#syncBtn');
+    if (sb) sb.classList.toggle('hidden', pc === 0);
+
     if (!cloudOn()) { b.className = 'warn badge'; b.textContent = '仅本机保存'; }
-    else if (state.offline) { b.className = 'badge err'; b.textContent = '离线 · 连不上云端'; }
-    else { b.className = 'badge ok'; b.textContent = '☁ 云端同步'; }
+    else if (pc > 0) { b.className = 'warn badge'; b.textContent = pc + ' 条待同步'; }
+    else { b.className = 'badge ok'; b.textContent = '☁ 已同步 GitHub'; }
     $('#ruleUsage').textContent = '21:00';
     $('#ruleCheck').textContent = '21:30';
   }
@@ -833,10 +921,11 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         $('#uEnd').value = '';
         await loadDay(date, true);
       } catch (err) {
-        toast('提交失败：' + err.message, 4200);
+        toast(err.message, 5200);
+        await loadDay(date, true).catch(function () { /* 忽略 */ });
       } finally {
         btn.disabled = false; btn.textContent = '提交备案';
-        renderUsageGate();
+        refreshAll();
       }
     });
   }
@@ -961,10 +1050,11 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         toast('检查记录已提交（' + date + ' ' + time + '），辛苦啦 🌙');
         await loadDay(date, true);
       } catch (err) {
-        toast('提交失败：' + err.message, 4200);
+        toast(err.message, 5200);
+        await loadDay(date, true).catch(function () { /* 忽略 */ });
       } finally {
         btn.disabled = false; btn.textContent = '提交检查记录';
-        renderCheckGate();
+        refreshAll();
       }
     });
   }
@@ -1077,6 +1167,21 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         toast('刷新失败：' + e.message);
       } finally {
         rf.disabled = false;
+      }
+    });
+
+    var sb = $('#syncBtn');
+    if (sb) sb.addEventListener('click', async function () {
+      sb.disabled = true;
+      try {
+        var r = await Store.retryPending();
+        toast(r.ok ? ('已同步 ' + r.ok + ' 条') : ('仍有 ' + r.fail + ' 条没同步成功'), 4000);
+        await loadDay(todayKey(), true);
+        refreshAll();
+      } catch (e) {
+        toast('同步失败：' + e.message);
+      } finally {
+        sb.disabled = false;
       }
     });
     var me = localStorage.getItem(LS.me);
