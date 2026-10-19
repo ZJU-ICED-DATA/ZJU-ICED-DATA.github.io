@@ -1,21 +1,4 @@
 {
  "updatedAt": "2026-10-19T10:51:01.016Z",
- "records": [
-  {
-   "id": "test_1792407059",
-   "type": "usage",
-   "date": "2026-10-19",
-   "name": "系统自检",
-   "device": "自动测试设备",
-   "hours": 1,
-   "endTime": "22:00",
-   "reaction": "端到端连通性测试",
-   "hazards": [
-    "高温"
-   ],
-   "note": "测试记录，稍后自动删除",
-   "createdAt": "2026-10-19T10:00:00.000Z",
-   "serverTime": "2026-10-19T10:51:00.630Z"
-  }
- ]
+ "records": []
 }
