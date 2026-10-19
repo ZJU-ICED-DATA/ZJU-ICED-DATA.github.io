@@ -20,6 +20,7 @@
    ========================================================================= */
 
 const RECORDS_PATH = 'lab/data/records.json';
+const OPTIONS_PATH = 'lab/data/options.json';
 const PHOTO_DIR = 'lab/data/photos/';
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 
@@ -73,6 +74,21 @@ export default {
         record.serverTime = new Date().toISOString();
         await appendRecord(env, record, files);
         return json({ ok: true, id: record.id, photos: files.length }, 200, cors);
+      }
+
+      if (url.pathname === '/api/options') {
+        if (request.method === 'GET') {
+          if (!checkCode(url.searchParams.get('code'), env)) return json({ ok: false, error: '实验室代码不正确' }, 401, cors);
+          const opts = await readJsonFile(env, OPTIONS_PATH, {});
+          return json({ ok: true, options: opts }, 200, cors);
+        }
+        if (request.method === 'POST') {
+          const body = await request.json();
+          if (!checkCode(body.code, env)) return json({ ok: false, error: '实验室代码不正确' }, 401, cors);
+          const opts = body.options || {};
+          await writeJsonFile(env, OPTIONS_PATH, JSON.stringify(opts, null, 1), '更新实验室选项（成员 / 设备 / 时长）');
+          return json({ ok: true }, 200, cors);
+        }
       }
 
       if (url.pathname === '/api/photo') {
@@ -138,6 +154,34 @@ function b64ToUtf8(b64) {
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return new TextDecoder().decode(bytes);
+}
+
+/* 读取一个 JSON 文件，不存在时返回默认值 */
+async function readJsonFile(env, path, fallback) {
+  const branch = env.BRANCH || 'main';
+  const r = await gh(env, repoPath(env, '/contents/' + path + '?ref=' + branch));
+  if (r.status === 404) return fallback;
+  if (!r.ok) throw new Error('读取失败：' + r.status);
+  const j = await r.json();
+  try { return JSON.parse(b64ToUtf8(j.content)); } catch (e) { return fallback; }
+}
+
+/* 写入/更新一个 JSON 文件（单文件，走 Contents API） */
+async function writeJsonFile(env, path, content, message) {
+  const branch = env.BRANCH || 'main';
+  let sha;
+  const cur = await gh(env, repoPath(env, '/contents/' + path + '?ref=' + branch));
+  if (cur.ok) sha = (await cur.json()).sha;
+
+  const body = { message, content: b64utf8(content), branch };
+  if (sha) body.sha = sha;
+
+  const r = await gh(env, repoPath(env, '/contents/' + path), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('写入失败：' + r.status);
 }
 
 async function appendRecord(env, record, files) {

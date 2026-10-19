@@ -131,6 +131,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   <button class="tab active" data-tab="usage"><span class="dot"></span>① 今晚备案</button>
   <button class="tab" data-tab="check"><span class="dot"></span>② 夜间检查</button>
   <button class="tab" data-tab="stats"><span class="dot"></span>③ 记录与统计</button>
+  <button class="tab" data-tab="options"><span class="dot"></span>④ 选项管理</button>
 </div>
 
 <main>
@@ -139,16 +140,22 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     <div class="card">
       <h2>设备使用备案</h2>
       <div class="sub">每天晚上 <b id="ruleUsage">21:00</b> 开放填写，登记今晚要用的设备、时长、反应内容与危险源。</div>
-      <div class="gate" id="usageGate"><span class="ic">🌙</span><span id="usageGateText">加载中…</span></div>
+      <div class="gate" id="usageGate"><span class="ic">🌙</span><span id="usageGateText">加载中…</span><button type="button" class="btn sm" id="usageGateBtn" style="margin-left:auto">临时开放</button></div>
 
       <form id="usageForm">
         <div class="row">
-          <label class="f"><span>姓名 <em>*</em></span><input type="text" id="uName" placeholder="你的名字" required autocomplete="name" /></label>
-          <label class="f"><span>设备名称 <em>*</em></span><input type="text" id="uDevice" list="deviceList" placeholder="如：管式炉 3 号 / 高压反应釜 A" required /><datalist id="deviceList"></datalist></label>
+          <label class="f"><span>姓名 <em>*</em></span>
+            <select id="uName"></select>
+            <input type="text" id="uNameOther" class="hidden" style="margin-top:6px" placeholder="输入姓名" />
+          </label>
+          <label class="f"><span>设备名称 <em>*</em></span>
+            <select id="uDevice"></select>
+            <input type="text" id="uDeviceOther" class="hidden" style="margin-top:6px" placeholder="输入设备名称" />
+          </label>
         </div>
         <div class="row">
-          <label class="f"><span>预计使用时长（小时） <em>*</em></span><input type="number" id="uHours" min="0.5" max="24" step="0.5" placeholder="如 4" required /></label>
-          <label class="f"><span>预计结束时间</span><input type="text" id="uEnd" placeholder="如 23:30（可留空）" /></label>
+          <label class="f"><span>使用时长（小时） <em>*</em></span><select id="uHours"></select></label>
+          <label class="f"><span>预计结束时间（自动计算）</span><input type="text" id="uEnd" readonly placeholder="选择时长后自动生成" /></label>
         </div>
         <label class="f"><span>做什么反应 / 实验内容 <em>*</em></span><textarea id="uReaction" placeholder="如：甲烷干重整，600 ℃，CH4/CO2 混合气" required></textarea></label>
         <label class="f"><span>潜在危险源分类（可多选）</span></label>
@@ -184,7 +191,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     <div class="card">
       <h2>夜间安全检查</h2>
       <div class="sub">每晚 <b id="ruleCheck">21:30</b> 开放。最后一个离开实验室的同学完成检查，对备案装置拍照，署名提交。</div>
-      <div class="gate" id="checkGate"><span class="ic">🔦</span><span id="checkGateText">加载中…</span></div>
+      <div class="gate" id="checkGate"><span class="ic">🔦</span><span id="checkGateText">加载中…</span><button type="button" class="btn sm" id="checkGateBtn" style="margin-left:auto">临时开放</button></div>
 
       <div id="checkDone" class="hidden">
         <div class="item" style="border-color:var(--ok);background:var(--ok-bg)">
@@ -214,7 +221,10 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         </div>
         <label class="f" id="issueWrap" style="display:none"><span>异常描述 <em>*</em></span><textarea id="cIssue" placeholder="说明哪一项异常、如何处理、是否已上报"></textarea></label>
         <div class="row">
-          <label class="f"><span>检查人署名 <em>*</em></span><input type="text" id="cName" placeholder="你的名字" required /></label>
+          <label class="f"><span>检查人署名 <em>*</em></span>
+            <select id="cName"></select>
+            <input type="text" id="cNameOther" class="hidden" style="margin-top:6px" placeholder="输入姓名" />
+          </label>
           <label class="f"><span>离开时间</span><input type="text" id="cTime" readonly /></label>
         </div>
         <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:14px;font-size:13px;color:#475569">
@@ -243,6 +253,24 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       <h2>检查记录明细</h2>
       <div class="sub">点击可查看照片。</div>
       <div class="list" id="statList"><div class="empty">暂无记录</div></div>
+    </div>
+  </section>
+
+  <!-- ================= 选项管理 ================= -->
+  <section id="tab-options" class="hidden">
+    <div class="card">
+      <h2>选项管理</h2>
+      <div class="sub">这里维护下拉框的内容：成员名单（姓名 / 检查人）、设备清单、使用时长。每行一项，保存后全组同步（需先填实验室代码）。</div>
+      <div class="row">
+        <label class="f"><span>成员名单（每行一个）</span><textarea id="optNames" rows="5" placeholder="张三&#10;李四"></textarea></label>
+        <label class="f"><span>使用时长（每行一个，单位小时）</span><textarea id="optHours" rows="5" placeholder="1&#10;2&#10;4&#10;6"></textarea></label>
+      </div>
+      <label class="f"><span>设备清单（每行一个）</span><textarea id="optDevices" rows="7" placeholder="管式炉 1 号&#10;高压反应釜 A&#10;气相色谱"></textarea></label>
+      <div class="row" style="align-items:center">
+        <button class="btn primary" id="optSave">保存选项</button>
+        <button class="btn" id="optReload">重新读取</button>
+        <span class="badge idle" id="optState">未加载</span>
+      </div>
     </div>
   </section>
 
@@ -332,6 +360,152 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   function setCfg(c) { localStorage.setItem(LS.cfg, JSON.stringify(c)); }
   function cloudOn() { var c = getCfg(); return !!(c.api && c.code); }
 
+  /* ---------------- 下拉选项（可在「④ 选项管理」里改） ---------------- */
+  var DEFAULT_OPTIONS = {
+    names: [],
+    devices: ['管式炉 1 号', '管式炉 2 号', '马弗炉', '高压反应釜 A', '旋转蒸发仪', '气相色谱', '液相色谱', '电化学工作站', '手套箱'],
+    durations: [0.5, 1, 1.5, 2, 3, 4, 5, 6, 8, 10, 12]
+  };
+
+  function cleanList(v) {
+    if (!Array.isArray(v)) return [];
+    var seen = {}, out = [];
+    v.forEach(function (x) {
+      var s = String(x == null ? '' : x).trim();
+      if (!s || seen[s]) return;
+      seen[s] = 1; out.push(s);
+    });
+    return out;
+  }
+
+  function normalizeOptions(o) {
+    o = o || {};
+    var d = cleanList(o.durations).map(Number).filter(function (n) { return isFinite(n) && n > 0 && n <= 24; });
+    var dev = cleanList(o.devices);
+    return {
+      names: cleanList(o.names),
+      devices: dev.length ? dev : DEFAULT_OPTIONS.devices.slice(),
+      durations: d.length ? d : DEFAULT_OPTIONS.durations.slice()
+    };
+  }
+
+  function fillSelect(sel, items, placeholder, otherLabel) {
+    if (!sel) return;
+    var html = '<option value="">' + esc(placeholder || '请选择…') + '</option>';
+    items.forEach(function (it) {
+      html += '<option value="' + esc(it.value) + '">' + esc(it.label) + '</option>';
+    });
+    html += '<option value="__other__">' + esc(otherLabel || '＋ 其他（手动输入）') + '</option>';
+    sel.innerHTML = html;
+  }
+
+  function readPick(selId, inputId) {
+    var sel = document.getElementById(selId);
+    if (!sel) return '';
+    if (sel.value === '__other__') {
+      var inp = document.getElementById(inputId);
+      return inp ? inp.value.trim() : '';
+    }
+    return sel.value;
+  }
+
+  function bindPick(selId, inputId) {
+    var sel = document.getElementById(selId);
+    var inp = document.getElementById(inputId);
+    if (!sel || !inp) return;
+    sel.addEventListener('change', function () {
+      var other = sel.value === '__other__';
+      inp.classList.toggle('hidden', !other);
+      if (other) inp.focus(); else inp.value = '';
+    });
+  }
+
+  function renderOptionSelects() {
+    var o = state.options || normalizeOptions(DEFAULT_OPTIONS);
+    fillSelect($('#uName'), o.names.map(function (n) { return { value: n, label: n }; }), '请选择姓名…', '＋ 其他（新成员）');
+    fillSelect($('#cName'), o.names.map(function (n) { return { value: n, label: n }; }), '请选择检查人…', '＋ 其他（新成员）');
+    fillSelect($('#uDevice'), o.devices.map(function (d) { return { value: d, label: d }; }), '请选择设备…', '＋ 其他（新设备）');
+    fillSelect($('#uHours'), o.durations.map(function (h) { return { value: h, label: h + ' 小时' }; }), '请选择时长…');
+
+    var me = localStorage.getItem(LS.me);
+    if (me) {
+      [$('#uName'), $('#cName')].forEach(function (s) {
+        if (s && Array.prototype.some.call(s.options, function (op) { return op.value === me; })) s.value = me;
+      });
+    }
+  }
+
+  function renderOptionsForm() {
+    var o = state.options || normalizeOptions(DEFAULT_OPTIONS);
+    if ($('#optNames')) $('#optNames').value = o.names.join('\n');
+    if ($('#optDevices')) $('#optDevices').value = o.devices.join('\n');
+    if ($('#optHours')) $('#optHours').value = o.durations.join('\n');
+  }
+
+  async function loadOptions() {
+    var cfg = getCfg(), raw = null;
+    if (cloudOn()) {
+      try {
+        var r = await fetch(cfg.api + '/api/options?code=' + encodeURIComponent(cfg.code));
+        if (r.ok) { var j = await r.json(); raw = j.options || null; }
+      } catch (e) { /* 网络失败就用本机缓存 */ }
+    }
+    if (!raw) {
+      try { raw = JSON.parse(localStorage.getItem('lab:options:v1') || 'null'); } catch (e) { raw = null; }
+    }
+    state.options = normalizeOptions(raw || DEFAULT_OPTIONS);
+    renderOptionSelects();
+    renderOptionsForm();
+  }
+
+  function lines(text) {
+    return String(text || '').split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+  }
+
+  async function saveOptions() {
+    var opts = {
+      names: lines($('#optNames').value),
+      devices: lines($('#optDevices').value),
+      durations: lines($('#optHours').value).map(Number).filter(function (n) { return isFinite(n) && n > 0 && n <= 24; })
+    };
+    if (!opts.devices.length) { toast('设备清单不能为空'); return; }
+    if (!opts.durations.length) { toast('至少要有一个使用时长'); return; }
+
+    localStorage.setItem('lab:options:v1', JSON.stringify(opts));
+    var cfg = getCfg();
+    var syncOk = true;
+
+    if (cloudOn()) {
+      try {
+        var r = await fetch(cfg.api + '/api/options', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: cfg.code, options: opts })
+        });
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+      } catch (e) {
+        syncOk = false;
+        toast('已存到本机，但云端同步失败：' + e.message, 4500);
+      }
+    }
+
+    state.options = normalizeOptions(opts);
+    renderOptionSelects();
+    renderOptionsForm();
+
+    var st = $('#optState');
+    st.className = 'badge ' + (syncOk ? 'ok' : 'warn');
+    st.textContent = syncOk ? ('已保存 ' + now().hm) : '仅本机生效';
+    if (syncOk) toast('选项已保存');
+  }
+
+  /* ---------------- 时间门禁开关 ---------------- */
+  function setForceOpen(on) {
+    if (on) localStorage.setItem('lab:forceOpen', '1');
+    else localStorage.removeItem('lab:forceOpen');
+    refreshAll();
+    toast(on ? '已临时开放（记得用完关掉）' : '已恢复按时间开放');
+  }
+
   /* ---------------- 数据层（云端优先，本地兜底） ---------------- */
   var Store = {
     async list(from, to) {
@@ -416,7 +590,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   }
 
   /* ---------------- 状态 ---------------- */
-  var state = { tab: 'usage', today: null, usage: [], checks: [], photos: {}, devicePool: [] };
+  var state = { tab: 'usage', today: null, usage: [], checks: [], photos: {}, devicePool: [], options: null };
 
   function todayKey() { return now().date; }
 
@@ -457,17 +631,17 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         '</div>';
     }).join('');
 
-    var set = {};
-    state.usage.forEach(function (r) { if (r.device) set[r.device] = 1; });
-    $('#deviceList').innerHTML = Object.keys(set).map(function (d) { return '<option value="' + esc(d) + '">'; }).join('');
+    /* 设备清单由「选项管理」维护，这里不再动态生成 datalist */
   }
 
   function renderUsageGate() {
     var t = now(), can = canSubmitUsage(t), el = $('#usageGate'), txt = $('#usageGateText');
+    var btn = $('#usageGateBtn');
+    if (btn) btn.textContent = forceOpen() ? '关闭临时开放' : '临时开放';
     if (can) {
       el.style.borderStyle = 'solid'; el.style.background = 'var(--ok-bg)'; el.style.color = 'var(--ok)';
       txt.innerHTML = forceOpen()
-        ? '已临时开放（忽略时间限制，可在「设置」里关闭）。'
+        ? '已临时开放（忽略时间限制，点右侧按钮可关闭）。'
         : '现在可以填写（开放时间 21:00 – 23:59）。';
       $('#uSubmit').disabled = false;
     } else {
@@ -481,6 +655,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   function renderCheckGate() {
     var t = now(), can = canSubmitCheck(t);
     var el = $('#checkGate'), txt = $('#checkGateText');
+    var btn = $('#checkGateBtn');
+    if (btn) btn.textContent = forceOpen() ? '关闭临时开放' : '临时开放';
     if (can) {
       el.style.borderStyle = 'solid'; el.style.background = 'var(--ok-bg)'; el.style.color = 'var(--ok)';
       txt.innerHTML = forceOpen()
@@ -623,11 +799,11 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       var t = now();
       if (!canSubmitUsage(t)) { toast('还没到开放时间（21:00 起）'); return; }
 
-      var name = $('#uName').value.trim();
-      var device = $('#uDevice').value.trim();
+      var name = readPick('uName', 'uNameOther');
+      var device = readPick('uDevice', 'uDeviceOther');
       var hours = parseFloat($('#uHours').value);
       var reaction = $('#uReaction').value.trim();
-      if (!name || !device || !reaction) { toast('请填写姓名、设备与实验内容'); return; }
+      if (!name || !device || !reaction) { toast('请选择姓名、设备并填写实验内容'); return; }
       if (!hours || hours <= 0 || hours > 24) { toast('请填写合理的时长（0.5–24 小时）'); return; }
 
       var hazards = $$('#uHazards .chip').filter(function (b) { return b.getAttribute('aria-pressed') === 'true'; })
@@ -732,8 +908,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       var t = now();
       if (!canSubmitCheck(t)) { toast('还没到检查开放时间（21:30 起）'); return; }
 
-      var name = $('#cName').value.trim();
-      if (!name) { toast('请填写检查人姓名'); return; }
+      var name = readPick('cName', 'cNameOther');
+      if (!name) { toast('请选择检查人姓名'); return; }
       if (!$('#cConfirm').checked) { toast('请勾选确认已实地检查'); return; }
 
       var checks = {};
@@ -848,14 +1024,28 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     });
   }
 
+  /* ---------------- 预计结束时间：现在 + 时长 ---------------- */
+  function computeEnd() {
+    var el = $('#uEnd'), sel = $('#uHours');
+    if (!el || !sel) return;
+    var h = parseFloat(sel.value);
+    if (!h) { el.value = ''; return; }
+    var t = now();
+    var total = t.minutes + Math.round(h * 60);
+    var nextDay = total >= 1440;
+    var rem = total % 1440;
+    el.value = pad(Math.floor(rem / 60)) + ':' + pad(rem % 60) + (nextDay ? '（次日）' : '');
+  }
+
   /* ---------------- 标签页 ---------------- */
   function showTab(name) {
     state.tab = name;
     $$('.tab').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-tab') === name); });
-    ['usage', 'check', 'stats'].forEach(function (k) {
+    ['usage', 'check', 'stats', 'options'].forEach(function (k) {
       $('#tab-' + k).classList.toggle('hidden', k !== name);
     });
     if (name === 'stats') renderStats();
+    if (name === 'options') { renderOptionsForm(); }
   }
 
   function refreshAll() {
@@ -865,12 +1055,19 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     renderUsageList();
     renderPhotoTargets();
     renderCheckDone();
+    computeEnd();
   }
 
   /* ---------------- 启动 ---------------- */
   function boot() {
     var me = localStorage.getItem(LS.me);
-    if (me) { $('#uName').value = me; $('#cName').value = me; }
+    if (me) {
+      setTimeout(function () {
+        var s1 = $('#uName'), s2 = $('#cName');
+        if (s1 && Array.prototype.some.call(s1.options, function (o) { return o.value === me; })) s1.value = me;
+        if (s2 && Array.prototype.some.call(s2.options, function (o) { return o.value === me; })) s2.value = me;
+      }, 50);
+    }
     $('#cTime').value = now().hm;
 
     $$('.tab').forEach(function (b) {
@@ -882,13 +1079,36 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     bindStats();
     bindSettings();
 
+    /* 下拉框与自动结束时间 */
+    bindPick('uName', 'uNameOther');
+    bindPick('uDevice', 'uDeviceOther');
+    bindPick('cName', 'cNameOther');
+
+    var hoursSel = $('#uHours');
+    if (hoursSel) hoursSel.addEventListener('change', computeEnd);
+
+    /* 门禁「临时开放」按钮 */
+    var ub = $('#usageGateBtn');
+    if (ub) ub.addEventListener('click', function () { setForceOpen(!forceOpen()); });
+    var cb = $('#checkGateBtn');
+    if (cb) cb.addEventListener('click', function () { setForceOpen(!forceOpen()); });
+
+    /* 选项管理 */
+    var os = $('#optSave');
+    if (os) os.addEventListener('click', saveOptions);
+    var orl = $('#optReload');
+    if (orl) orl.addEventListener('click', function () { loadOptions().then(function () { toast('已重新读取'); }); });
+
     /* 默认勾选四项正常 */
     $$('#checksBox .check').forEach(function (row) {
       $('.seg button.good', row).setAttribute('aria-pressed', 'true');
     });
 
     refreshAll();
-    loadToday().then(refreshAll);
+    loadOptions().then(function () {
+      refreshAll();
+      return loadToday();
+    }).then(refreshAll);
 
     /* 每分钟刷新时钟与门禁 */
     setInterval(function () {
