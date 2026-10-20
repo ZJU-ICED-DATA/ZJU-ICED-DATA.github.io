@@ -159,8 +159,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   <button class="tab active" data-tab="usage"><span class="dot"></span>① 今晚备案</button>
   <button class="tab" data-tab="check"><span class="dot"></span>② 夜间检查</button>
   <button class="tab" data-tab="stats"><span class="dot"></span>③ 记录与统计</button>
-  <button class="tab" data-tab="options"><span class="dot"></span>④ 选项管理</button>
-  <button class="tab" data-tab="admin"><span class="dot"></span>⑤ 数据管理</button>
+  <button class="tab" data-tab="admin"><span class="dot"></span>④ 数据管理</button>
 </div>
 
 <main>
@@ -285,24 +284,6 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     </div>
   </section>
 
-  <!-- ================= 选项管理 ================= -->
-  <section id="tab-options" class="hidden">
-    <div class="card">
-      <h2>选项管理</h2>
-      <div class="sub">这里维护下拉框的内容：成员名单（姓名 / 检查人）、设备清单、使用时长。每行一项，保存后全组同步。</div>
-      <div class="row">
-        <label class="f"><span>成员名单（每行一个）</span><textarea id="optNames" rows="5" placeholder="张三&#10;李四"></textarea></label>
-        <label class="f"><span>使用时长（每行一个，单位小时；写「长期」表示不设结束时间）</span><textarea id="optHours" rows="5" placeholder="1&#10;2&#10;4&#10;6&#10;长期"></textarea></label>
-      </div>
-      <label class="f"><span>设备清单（每行一个）</span><textarea id="optDevices" rows="7" placeholder="管式炉 1 号&#10;高压反应釜 A&#10;气相色谱"></textarea></label>
-      <div class="row" style="align-items:center">
-        <button class="btn primary" id="optSave">保存选项</button>
-        <button class="btn" id="optReload">重新读取</button>
-        <span class="badge idle" id="optState">未加载</span>
-      </div>
-    </div>
-  </section>
-
   <!-- ================= 数据管理 ================= -->
   <section id="tab-admin" class="hidden">
     <div class="card" id="adminLoginCard">
@@ -336,6 +317,21 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
         </div>
         <div id="admState" class="muted" style="font-size:12.5px;margin-bottom:8px"></div>
         <div class="table-scroll"><table class="tb" id="admTable"></table></div>
+      </div>
+
+      <div class="card">
+        <h2>选项管理</h2>
+        <div class="sub">维护下拉框内容：成员名单、设备清单、使用时长。每行一项，保存后全组同步。</div>
+        <div class="row">
+          <label class="f"><span>成员名单（每行一个）</span><textarea id="optNames" rows="5" placeholder="张三&#10;李四"></textarea></label>
+          <label class="f"><span>使用时长（每行一个，单位小时；写「长期」表示不设结束时间）</span><textarea id="optHours" rows="5" placeholder="1&#10;2&#10;4&#10;6&#10;长期"></textarea></label>
+        </div>
+        <label class="f"><span>设备清单（每行一个）</span><textarea id="optDevices" rows="7" placeholder="管式炉 1 号&#10;高压反应釜 A&#10;气相色谱"></textarea></label>
+        <div class="row" style="align-items:center">
+          <button class="btn primary" id="optSave">保存选项</button>
+          <button class="btn" id="optReload">重新读取</button>
+          <span class="badge idle" id="optState">未加载</span>
+        </div>
       </div>
     </div>
   </section>
@@ -1674,6 +1670,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       login.classList.add('hidden');
       panel.classList.remove('hidden');
       loadAdminRecords();
+      renderOptionsForm();
     } else {
       login.classList.remove('hidden');
       panel.classList.add('hidden');
@@ -2092,11 +2089,10 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
   function showTab(name) {
     state.tab = name;
     $$('.tab').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-tab') === name); });
-    ['usage', 'check', 'stats', 'options', 'admin'].forEach(function (k) {
+    ['usage', 'check', 'stats', 'admin'].forEach(function (k) {
       $('#tab-' + k).classList.toggle('hidden', k !== name);
     });
     if (name === 'stats') renderStats();
-    if (name === 'options') { renderOptionsForm(); }
     if (name === 'admin') renderAdmin();
   }
 
