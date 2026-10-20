@@ -1061,7 +1061,26 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     }
   }
 
-  /* 仍在运行（未封存）的备案：今天的 + 之前提交但仍未封存的（含长期） */
+  /* 仍在运行（未结束、未封存）的备案：需要夜间检查的那些 */
+  function runningUsage() {
+    var nowMs = Date.now();
+    return (state.windowUsage || []).filter(function (r) {
+      return !isSealed(r) && !isFinished(r) && shMs(r.date, r.time) <= nowMs;
+    }).sort(function (a, b) {
+      return (b.date + b.time).localeCompare(a.date + a.time);
+    });
+  }
+
+  /* 已经跑完、但还没到封存时间的（今天内结束的） */
+  function finishedUsage() {
+    return (state.windowUsage || []).filter(function (r) {
+      return !isSealed(r) && isFinished(r);
+    }).sort(function (a, b) {
+      return (b.date + b.time).localeCompare(a.date + a.time);
+    });
+  }
+
+  /* 兼容旧调用：所有「未封存」的 */
   function activeUsage() {
     var nowMs = Date.now();
     return (state.windowUsage || []).filter(function (r) {
@@ -1121,7 +1140,8 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     var all = state.windowUsage || [];
     var today = todayKey();
 
-    var active = activeUsage();
+    var running = runningUsage();
+    var done = finishedUsage();
     var recentFrom = shiftDate(today, -6);
     var sealedRecent = all.filter(function (r) {
       return isSealed(r) && r.date >= recentFrom && r.date <= today;
@@ -1131,16 +1151,22 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
       return isSealed(r) && r.date < recentFrom;
     }).length;
 
-    $('#uCount').textContent = '运行中 ' + active.length + ' 条' +
-      (sealedRecent.length ? ' · 近期已封存 ' + sealedRecent.length + ' 条' : '');
+    $('#uCount').textContent = '运行中 ' + running.length + ' 条' +
+      (done.length ? ' · 已完成待封存 ' + done.length + ' 条' : '') +
+      (sealedRecent.length ? ' · 已封存 ' + sealedRecent.length + ' 条' : '');
 
     var parts = [];
 
-    parts.push('<div class="list-head">正在进行（需要备案检查）<b>' + active.length + '</b></div>');
-    if (active.length) {
-      parts.push(active.map(function (r) { return usageItemHtml(r, false); }).join(''));
+    parts.push('<div class="list-head">运行中（需要备案检查）<b>' + running.length + '</b></div>');
+    if (running.length) {
+      parts.push(running.map(function (r) { return usageItemHtml(r, false); }).join(''));
     } else {
       parts.push('<div class="empty">目前没有正在运行的备案</div>');
+    }
+
+    if (done.length) {
+      parts.push('<div class="list-head" style="margin-top:16px">运行已完成 · 待封存（次日 12:00 归档）<b>' + done.length + '</b></div>');
+      parts.push(done.map(function (r) { return usageItemHtml(r, true); }).join(''));
     }
 
     if (sealedRecent.length) {
@@ -1183,7 +1209,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
   function renderPhotoTargets() {
     var host = $('#photoTargets');
-    var list = activeUsage();
+    var list = runningUsage();
 
     if (!list.length) {
       host.innerHTML = '<div class="empty">目前没有正在运行的备案，可只做整体检查。</div>';
@@ -1540,7 +1566,7 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
 
       var photosPayload = [];
       var photoIds = [];
-      var usage = activeUsage();
+      var usage = runningUsage();
       var photoMeta = [];
       usage.forEach(function (r) {
         (state.photos[r.id] || []).forEach(function (dataUrl) {
@@ -2033,9 +2059,25 @@ table.tb td.num,table.tb th.num{text-align:right;font-variant-numeric:tabular-nu
     return s !== null && Date.now() >= s;
   }
 
+  /* 运行是否已经结束（到点就算，不管封没封存） */
+  function endTimeMs(rec) {
+    if (!rec || isLongTerm(rec)) return null;
+    var h = parseFloat(rec.hours);
+    if (!isFinite(h) || h <= 0) return null;
+    var start = shMs(rec.date, rec.time);
+    if (!isFinite(start)) return null;
+    return start + Math.round(h * 3600 * 1000);
+  }
+
+  function isFinished(rec) {
+    var e = endTimeMs(rec);
+    return e !== null && Date.now() >= e;
+  }
+
   function runStatus(rec) {
     if (isLongTerm(rec)) return { key: 'long', label: '长期运行', cls: 'ok' };
     if (isSealed(rec)) return { key: 'sealed', label: '已封存', cls: 'idle' };
+    if (isFinished(rec)) return { key: 'done', label: '运行已完成', cls: 'ok' };
     return { key: 'active', label: '运行中', cls: 'warn' };
   }
 
