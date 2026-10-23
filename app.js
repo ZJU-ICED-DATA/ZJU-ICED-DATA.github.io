@@ -1,7 +1,7 @@
 /* =========================================================================
    app.js — ZJU-ICED 催化剂 DFT 数据库 前端应用
    -------------------------------------------------------------------------
-   · 数据：data.js 正式条目 + 浏览器本地草稿（上传产生）
+   · 数据：data.js 正式条目（上传后直接发布到仓库）
    · 文案：content.js，可在「内容管理」页面修改并导出
    · 计算：上传的 CIF 在本地解析结构，OUTCAR 在本地解析总能
    ========================================================================= */
@@ -279,7 +279,6 @@
   }
 
   /* ============================ 常量 ============================ */
-  const DRAFT_KEY = 'iced-db:drafts:v1';
   const CONTENT_KEY = 'iced-db:content:v1';
   const PAGE_SIZE = 10;
   const PALETTE = ['#2b7ac4', '#e8710a', '#31a354', '#7b5ea7', '#d64550', '#00a3b5', '#b5921a', '#8a5a44'];
@@ -344,26 +343,9 @@
   }
 
   /* ============================ 数据层 ============================ */
-  function loadDrafts() {
-    try {
-      const raw = localStorage.getItem(DRAFT_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
-    } catch (e) { return []; }
-  }
-
-  function saveDrafts(list) {
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(list));
-      return true;
-    } catch (e) {
-      showToast('本地存储空间不足，草稿未能保存');
-      return false;
-    }
-  }
-
+  /* 上传必须直接发布到仓库，不再有"本地草稿"，避免以为存上了其实没上线。 */
   function curated() { return Array.isArray(window.CATALYST_DATA) ? window.CATALYST_DATA : []; }
-  function allRecords() { return loadDrafts().concat(curated()); }
+  function allRecords() { return curated(); }
 
   /* 「小分子」与「催化剂」共用同一个数据文件，用 kind 区分 */
   function isMolecule(d) { return !!d && d.kind === 'molecule'; }
@@ -675,7 +657,6 @@
     if (!nav) return;
     const rows = catalystRecords();
     const counts = countByReaction(rows);
-    const drafts = loadDrafts();
     const parts = [];
 
     parts.push('<div class="nav-section">' + esc(cget('site.navWorkspace', '工作区')) + '</div>');
@@ -703,7 +684,6 @@
     const status = $('#sidebarStatus');
     if (status) {
       status.innerHTML =
-        '<div class="status-row"><span>本地草稿</span><b>' + drafts.length + '</b></div>' +
         '<div class="status-row"><span>数据来源</span><b>' + (hasLocalContent() ? '本地内容' : '静态站点') + '</b></div>';
     }
 
@@ -1051,7 +1031,7 @@
         const cells = cols.map(function (c) {
           let val;
           if (c.key === 'formula') {
-            val = esc(d.formula || '—') + (d.source === 'draft' ? '<span class="tag-draft">本地</span>' : '');
+            val = esc(d.formula || '—');
           } else if (c.render) {
             val = c.render(d);
           } else {
@@ -1295,11 +1275,7 @@
       '<div class="source-row"><span class="source-tag">' + esc((src.data || {}).tag || 'CURATED') + '</span>' +
       '<div class="source-main"><div class="source-name">' + esc((src.data || {}).name || 'data.js') + '</div>' +
       '<div class="source-desc">' + esc((src.data || {}).desc || '') + '</div></div>' +
-      '<span class="source-count">' + curated().length + '</span></div>' +
-      '<div class="source-row"><span class="source-tag">' + esc((src.draft || {}).tag || 'LOCAL') + '</span>' +
-      '<div class="source-main"><div class="source-name">' + esc((src.draft || {}).name || '本地草稿') + '</div>' +
-      '<div class="source-desc">' + esc((src.draft || {}).desc || '') + '</div></div>' +
-      '<span class="source-count">' + loadDrafts().length + '</span></div>';
+      '<span class="source-count">' + curated().length + '</span></div>';
 
     const counts = countByReaction(rows);
     const cards = REACTIONS.map(function (r) {
@@ -1643,7 +1619,7 @@
     host.innerHTML =
       '<div class="detail-card">' +
       '<div class="detail-head">' +
-      '<div><h3>' + esc(d.name || d.formula || '小分子') + (d.source === 'draft' ? '<span class="tag-draft">本地</span>' : '') + '</h3>' +
+      '<div><h3>' + esc(d.name || d.formula || '小分子') + '</h3>' +
       '<div class="sub">' + esc(d.id || '') + (s ? ' · ' + esc(s.file || '') : '') + '</div></div>' +
       '<button class="btn btn-mini" id="detailClose">收起</button></div>' +
 
@@ -2394,7 +2370,7 @@
   }
 
   /* ============================ 视图：数据管理 ============================ */
-  const manage = { cloudSel: {}, draftSel: {} };
+  const manage = { cloudSel: {} };
 
   function adminTabs(active) {
     return '<div class="admin-tabs">' +
@@ -2411,7 +2387,7 @@
   }
 
   function selOf(source) {
-    return source === 'cloud' ? manage.cloudSel : manage.draftSel;
+    return manage.cloudSel;
   }
 
   function selectedIds(source) {
@@ -2450,15 +2426,12 @@
   }
 
   function managePanel(source, records) {
-    const isCloud = source === 'cloud';
     const selCount = selectedIds(source).length;
-    const canCloud = !!loadPublish();
     const selDis = selCount ? '' : ' disabled';
 
     return '<div class="panel" data-manage="' + source + '">' +
-      '<div class="panel-head"><div class="panel-title">' +
-      (isCloud ? '云端数据（已提交到服务器）' : '本地草稿（仅当前浏览器）') + '</div>' +
-      '<span class="pill ' + (isCloud ? 'pill-ok' : 'pill-idle') + '">' + records.length + ' 条</span></div>' +
+      '<div class="panel-head"><div class="panel-title">云端数据（已提交到仓库）</div>' +
+      '<span class="pill pill-ok">' + records.length + ' 条</span></div>' +
       '<div class="manage-toolbar">' +
       '<label class="sel-all"><input type="checkbox" data-all="' + source + '"' +
       (records.length && selCount === records.length ? ' checked' : '') + (records.length ? '' : ' disabled') + ' /> 全选</label>' +
@@ -2466,8 +2439,7 @@
       '<button class="btn btn-mini" data-batch="' + source + '"' + selDis + '>批量修改</button>' +
       '<button class="btn btn-mini btn-danger" data-batchdel="' + source + '"' + selDis + '>删除选中</button>' +
       '<button class="btn btn-mini btn-danger" data-clear="' + source + '"' +
-      (records.length ? '' : ' disabled') + '>' + (isCloud ? '清空云端' : '清空本地草稿') + '</button>' +
-      (isCloud && !canCloud ? '<span class="muted" style="font-size:11.5px">云端改动需要先在内容管理里配置发布地址</span>' : '') +
+      (records.length ? '' : ' disabled') + '>清空云端</button>' +
       '</div>' +
       (records.length
         ? '<div class="table-wrap"><table class="manage-table"><thead><tr>' +
@@ -2481,21 +2453,17 @@
   function renderAdminData() {
     if (!isAuthed()) { renderLogin(); return; }
     const cloud = curated();
-    const drafts = loadDrafts();
     pruneSelection(manage.cloudSel, cloud);
-    pruneSelection(manage.draftSel, drafts);
 
     $('#view').innerHTML =
       adminTabs('data') +
       '<div class="page-head"><div class="page-head-row">' +
       '<h1 class="page-title">数据管理</h1>' +
       '<span class="pill pill-ok">云端 ' + cloud.length + ' 条</span>' +
-      '<span class="pill pill-idle">本地 ' + drafts.length + ' 条</span>' +
       '<button class="btn btn-mini" id="manageBackfill">补传结构</button>' +
       '<button class="btn btn-mini" id="manageRefresh" style="margin-left:auto">从仓库重新拉取</button>' +
-      '</div><p class="page-desc">云端数据来自仓库 data.js，修改与删除会提交到仓库，约 1 分钟后全站生效；本地草稿只存在当前浏览器，可随时清空。</p></div>' +
-      managePanel('cloud', cloud) +
-      managePanel('draft', drafts);
+      '</div><p class="page-desc">数据来自仓库 data.js，修改与删除会提交到仓库，约 1 分钟后全站生效。</p></div>' +
+      managePanel('cloud', cloud);
 
     bindManage();
   }
@@ -2596,7 +2564,7 @@
       box.addEventListener('change', function () {
         const source = box.getAttribute('data-all');
         const sel = selOf(source);
-        const rows = source === 'cloud' ? curated() : loadDrafts();
+        const rows = curated();
         Object.keys(sel).forEach(function (k) { delete sel[k]; });
         if (box.checked) rows.forEach(function (d) { sel[d.id] = true; });
         render();
@@ -2633,19 +2601,11 @@
 
     $$('[data-clear]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        const source = btn.getAttribute('data-clear');
-        const rows = source === 'cloud' ? curated() : loadDrafts();
+        const rows = curated();
         if (!rows.length) return;
-        const label = source === 'cloud' ? '云端全部数据（' + rows.length + ' 条，将提交到仓库）' : '全部本地草稿（' + rows.length + ' 条）';
+        const label = '云端全部数据（' + rows.length + ' 条，将提交到仓库）';
         if (!window.confirm('确定清空' + label + '？此操作不可撤销（云端可从 git 历史恢复）。')) return;
-        if (source === 'cloud') {
-          applyCloud([], '清空云端数据');
-        } else {
-          saveDrafts([]);
-          manage.draftSel = {};
-          showToast('已清空本地草稿');
-          render();
-        }
+        applyCloud([], '清空云端数据');
       });
     });
 
@@ -2663,25 +2623,16 @@
   }
 
   function confirmDelete(source, ids) {
-    const isCloud = source === 'cloud';
-    const rows = isCloud ? curated() : loadDrafts();
+    const rows = curated();
     const targets = rows.filter(function (d) { return ids.indexOf(d.id) >= 0; });
     if (!targets.length) return;
     const names = targets.slice(0, 3).map(function (d) { return d.formula || d.id; }).join('、');
     const more = targets.length > 3 ? ' 等' : '';
-    if (!window.confirm('确定删除 ' + targets.length + ' 条' + (isCloud ? '云端数据（将提交到仓库）' : '本地草稿') + '？\n' + names + more)) return;
+    if (!window.confirm('确定删除 ' + targets.length + ' 条云端数据（将提交到仓库）？\n' + names + more)) return;
 
-    if (isCloud) {
-      const remain = rows.filter(function (d) { return ids.indexOf(d.id) < 0; });
-      ids.forEach(function (id) { delete manage.cloudSel[id]; });
-      applyCloud(remain, '删除 ' + targets.length + ' 条记录');
-    } else {
-      const remain = rows.filter(function (d) { return ids.indexOf(d.id) < 0; });
-      ids.forEach(function (id) { delete manage.draftSel[id]; });
-      saveDrafts(remain);
-      showToast('已删除 ' + targets.length + ' 条本地草稿');
-      render();
-    }
+    const remain = rows.filter(function (d) { return ids.indexOf(d.id) < 0; });
+    ids.forEach(function (id) { delete manage.cloudSel[id]; });
+    applyCloud(remain, '删除 ' + targets.length + ' 条记录');
   }
 
   async function applyCloud(records, message) {
@@ -2717,11 +2668,10 @@
 
   /* ---------- 批量修改对话框 ---------- */
   function openBatchEditor(source, ids) {
-    const isCloud = source === 'cloud';
     const modal = $('#genericModal');
     if (!modal) return;
 
-    $('#genericTitle').textContent = '批量修改 ' + ids.length + ' 条' + (isCloud ? '云端' : '本地') + '记录';
+    $('#genericTitle').textContent = '批量修改 ' + ids.length + ' 条云端记录';
     $('#genericBody').innerHTML =
       '<p class="muted" style="margin-bottom:12px">留空的字段保持不变。</p>' +
       '<div class="form-row"><label>反应体系</label><select id="bReaction"><option value="">— 不修改 —</option>' +
@@ -2766,7 +2716,7 @@
         patch.ref || patch.note || isNum(patch.energy);
       if (!changed) { showToast('没有填写要修改的内容'); return; }
 
-      const rows = isCloud ? curated() : loadDrafts();
+      const rows = curated();
       const updated = rows.map(function (d) {
         if (ids.indexOf(d.id) < 0) return d;
         const c = JSON.parse(JSON.stringify(d));
@@ -2782,13 +2732,7 @@
       });
 
       close();
-      if (isCloud) {
-        await applyCloud(updated, '批量修改 ' + ids.length + ' 条记录');
-      } else {
-        saveDrafts(updated);
-        showToast('已修改 ' + ids.length + ' 条本地草稿');
-        render();
-      }
+      await applyCloud(updated, '批量修改 ' + ids.length + ' 条记录');
     };
   }
 
@@ -2853,7 +2797,7 @@
     host.innerHTML =
       '<div class="detail-card">' +
       '<div class="detail-head">' +
-      '<div><h3>' + esc(d.formula || '未命名') + (d.source === 'draft' ? '<span class="tag-draft">本地</span>' : '') + '</h3>' +
+      '<div><h3>' + esc(d.formula || '未命名') + '</h3>' +
       '<div class="sub">' + esc(d.id || '') + ' · ' + esc(catalystOf(d)) + ' · ' + esc(rname) + '</div></div>' +
       '<button class="btn btn-mini" id="detailClose">收起</button>' +
       '</div>' +
@@ -2885,7 +2829,6 @@
 
       '<div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">' +
       '<button class="btn btn-mini" id="copyJson">复制该条 JSON</button>' +
-      (d.source === 'draft' ? '<button class="btn btn-mini btn-danger" id="deleteDraft">删除本地草稿</button>' : '') +
       '</div></div>' +
 
       '<div>' +
@@ -2919,15 +2862,6 @@
 
     const cp = $('#copyJson');
     if (cp) cp.addEventListener('click', function () { copyText(JSON.stringify(d, null, 2), '已复制该条 JSON'); });
-
-    const del = $('#deleteDraft');
-    if (del) del.addEventListener('click', function () {
-      if (!window.confirm('确定删除这条本地草稿？删除后无法恢复。')) return;
-      saveDrafts(loadDrafts().filter(function (x) { return x.id !== d.id; }));
-      closeDrawer();
-      showToast('已删除本地草稿');
-      render();
-    });
 
     $$('.st-card').forEach(function (el) {
       el.classList.toggle('active', el.getAttribute('data-row-id') === d.id);
@@ -3597,14 +3531,10 @@
       '</div></div>';
 
     const footEl = $('#uploadFoot');
-    const canPublish = !!loadPublish();
     if (footEl) {
       footEl.innerHTML = '<button class="btn" id="uploadBack">重新选择</button>' +
         '<div style="display:flex;gap:8px;align-items:center">' +
-        (canPublish ? '' : '<span class="muted" style="font-size:11.5px">想让所有人看到？先在内容管理里配置发布地址</span>') +
-        '<button class="btn" id="uploadAgain">保存并继续</button>' +
-        '<button class="btn" id="uploadSave">存入本地草稿</button>' +
-        (canPublish ? '<button class="btn btn-primary" id="uploadPublish">保存并发布</button>' : '') +
+        '<button class="btn btn-primary" id="uploadPublish">保存并发布</button>' +
         '</div>';
     }
 
@@ -3612,10 +3542,6 @@
 
     const back = $('#uploadBack');
     if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [], skipped: [] }; uploadStep1(); });
-    const again = $('#uploadAgain');
-    if (again) again.addEventListener('click', function () { if (saveUpload()) { uploadState = { items: [], unmatched: [], skipped: [] }; uploadStep1(); } });
-    const save = $('#uploadSave');
-    if (save) save.addEventListener('click', function () { if (saveUpload()) closeUpload(); });
     const pub = $('#uploadPublish');
     if (pub) pub.addEventListener('click', function () { publishSingle(it).then(function (ok) { if (ok) closeUpload(); }); });
   }
@@ -3669,13 +3595,11 @@
       '</div>';
 
     const footEl = $('#uploadFoot');
-    const canPublish = !!loadPublish();
     if (footEl) {
       footEl.innerHTML = '<button class="btn" id="uploadBack">重新选择</button>' +
         '<div style="display:flex;gap:8px;align-items:center">' +
-        '<span class="muted" style="align-self:center">将保存 ' + items.length + ' 条记录</span>' +
-        '<button class="btn" id="uploadSaveAll">存入本地草稿</button>' +
-        (canPublish ? '<button class="btn btn-primary" id="uploadPublishAll">全部保存并发布</button>' : '') +
+        '<span class="muted" style="align-self:center">将发布 ' + items.length + ' 条记录</span>' +
+        '<button class="btn btn-primary" id="uploadPublishAll">全部保存并发布</button>' +
         '</div>';
     }
 
@@ -3691,8 +3615,6 @@
 
     const back = $('#uploadBack');
     if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [], skipped: [] }; uploadStep1(); });
-    const saveAll = $('#uploadSaveAll');
-    if (saveAll) saveAll.addEventListener('click', function () { if (saveBatch()) closeUpload(); });
     const pubAll = $('#uploadPublishAll');
     if (pubAll) pubAll.addEventListener('click', function () { publishBatch().then(function (ok) { if (ok) closeUpload(); }); });
   }
@@ -3713,7 +3635,7 @@
 
   function maxIdNumber() {
     let maxNum = 0;
-    loadDrafts().concat(curated()).forEach(function (d) {
+    curated().forEach(function (d) {
       if (isMolecule(d)) return;
       const m = String(d.id || '').match(/(\d+)/);
       if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
@@ -3723,7 +3645,7 @@
 
   function maxMolNumber() {
     let maxNum = 0;
-    loadDrafts().concat(curated()).forEach(function (d) {
+    curated().forEach(function (d) {
       if (!isMolecule(d)) return;
       const m = String(d.id || '').match(/(\d+)/);
       if (m) maxNum = Math.max(maxNum, parseInt(m[1], 10));
@@ -3771,28 +3693,8 @@
         volume: it.outcar.info.volume,
         ionicSteps: it.outcar.info.ionicSteps
       } : null,
-      source: 'draft',
       addedAt: new Date().toISOString()
     };
-  }
-
-  function saveUpload() {
-    return uploadState.items.length === 1 ? saveSingle(uploadState.items[0]) : saveBatch();
-  }
-
-  function saveSingle(it) {
-    const record = buildSingleRecord(it);
-    if (!record) return false;
-
-    const drafts = loadDrafts();
-    drafts.push(record);
-    if (!saveDrafts(drafts)) return false;
-
-    showToast('已保存到本地草稿：' + record.formula +
-      (isNum(record.dftEnergy) ? ' · 总能 ' + record.dftEnergy.toFixed(4) + ' eV' : '') +
-      (record.structure ? ' · ' + record.structure.elements.length + ' 种元素' : ''));
-    render();
-    return true;
   }
 
   function buildSingleRecord(it) {
@@ -3878,26 +3780,6 @@
     }
 
     return { records: records, firstBad: firstBad, empty: false };
-  }
-
-  function saveBatch() {
-    const built = buildBatchRecords();
-    if (built.empty) { showToast('没有可保存的结构'); return false; }
-    if (built.firstBad) {
-      showToast('有行未填写化学式，请补全后再保存');
-      const input = built.firstBad.querySelector('[data-field="formula"]');
-      if (input) input.focus();
-      return false;
-    }
-    if (!built.records.length) { showToast('没有可保存的结构'); return false; }
-
-    const drafts = loadDrafts();
-    built.records.forEach(function (r) { drafts.push(r); });
-    if (!saveDrafts(drafts)) return false;
-
-    showToast('已保存 ' + built.records.length + ' 条到本地草稿');
-    render();
-    return true;
   }
 
   async function publishBatch() {
@@ -4008,12 +3890,10 @@
       '</div></div>';
 
     const footEl = $('#uploadFoot');
-    const canPublish = !!loadPublish();
     if (footEl) {
       footEl.innerHTML = '<button class="btn" id="uploadBack">重新选择</button>' +
         '<div style="display:flex;gap:8px;align-items:center">' +
-        '<button class="btn" id="uploadSave">存入本地草稿</button>' +
-        (canPublish ? '<button class="btn btn-primary" id="uploadPublish">保存并发布</button>' : '') +
+        '<button class="btn btn-primary" id="uploadPublish">保存并发布</button>' +
         '</div>';
     }
 
@@ -4021,8 +3901,6 @@
 
     const back = $('#uploadBack');
     if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [], skipped: [], mode: 'molecule' }; uploadStep1(); });
-    const save = $('#uploadSave');
-    if (save) save.addEventListener('click', function () { if (saveMolSingle(it)) closeUpload(); });
     const pub = $('#uploadPublish');
     if (pub) pub.addEventListener('click', function () {
       const rec = buildMolFromSingle(it);
@@ -4064,13 +3942,11 @@
       '</div>';
 
     const footEl = $('#uploadFoot');
-    const canPublish = !!loadPublish();
     if (footEl) {
       footEl.innerHTML = '<button class="btn" id="uploadBack">重新选择</button>' +
         '<div style="display:flex;gap:8px;align-items:center">' +
-        '<span class="muted" style="align-self:center">将保存 ' + items.length + ' 条</span>' +
-        '<button class="btn" id="uploadSaveAll">存入本地草稿</button>' +
-        (canPublish ? '<button class="btn btn-primary" id="uploadPublishAll">全部保存并发布</button>' : '') +
+        '<span class="muted" style="align-self:center">将发布 ' + items.length + ' 条</span>' +
+        '<button class="btn btn-primary" id="uploadPublishAll">全部保存并发布</button>' +
         '</div>';
     }
 
@@ -4086,8 +3962,6 @@
 
     const back = $('#uploadBack');
     if (back) back.addEventListener('click', function () { uploadState = { items: [], unmatched: [], skipped: [], mode: 'molecule' }; uploadStep1(); });
-    const saveAll = $('#uploadSaveAll');
-    if (saveAll) saveAll.addEventListener('click', function () { if (saveMolBatch()) closeUpload(); });
     const pubAll = $('#uploadPublishAll');
     if (pubAll) pubAll.addEventListener('click', function () {
       const recs = buildMolRecords();
@@ -4127,28 +4001,6 @@
     return out;
   }
 
-  function saveMolSingle(it) {
-    const rec = buildMolFromSingle(it);
-    if (!rec) return false;
-    const drafts = loadDrafts();
-    drafts.push(rec);
-    if (!saveDrafts(drafts)) return false;
-    showToast('已保存到本地草稿：' + rec.name);
-    render();
-    return true;
-  }
-
-  function saveMolBatch() {
-    const recs = buildMolRecords();
-    if (!recs.length) return false;
-    const drafts = loadDrafts();
-    recs.forEach(function (r) { drafts.push(r); });
-    if (!saveDrafts(drafts)) return false;
-    showToast('已保存 ' + recs.length + ' 个小分子到本地草稿');
-    render();
-    return true;
-  }
-
   /* ============================ 导出 ============================ */
   function download(filename, content, mime) {
     const blob = new Blob([content], { type: mime || 'text/plain;charset=utf-8' });
@@ -4181,13 +4033,13 @@
   }
 
   function exportDataJs() {
-    const drafts = loadDrafts();
-    if (!drafts.length) { showToast('本地还没有草稿可导出'); return; }
-    const body = drafts.map(function (d) { return '  ' + JSON.stringify(stripForExport(d)); }).join(',\n');
+    const rows = curated();
+    if (!rows.length) { showToast('没有可导出的数据'); return; }
+    const body = rows.map(function (d) { return '  ' + JSON.stringify(stripForExport(d)); }).join(',\n');
     const content = '/* 由页面「导出 data.js」生成，' + new Date().toISOString().slice(0, 10) + ' */\n' +
       'window.CATALYST_DATA = [\n' + body + '\n];\n';
     download('data.js', content, 'text/javascript;charset=utf-8');
-    showToast('已导出 ' + drafts.length + ' 条草稿为 data.js');
+    showToast('已导出 ' + rows.length + ' 条为 data.js');
   }
 
   function exportJson() {
@@ -4234,7 +4086,7 @@
     menu.id = 'exportMenu';
     menu.className = 'popover open';
     menu.innerHTML =
-      '<button data-act="js">导出 data.js（本地草稿）</button>' +
+      '<button data-act="js">导出 data.js</button>' +
       '<button data-act="json">导出全部 JSON</button>' +
       '<button data-act="csv">导出 CSV</button>';
     document.body.appendChild(menu);
