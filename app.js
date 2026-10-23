@@ -199,15 +199,22 @@
   let uploadLockUntil = 0;
 
   /* ============================ 发布配置 ============================ */
-  /* Worker 地址与发布密钥只存在本机浏览器；GitHub 令牌保存在 Worker 服务端 */
+  /* Worker 地址与发布密钥默认已填好，用户无需配置；GitHub 令牌保存在 Worker 服务端 */
   const PUBLISH_STORE = 'iced-db:publish:v1';
+  const PUBLISH_DEFAULT = {
+    url: 'https://iced-publish.1014166708.workers.dev',
+    key: 'pk_5c17d457fd52c51dad23663796200df45223a9b7'
+  };
 
   function loadPublish() {
+    let cfg = null;
     try {
       const raw = localStorage.getItem(PUBLISH_STORE);
-      const cfg = raw ? JSON.parse(raw) : null;
-      return cfg && cfg.url && cfg.key ? cfg : null;
-    } catch (e) { return null; }
+      cfg = raw ? JSON.parse(raw) : null;
+    } catch (e) { cfg = null; }
+    const url = (cfg && cfg.url) || PUBLISH_DEFAULT.url;
+    const key = (cfg && cfg.key) || PUBLISH_DEFAULT.key;
+    return url && key ? { url: url, key: key } : null;
   }
 
   function savePublish(cfg) {
@@ -2082,7 +2089,7 @@
     return '<div class="panel"><div class="panel-head"><div class="panel-title">发布设置（Cloudflare Worker）</div>' +
       '<span class="pill ' + (loadPublish() ? 'pill-ok' : 'pill-idle') + '">' + (loadPublish() ? '已配置' : '未配置') + '</span></div>' +
       '<div class="panel-body admin-body">' +
-      '<p class="muted" style="margin-bottom:10px">配置后，上传的记录可以直接提交到仓库，无需手动导出 data.js。GitHub 令牌保存在 Worker 服务端，这里只填 Worker 地址与发布密钥。</p>' +
+      '<p class="muted" style="margin-bottom:10px">已预置默认发布地址与密钥，<b>无需填写</b>；上传记录时可直接提交到仓库。GitHub 令牌保存在 Worker 服务端。</p>' +
       '<div class="form-grid2">' +
       '<div class="form-row"><label>Worker 地址</label><input id="pubUrl" value="' + esc(cfg.url || '') + '" placeholder="https://xxx.workers.dev" /></div>' +
       '<div class="form-row"><label>发布密钥</label><input id="pubKey" type="password" value="' + esc(cfg.key || '') + '" placeholder="PUBLISH_KEY" /></div>' +
@@ -2090,9 +2097,10 @@
       '<div style="display:flex;gap:8px;align-items:center;margin-top:4px">' +
       '<button type="button" class="btn btn-primary" id="pubSave">保存设置</button>' +
       '<button type="button" class="btn" id="pubTest">测试连接</button>' +
-      '<span class="muted" id="pubStatus">' + (loadPublish() ? '已配置' : '尚未配置') + '</span>' +
+      '<button type="button" class="btn" id="pubReset">恢复默认</button>' +
+      '<span class="muted" id="pubStatus">' + (loadPublish() ? '已配置（默认）' : '尚未配置') + '</span>' +
       '</div>' +
-      '<p class="muted" style="margin-top:8px;font-size:11.5px">密钥只保存在本浏览器；若怀疑泄露，在 Cloudflare 控制台改 PUBLISH_KEY 即可作废。</p>' +
+      '<p class="muted" style="margin-top:8px;font-size:11.5px">密钥保存在本浏览器，默认值已内置；若怀疑泄露，在 Cloudflare 控制台改 PUBLISH_KEY 后点「恢复默认」重新填写。</p>' +
       '</div></div>';
   }
 
@@ -2249,6 +2257,13 @@
         showToast('发布设置已保存，上传时会多出「保存并发布」');
         render();
       }
+    });
+
+    const pubReset = $('#pubReset');
+    if (pubReset) pubReset.addEventListener('click', function () {
+      try { localStorage.removeItem(PUBLISH_STORE); } catch (e) { /* 忽略 */ }
+      showToast('已恢复默认发布设置');
+      render();
     });
 
     const upSave = $('#upSave');
