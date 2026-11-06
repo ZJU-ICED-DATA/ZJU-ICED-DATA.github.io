@@ -28,5 +28,11 @@ window.REACTIONS = [
     reaction: 'CO2 Hydrogenation',
     icon: '♻️',
     accent: '#31a354'
+  },
+  {
+    id: 'ch4-to-methanol',
+    reaction: 'Methane to Methanol',
+    icon: '⚗️',
+    accent: '#2b7ac4'
   }
 ];

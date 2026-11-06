@@ -150,6 +150,25 @@ window.SITE_CONTENT = {
         'Cu/ZnO/Al2O3 是甲醇合成的经典体系；Ni、Ru 等金属上 CO2 更易深度加氢生成 CH4。',
         '常用描述符：CO2 吸附能、H 吸附能、HCOO* 与 CO* 的结合能。'
       ]
+    },
+    'ch4-to-methanol': {
+      name: '甲烷部分氧化制甲醇',
+      en: 'CH4 to Methanol',
+      summary: 'CH4 + ½O2 → CH3OH 的 DFT 研究体系，难点不在活性而在选择性：既要活化 CH4 的第一根 C–H，又要避免甲醇被深度氧化成 CO/CO2。',
+      conditions: [
+        { label: '泛函 / 色散', value: 'PBE + D3(BJ)' },
+        { label: '截断能', value: '450 eV' },
+        { label: 'k 点网格', value: '3×3×1' },
+        { label: '收敛标准', value: 'EDIFF 1×10⁻⁵ eV，力 < 0.03 eV/Å' },
+        { label: '真空层', value: '15 Å' }
+      ],
+      notes: [
+        '总反应 CH4 + ½O2 → CH3OH 热力学有利（ΔH ≈ −126 kJ/mol），但甲醇一旦生成很容易继续脱氢或氧化成 CO、CO2，实际收率受选择性限制。',
+        '两条主要路径：① 氧插入 —— *CH3 + *O → *CH3O → CH3OH；② 羟基路径 —— *CH3 + *OH → CH3OH。两条路径的能垒差决定主产物。',
+        '关键描述符：*CH3 与 *O 的吸附能、*CH3O 的结合能、O2 的活化能垒。*CH3 吸附过强会抑制其与 O 结合，过弱则 CH4 难以活化，存在火山型关系。',
+        '选择性判据：比较生成 CH3OH 与生成 CO/CO2 的能垒差，以及 CH3OH 的脱附能与进一步脱氢能垒——脱附越快越不容易被过度氧化。',
+        '常见体系：Cu、Au、Pd、Rh 等金属及合金表面；Fe/ZSM-5 上用 N2O 作氧化剂；低温液相 H2O2 氧化路线也是研究热点。'
+      ]
     }
   },
 
