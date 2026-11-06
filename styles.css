@@ -1178,3 +1178,9 @@ td.formula { font-weight: 650; }
   border: 1px solid rgba(0,0,0,.22); flex: 0 0 auto;
 }
 .mol-legend .lg-count { color: #94a3b8; font-size: 10.5px; margin-left: auto; padding-left: 10px; }
+
+/* 键能表 */
+.bond-energy-table { width: 100%; }
+.bond-energy-table th, .bond-energy-table td { padding: 5px 8px; font-size: 12.5px; }
+.bond-energy-table .bond-note { color: #64748b; font-size: 12px; }
+.bond-energy-table .num { font-variant-numeric: tabular-nums; font-weight: 600; }

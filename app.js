@@ -1787,6 +1787,21 @@
         (s2 ? '<div class="field" style="margin-bottom:10px"><div class="k">晶胞参数</div>' +
           '<div class="v" style="font-weight:500;font-size:12px">' + esc(s2) + '</div></div>' : '') : '') +
 
+      (Array.isArray(d.bondEnergies) && d.bondEnergies.length
+        ? '<div class="section-label">键能（文献参考值）</div>' +
+          '<div class="mag-wrap"><table class="el-table bond-energy-table"><thead><tr>' +
+          '<th>化学键</th><th class="num">键能 kJ·mol⁻¹</th><th>说明</th></tr></thead><tbody>' +
+          d.bondEnergies.map(function (b) {
+            const v = isNum(b.value) ? esc(String(b.value)) + (b.approx ? ' <span class="muted">≈</span>' : '') : '—';
+            return '<tr><td><b>' + esc(b.bond || '—') + '</b></td>' +
+              '<td class="num">' + v + '</td>' +
+              '<td class="bond-note">' + esc(b.note || '') + '</td></tr>';
+          }).join('') + '</tbody></table></div>' +
+          '<p class="form-hint" style="margin:-4px 0 10px">' +
+          esc(d.bondRef || '参考值：CRC Handbook / NIST（298 K，气相，键解离能 BDE）') +
+          '。此处为文献参考，不是本次计算得到的数据。</p>'
+        : '') +
+
       (magRows ? '<div class="section-label">逐原子磁矩 (μB)</div>' +
         '<div class="mag-wrap"><table class="el-table"><thead><tr><th>#</th><th>M</th></tr></thead>' +
         '<tbody>' + magRows + '</tbody></table></div>' : '') +
