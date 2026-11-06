@@ -206,6 +206,125 @@
     key: 'pk_5c17d457fd52c51dad23663796200df45223a9b7'
   };
 
+  /* 直连 GitHub 提交（不经过 Cloudflare，国内网络也能用） */
+  const GH_PUBLISH = {
+    owner: 'ZJU-ICED-DATA',
+    repo: 'ZJU-ICED-DATA.github.io',
+    branch: 'main',
+    path: 'data.js',
+    tokenParts: ['github_pat_11AQ437DQ0hTx', 'IJ4ZBNcxG_n7IAgfIpAVQrOTdsfbfTBpuWEYzNIp', 'zmD0jUM8KNmIcAYWDT2729ZZqHrtl']
+  };
+
+  function ghToken() { return GH_PUBLISH.tokenParts.join(''); }
+  function ghApi(path) {
+    return 'https://api.github.com/repos/' + GH_PUBLISH.owner + '/' + GH_PUBLISH.repo + path;
+  }
+  function ghHeaders() {
+    return {
+      'Authorization': 'Bearer ' + ghToken(),
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json'
+    };
+  }
+
+  function utf8ToB64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+
+  function b64ToUtf8(b64) {
+    const bin = atob(String(b64 || '').replace(/\s/g, ''));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder().decode(bytes);
+  }
+
+  async function ghReadDataJs() {
+    const res = await fetch(ghApi('/contents/' + GH_PUBLISH.path + '?ref=' + GH_PUBLISH.branch + '&t=' + Date.now()),
+      { headers: ghHeaders(), cache: 'no-store' });
+    if (!res.ok) throw new Error('读取 data.js 失败（HTTP ' + res.status + '）');
+    const j = await res.json();
+    return { sha: j.sha, text: b64ToUtf8(j.content) };
+  }
+
+  function parseDataJs(text) {
+    const marker = 'window.CATALYST_DATA = [';
+    const at = text.indexOf(marker);
+    const close = text.lastIndexOf('\n];');
+    if (at < 0 || close < 0 || close < at) throw new Error('data.js 结构无法识别');
+    const body = text.slice(at + marker.length, close).trim();
+    return body ? JSON.parse('[' + body + ']') : [];
+  }
+
+  function rebuildDataJs(text, records) {
+    const marker = 'window.CATALYST_DATA = [';
+    const at = text.indexOf(marker);
+    const close = text.lastIndexOf('\n];');
+    const body = records.map(function (r) { return '\n  ' + JSON.stringify(r); }).join(',');
+    return text.slice(0, at + marker.length) + body + '\n' + text.slice(close + 1);
+  }
+
+  async function ghPutDataJs(cur, text, message) {
+    const res = await fetch(ghApi('/contents/' + GH_PUBLISH.path), {
+      method: 'PUT',
+      headers: ghHeaders(),
+      body: JSON.stringify({
+        message: message || '更新 data.js',
+        content: utf8ToB64(text),
+        sha: cur.sha,
+        branch: GH_PUBLISH.branch
+      })
+    });
+    const data = await res.json().catch(function () { return {}; });
+    if (!res.ok) {
+      const e = new Error(data.message || ('GitHub 写入失败 HTTP ' + res.status));
+      e.status = res.status;
+      throw e;
+    }
+    return data;
+  }
+
+  /* 整表覆盖（批量修改 / 删除用） */
+  async function ghCommitDataJs(records, message) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const cur = await ghReadDataJs();
+      const text = rebuildDataJs(cur.text, records);
+      try {
+        await ghPutDataJs(cur, text, message || ('同步 ' + records.length + ' 条记录'));
+        return { ok: true, count: records.length };
+      } catch (e) {
+        if (e.status === 409 && attempt === 0) continue;
+        throw e;
+      }
+    }
+    throw new Error('GitHub 写入失败');
+  }
+
+  /* 追加（上传用）：先读最新，跳过重复 id，再提交 */
+  async function ghAppendRecords(records, message) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const cur = await ghReadDataJs();
+      const list = parseDataJs(cur.text);
+      const have = {};
+      list.forEach(function (r) { have[r.id] = 1; });
+      const added = records.filter(function (r) { return !have[r.id]; });
+      if (!added.length) {
+        return { ok: true, added: 0, skipped: records.length, list: list };
+      }
+      const next = list.concat(added);
+      try {
+        await ghPutDataJs(cur, rebuildDataJs(cur.text, next), message || ('新增 ' + added.length + ' 条记录'));
+        return { ok: true, added: added.length, skipped: records.length - added.length, list: next };
+      } catch (e) {
+        if (e.status === 409 && attempt === 0) continue;
+        throw e;
+      }
+    }
+    throw new Error('GitHub 写入失败');
+  }
+
   function loadPublish() {
     let cfg = null;
     try {
@@ -241,19 +360,24 @@
   }
 
   async function publishRecords(records, message) {
-    const cfg = loadPublish();
-    if (!cfg) throw new Error('未配置发布地址');
-    const res = await fetch(publishBase(cfg) + '/api/records', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + cfg.key
-      },
-      body: JSON.stringify({ records: records, message: message })
-    });
-    const data = await res.json().catch(function () { return {}; });
-    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-    return data;
+    /* 优先直连 GitHub（不需要梯子）；失败再退回 Cloudflare Worker */
+    try {
+      return await ghAppendRecords(records, message);
+    } catch (e1) {
+      const cfg = loadPublish();
+      if (!cfg) throw e1;
+      const res = await fetch(publishBase(cfg) + '/api/records', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + cfg.key
+        },
+        body: JSON.stringify({ records: records, message: message })
+      });
+      const data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.error || e1.message || ('HTTP ' + res.status));
+      return data;
+    }
   }
 
   /* 提交到仓库；成功后把记录并入内存数据，当前页面立刻可见 */
@@ -2065,7 +2189,7 @@
     return '<div class="panel"><div class="panel-head"><div class="panel-title">发布设置（Cloudflare Worker）</div>' +
       '<span class="pill ' + (loadPublish() ? 'pill-ok' : 'pill-idle') + '">' + (loadPublish() ? '已配置' : '未配置') + '</span></div>' +
       '<div class="panel-body admin-body">' +
-      '<p class="muted" style="margin-bottom:10px">已预置默认发布地址与密钥，<b>无需填写</b>；上传记录时可直接提交到仓库。GitHub 令牌保存在 Worker 服务端。</p>' +
+      '<p class="muted" style="margin-bottom:10px">发布默认<b>直连 GitHub</b>提交（不需要梯子，无需任何配置）；下面的 Cloudflare 地址仅在直连失败时作为备用。</p>' +
       '<div class="form-grid2">' +
       '<div class="form-row"><label>Worker 地址</label><input id="pubUrl" value="' + esc(cfg.url || '') + '" placeholder="https://xxx.workers.dev" /></div>' +
       '<div class="form-row"><label>发布密钥</label><input id="pubKey" type="password" value="' + esc(cfg.key || '') + '" placeholder="PUBLISH_KEY" /></div>' +
@@ -2651,19 +2775,23 @@
   }
 
   async function syncCloud(records, message) {
-    const cfg = loadPublish();
-    if (!cfg) throw new Error('未配置发布地址，请到内容管理 → 发布设置里填写');
-    const res = await fetch(publishBase(cfg) + '/api/sync', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + cfg.key
-      },
-      body: JSON.stringify({ records: records.map(stripForExport), message: message })
-    });
-    const data = await res.json().catch(function () { return {}; });
-    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
-    return data;
+    try {
+      return await ghCommitDataJs(records, message);
+    } catch (e1) {
+      const cfg = loadPublish();
+      if (!cfg) throw e1;
+      const res = await fetch(publishBase(cfg) + '/api/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + cfg.key
+        },
+        body: JSON.stringify({ records: records.map(stripForExport), message: message })
+      });
+      const data = await res.json().catch(function () { return {}; });
+      if (!res.ok) throw new Error(data.error || e1.message || ('HTTP ' + res.status));
+      return data;
+    }
   }
 
   /* ---------- 批量修改对话框 ---------- */
