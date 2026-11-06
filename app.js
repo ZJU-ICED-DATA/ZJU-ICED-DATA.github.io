@@ -547,7 +547,7 @@
   function compactStructure(st) {
     const info = (st && st.info) || {};
     const raw = info.atoms || [];
-    const coord = st && st.kind === 'poscar' ? 'cart' : 'frac';
+    const coord = st && (st.kind === 'poscar' || st.kind === 'xyz') ? 'cart' : 'frac';
     const atoms = [];
     for (let i = 0; i < raw.length; i++) {
       const a = raw[i];
@@ -668,7 +668,12 @@
       return { text: cifFromAtoms(atoms, s), format: 'cif' };
     }
 
-    if (s.cif) return { text: s.cif, format: s.format === 'poscar' ? 'poscar' : 'cif' };
+    if (s.cif) {
+      return {
+        text: s.cif,
+        format: s.format === 'poscar' ? 'poscar' : (s.format === 'xyz' ? 'xyz' : 'cif')
+      };
+    }
     return null;
   }
   function outcarOf(d) { return d && d.outcar ? d.outcar : null; }
@@ -1656,7 +1661,7 @@
 
     const grid = rows.length
       ? '<div class="mol-grid">' + rows.map(moleculeCardHtml).join('') + '</div>'
-      : '<div class="empty" style="padding:30px 0">还没有小分子数据。点右上角「上传小分子」把 VASP 的 CONTCAR/POSCAR 或 CIF 和同名 OUTCAR 一起传上来。</div>';
+      : '<div class="empty" style="padding:30px 0">还没有小分子数据。点右上角「上传小分子」把 CONTCAR/POSCAR、CIF 或 XYZ 和同名 OUTCAR 一起传上来。</div>';
 
     $('#view').innerHTML =
       '<div class="page-head">' +
@@ -2592,7 +2597,7 @@
     bindManage();
   }
 
-  /* 补传结构：选一批 CIF/POSCAR，按文件名匹配到已有记录，只补坐标、不新建记录 */
+  /* 补传结构：选一批 CIF/POSCAR/XYZ，按文件名匹配到已有记录，只补坐标、不新建记录 */
   function openBackfill() {
     const cloud = curated();
     if (!cloud.length) { showToast('云端还没有数据'); return; }
@@ -2601,7 +2606,7 @@
     input.id = 'backfillInput';
     input.type = 'file';
     input.multiple = true;
-    input.accept = '.cif,.mcif,POSCAR,CONTCAR';
+    input.accept = '.cif,.mcif,.xyz,POSCAR,CONTCAR';
     input.style.display = 'none';
     document.body.appendChild(input);
 
@@ -2625,7 +2630,7 @@
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
         const text = await readText(f);
-        const kind = STRUCT_NAMES.test(f.name) ? 'poscar' : 'cif';
+        const kind = structureKindOf(f.name);
         const parsed = parseStructureFile(kind, text, f.name);
         if (parsed.error) { missed.push(f.name); continue; }
 
@@ -3162,6 +3167,15 @@
   function isCifName(name) {
     return /\.(cif|mcif)$/i.test(baseName(name));
   }
+  function isXyzName(name) {
+    return /\.xyz$/i.test(baseName(name));
+  }
+  /* 结构文件的类型：cif / xyz / poscar */
+  function structureKindOf(name) {
+    if (isCifName(name)) return 'cif';
+    if (isXyzName(name)) return 'xyz';
+    return 'poscar';
+  }
 
   /* ---------------- 第一步：选择 ---------------- */
   function uploadStep1() {
@@ -3173,15 +3187,15 @@
       '<div class="dropzone" id="dropzone">' +
       '<div class="dz-icon">🧪</div>' +
       '<div class="dz-title">拖拽文件或文件夹到这里</div>' +
-      '<div class="dz-sub">文件夹里放 POSCAR / CIF 与 OUTCAR，会按文件夹名逐条建立记录</div>' +
-      '<div class="dz-formats">CIF：.cif / .mcif　·　结构：POSCAR / CONTCAR　·　能量：OUTCAR　·　全部在浏览器本地解析</div>' +
+      '<div class="dz-sub">文件夹里放 POSCAR / CIF / XYZ 与 OUTCAR，会按文件夹名逐条建立记录</div>' +
+      '<div class="dz-formats">CIF：.cif / .mcif　·　结构：POSCAR / CONTCAR / XYZ　·　能量：OUTCAR　·　全部在浏览器本地解析</div>' +
       '</div>' +
       '<div class="upload-choices">' +
       '<button type="button" class="btn" id="pickFiles">选择文件</button>' +
       '<button type="button" class="btn" id="pickFolder">选择文件夹</button>' +
       '<span class="muted">可多选；选文件夹时里面的子目录会各自成为一条记录</span>' +
       '</div>' +
-      '<input type="file" id="fileInput" accept=".cif,.mcif,.out,.txt,POSCAR,CONTCAR,OUTCAR,EIGENVAL" multiple hidden />' +
+      '<input type="file" id="fileInput" accept=".cif,.mcif,.xyz,.out,.txt,POSCAR,CONTCAR,OUTCAR,EIGENVAL" multiple hidden />' +
       '<input type="file" id="dirInput" webkitdirectory directory multiple hidden />';
 
     if (foot) {
@@ -3327,6 +3341,9 @@
       if (isCifName(files[i].path)) return { kind: 'cif', file: files[i].file, path: files[i].path };
     }
     for (let i = 0; i < files.length; i++) {
+      if (isXyzName(files[i].path)) return { kind: 'xyz', file: files[i].file, path: files[i].path };
+    }
+    for (let i = 0; i < files.length; i++) {
       if (STRUCT_NAMES.test(baseName(files[i].path))) return { kind: 'poscar', file: files[i].file, path: files[i].path };
     }
     return null;
@@ -3353,6 +3370,11 @@
       const info = window.CIFParser ? window.CIFParser.parse(text) : null;
       if (!info || !info.ok) return { error: (info && info.error) || 'CIF 解析失败' };
       return { structure: { kind: 'cif', file: baseName(file), text: text, info: info } };
+    }
+    if (kind === 'xyz') {
+      const info = window.XYZParser ? window.XYZParser.parse(text) : null;
+      if (!info || !info.ok) return { error: (info && info.error) || 'XYZ 解析失败' };
+      return { structure: { kind: 'xyz', file: baseName(file), text: text, info: info } };
     }
     const info = window.PoscarParser ? window.PoscarParser.parse(text) : null;
     if (!info || !info.ok) return { error: (info && info.error) || 'POSCAR 解析失败' };
@@ -3457,9 +3479,9 @@
           } else {
             if (inp.file.size > 8 * 1024 * 1024) { showToast('文件超过 8 MB，已跳过：' + nm); continue; }
             const text = await readText(inp.file);
-            const parsed = parseStructureFile(isCifName(nm) ? 'cif' : 'poscar', text, nm);
+            const parsed = parseStructureFile(structureKindOf(nm), text, nm);
             if (parsed.error) {
-              if (isCifName(nm) || STRUCT_NAMES.test(baseName(nm))) { uploadError(nm, parsed.error); return; }
+              if (isCifName(nm) || isXyzName(nm) || STRUCT_NAMES.test(baseName(nm))) { uploadError(nm, parsed.error); return; }
               continue;
             }
             cifs.push({ file: nm, text: text, info: parsed.structure.info });
