@@ -1875,7 +1875,7 @@
       if (!viewer) throw new Error('viewer 创建失败');
 
       const m = viewer.addModel(model.text, model.format === 'xyz' ? 'xyz' : 'cif');
-      viewer.setStyle({}, { stick: { radius: 0.14 }, sphere: { scale: 0.28 } });
+      styleWithLegend(viewer, m, container, 0.28);
       viewer.zoomTo();
       viewer.render();
       currentViewer = viewer;
@@ -3031,7 +3031,7 @@
       const viewer = $3Dmol.createViewer(container, { backgroundColor: 'white' });
       if (!viewer) throw new Error('viewer 创建失败');
       const model = viewer.addModel(modelText, modelFormat);
-      viewer.setStyle({}, { stick: { radius: 0.14 }, sphere: { scale: 0.26 } });
+      styleWithLegend(viewer, model, container, 0.26);
 
       /* 画出晶胞盒子（需要模型带晶胞信息，即 CIF 格式） */
       if (withCell && modelFormat === 'cif') {
@@ -3046,6 +3046,91 @@
     } catch (e) {
       console.warn('3D 渲染失败', e);
       container.innerHTML = '<div class="viewer-note">3D 渲染失败，可能是浏览器不支持 WebGL</div>';
+    }
+  }
+
+  /* ---------- 元素配色与图例 ----------
+     颜色用 Jmol/CPK 惯例，和 3Dmol 默认配色一致；图例直接从同一张表取色，
+     保证"图例上的颜色"和"球上的颜色"永远对得上。 */
+  const ELEMENT_COLORS = {
+    H: '#FFFFFF', He: '#D9FFFF', Li: '#CC80FF', Be: '#C2FF00', B: '#FFB5B5',
+    C: '#909090', N: '#3050F8', O: '#FF0D0D', F: '#90E050', Ne: '#B3E3F5',
+    Na: '#AB5CF2', Mg: '#8AFF00', Al: '#BFA6A6', Si: '#F0C8A0', P: '#FF8000',
+    S: '#FFFF30', Cl: '#1FF01F', Ar: '#80D1E3', K: '#8F40D4', Ca: '#3DFF00',
+    Sc: '#E6E6E6', Ti: '#BFC2C7', V: '#A6A6AB', Cr: '#8A99C7', Mn: '#9C7AC7',
+    Fe: '#E06633', Co: '#F090A0', Ni: '#50D050', Cu: '#C88033', Zn: '#7D80B0',
+    Ga: '#C28F8F', Ge: '#668F8F', As: '#BD80E3', Se: '#FFA100', Br: '#A62929',
+    Kr: '#5CB8D1', Rb: '#702EB0', Sr: '#00FF00', Y: '#94FFFF', Zr: '#94E0E0',
+    Nb: '#73C2C9', Mo: '#54B5B5', Tc: '#3B9E9E', Ru: '#248F8F', Rh: '#0A7D8C',
+    Pd: '#006985', Ag: '#C0C0C0', Cd: '#FFD98F', In: '#A67573', Sn: '#668080',
+    Sb: '#9E63B5', Te: '#D47A00', I: '#940094', Xe: '#429EB0', Cs: '#57178F',
+    Ba: '#00C900', La: '#70D4FF', Ce: '#FFFFC7', Pr: '#D9FFC7', Nd: '#C7FFC7',
+    Pm: '#A3FFC7', Sm: '#FFC7C7', Eu: '#C7C7FF', Gd: '#D9FFD9', Tb: '#FFD9D9',
+    Dy: '#D9FFD9', Ho: '#FFC7FF', Er: '#FFD9FF', Tm: '#D9FFD9', Yb: '#D9FFD9',
+    Lu: '#D9FFD9', Hf: '#4DC2FF', Ta: '#4DA6FF', W: '#2194D6', Re: '#267DAB',
+    Os: '#266696', Ir: '#175487', Pt: '#D0D0E0', Au: '#FFD123', Hg: '#B8B8D0',
+    Tl: '#A6544D', Pb: '#575961', Bi: '#9E4FB5', Po: '#AB5C00', At: '#754F45',
+    Rn: '#428296', Th: '#00BAFF', Pa: '#00A1FF', U: '#008FFF'
+  };
+
+  function elementColor(el) {
+    const sym = String(el || '').replace(/[^A-Za-z]/g, '');
+    if (ELEMENT_COLORS[sym]) return ELEMENT_COLORS[sym];
+    /* 首字母大写形式（C → C，c → C） */
+    const cap = sym.charAt(0).toUpperCase() + sym.slice(1).toLowerCase();
+    if (ELEMENT_COLORS[cap]) return ELEMENT_COLORS[cap];
+    /* 未知元素：用调色板按名字散列，颜色稳定 */
+    let h = 0;
+    for (let i = 0; i < cap.length; i++) h = (h * 31 + cap.charCodeAt(i)) % 9973;
+    return PALETTE[h % PALETTE.length];
+  }
+
+  /* 从 3Dmol 模型里统计元素 → [{el, n}]，按数量从多到少 */
+  function modelElements(model) {
+    let atoms = [];
+    try { atoms = (model && model.selectedAtoms ? model.selectedAtoms({}) : []) || []; } catch (e) { atoms = []; }
+    const counts = {};
+    atoms.forEach(function (a) {
+      const el = (a && (a.elem || a.element)) || '?';
+      counts[el] = (counts[el] || 0) + 1;
+    });
+    return Object.keys(counts).map(function (k) {
+      return { el: k, n: counts[k] };
+    }).sort(function (a, b) { return b.n - a.n || a.el.localeCompare(b.el); });
+  }
+
+  function legendHtml(items) {
+    if (!items || !items.length) return '';
+    const rows = items.map(function (it) {
+      return '<div class="lg-row"><i class="lg-dot" style="background:' + esc(elementColor(it.el)) + '"></i>' +
+        '<span>' + esc(it.el) + '</span><span class="lg-count">' + it.n + '</span></div>';
+    }).join('');
+    return '<div class="mol-legend"><div class="lg-title">原子图例</div>' + rows + '</div>';
+  }
+
+  /* 给模型上色 + 在容器里画图例 */
+  function styleWithLegend(viewer, model, container, sphereScale) {
+    const scale = isNum(sphereScale) ? sphereScale : 0.26;
+    const items = modelElements(model);
+
+    try { viewer.setStyle({}, { stick: { radius: 0.14 }, sphere: { scale: scale } }); } catch (e) { /* 忽略 */ }
+    items.forEach(function (it) {
+      if (it.el === '?') return;
+      const c = elementColor(it.el);
+      try {
+        viewer.setStyle({ elem: it.el }, { stick: { radius: 0.14, color: c }, sphere: { scale: scale, color: c } });
+      } catch (e) { /* 个别版本不支持 elem 选择器时保持默认配色 */ }
+    });
+
+    if (container) {
+      const old = container.querySelector ? container.querySelector('.mol-legend') : null;
+      if (old) old.remove();
+      if (items.length) {
+        try { container.style.position = container.style.position || 'relative'; } catch (e) { /* 忽略 */ }
+        const box = document.createElement('div');
+        box.innerHTML = legendHtml(items);
+        if (box.firstChild) container.appendChild(box.firstChild);
+      }
     }
   }
 
@@ -4438,6 +4523,15 @@
     /* 后台再校验一次最新数据，绕过 GitHub Pages 对 data.js 的 10 分钟缓存 */
     setTimeout(function () { refreshDataFromNetwork(); }, 400);
   }
+
+  /* 调试/测试用的小入口（不影响正常使用） */
+  window.ICED_DEBUG = {
+    render3D: render3D,
+    legendHtml: legendHtml,
+    elementColor: elementColor,
+    modelElements: modelElements,
+    parseDataJs: (typeof parseDataJs === 'function' ? parseDataJs : null)
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);
