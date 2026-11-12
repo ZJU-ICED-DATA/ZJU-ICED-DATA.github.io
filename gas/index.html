@@ -139,6 +139,7 @@
     <button id="btnEdit">编辑</button>
     <button class="primary" id="btnAdd" style="display:none">＋ 新气路</button>
     <button id="btnLayout" style="display:none">布置</button>
+    <button id="btnFurnAdd" style="display:none">＋ 方框</button>
     <label class="chk" id="lblBase" style="display:none"><input type="checkbox" id="chkBase" checked />显示底图</label>
     <span class="pill" id="status">加载中…</span>
   </div>
@@ -277,7 +278,8 @@
     plan: null,
     data: { lines: [], rooms: [], equipment: [], spots: [] },
     sel: null, editing: false, q: '', pick: null, draft: null, drag: null, editId: null, level: 'high',
-    furn: [], layout: false, furnSel: null, furnDrag: null, baseOn: true
+    furn: [], layout: false, furnSel: null, furnDrag: null, baseOn: true,
+    placeMode: false, lastDrag: 0
   };
 
   function $(s, r) { return (r || document).querySelector(s); }
@@ -784,6 +786,7 @@
       hit.style.cssText = 'position:absolute;left:' + (f.x * 100) + '%;top:' + (f.y * 100) + '%;' +
         'width:' + (f.w * 100) + '%;height:' + (f.h * 100) + '%;cursor:move;';
       hit.addEventListener('pointerdown', function (ev) { onFurnDown(ev, f.id, 'move'); });
+      hit.addEventListener('click', function (ev) { ev.stopPropagation(); });
       host.appendChild(hit);
     });
   }
@@ -816,7 +819,14 @@
     var up = function () {
       document.removeEventListener('pointermove', move);
       document.removeEventListener('pointerup', up);
-      if (S.furnDrag && S.furnDrag.moved) { drawFurniture(); saveData('调整布置：' + (f.name || f.id)); }
+      if (S.furnDrag && S.furnDrag.moved) {
+        S.lastDrag = Date.now();
+        drawFurniture();
+        saveData('调整布置：' + (f.name || f.id));
+      } else if (!S.furnDrag || !S.furnDrag.moved) {
+        /* 没移动 = 单击选中并打开属性 */
+        setTimeout(function () { openFurnModal(id); }, 40);
+      }
       setTimeout(function () { S.furnDrag = null; }, 0);
     };
     document.addEventListener('pointermove', move);
@@ -825,15 +835,17 @@
 
   function startLayout() {
     S.layout = true;
+    S.placeMode = false;
     $('#btnLayout').textContent = '退出布置';
-    $('#mapWrap').classList.add('armed');
-    showTip('布置模式：点空白处添加方框；拖动方框可移动，拖右下角小方块可缩放');
+    $('#btnFurnAdd').style.display = '';
+    showTip('拖动方框可移动，拖右下角小方块可缩放；要新增请点「＋ 方框」');
     setStatus('布置编辑中', 'warn');
     drawFurniture();
   }
   function stopLayout() {
-    S.layout = false; S.furnSel = null;
+    S.layout = false; S.furnSel = null; S.placeMode = false;
     $('#btnLayout').textContent = '布置';
+    $('#btnFurnAdd').style.display = 'none';
     $('#mapWrap').classList.remove('armed');
     showTip('');
     setStatus('编辑模式', 'warn');
@@ -849,18 +861,34 @@
       drawFurniture();
     });
 
-    /* 布置模式下点空白处新增方框 */
-    $('#mapWrap').addEventListener('click', function (ev) {
+    /* 「＋ 方框」：进入放置状态，下一次点击才落点 */
+    $('#btnFurnAdd').addEventListener('click', function () {
       if (!S.layout) return;
+      S.placeMode = true;
+      $('#mapWrap').classList.add('armed');
+      showTip('点击图上位置放置方框（Esc 取消）');
+      setStatus('放置方框中…', 'warn');
+    });
+
+    /* 只有处于放置状态时才新建；拖动后 300ms 内的 click 一律忽略 */
+    $('#mapWrap').addEventListener('click', function (ev) {
+      if (!S.layout || !S.placeMode) return;
+      if (Date.now() - (S.lastDrag || 0) < 300) return;
       if (ev.target.closest && (ev.target.closest('[data-fid]') || ev.target.closest('.mk'))) return;
       var rect = this.getBoundingClientRect();
       var x = r3((ev.clientX - rect.left) / rect.width);
       var y = r3((ev.clientY - rect.top) / rect.height);
       if (x < 0 || x > 1 || y < 0 || y > 1) return;
+
       var f = { id: 'f-' + Date.now().toString(36), name: '新方框', type: '实验台',
-                x: r3(Math.max(0, x - 0.06)), y: r3(Math.max(0, y - 0.03)), w: 0.12, h: 0.06 };
+                x: r3(Math.max(0, Math.min(0.88, x - 0.06))),
+                y: r3(Math.max(0, Math.min(0.94, y - 0.03))), w: 0.12, h: 0.06 };
       S.furn.push(f);
       S.furnSel = f.id;
+      S.placeMode = false;
+      $('#mapWrap').classList.remove('armed');
+      showTip('');
+      setStatus('布置编辑中', 'warn');
       drawFurniture();
       openFurnModal(f.id);
     });
@@ -915,6 +943,7 @@
         $('#btnEdit').textContent = '编辑';
         $('#btnAdd').style.display = 'none';
         $('#btnLayout').style.display = 'none';
+        $('#btnFurnAdd').style.display = 'none';
         $('#lblBase').style.display = 'none';
         if (S.layout) stopLayout();
         setStatus('浏览模式'); renderAll(); return;
@@ -1006,7 +1035,14 @@
       if (e.key === 'Escape') {
         $('#loginModal').classList.remove('open');
         $('#editModal').classList.remove('open');
+        $('#furnModal').classList.remove('open');
         cancelPick();
+        if (S.placeMode) {
+          S.placeMode = false;
+          $('#mapWrap').classList.remove('armed');
+          showTip('');
+          setStatus(S.layout ? '布置编辑中' : '浏览模式', S.layout ? 'warn' : '');
+        }
       }
     });
     loadData();
