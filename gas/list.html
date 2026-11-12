@@ -39,6 +39,7 @@
   .lv.low{background:#eff6ff;color:var(--low)}
   .lv.res{background:#f1f5f9;color:var(--res)}
   .arrow{color:#94a3b8;margin:0 4px}
+  td.ty{color:#64748b;font-size:12px}
   .empty{padding:24px;text-align:center;color:var(--muted)}
   footer{padding:12px 16px;color:#94a3b8;font-size:11.5px;text-align:center}
 
@@ -101,7 +102,7 @@
 (function () {
   'use strict';
   var DATA_URL = 'data.json';
-  var S = { lines: [], q: '', group: 'gas' };
+  var S = { lines: [], elements: {}, q: '', group: 'gas' };
 
   function $(s, r) { return (r || document).querySelector(s); }
   function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
@@ -119,7 +120,10 @@
     var q = S.q.trim().toLowerCase();
     return S.lines.filter(function (l) {
       if (!q) return true;
-      return [l.gas, l.name, l.user.name, l.source.name, l.connector, l.purity, l.inlet, l.outlet, l.note]
+      var ue = S.elements[l.user && l.user.elementId] || {};
+      var se = S.elements[l.source && l.source.elementId] || {};
+      return [l.gas, l.name, l.user.name, l.source.name, l.connector, l.purity,
+              l.inlet, l.outlet, l.note, ue.type, ue.zone, se.type, se.zone]
         .join(' ').toLowerCase().indexOf(q) >= 0;
     });
   }
@@ -166,15 +170,20 @@
       });
       html += '<div class="group">' + esc(k) + '<span class="n">' + list.length + ' 条</span></div>' +
         '<table><thead><tr>' +
-        '<th>气体</th><th>压力</th><th>气源端</th><th>用户端</th>' +
+        '<th>气体</th><th>压力</th><th>气源端</th><th>类型</th><th>用气端</th><th>类型</th><th>分区</th>' +
         '<th>进气</th><th>输出</th><th>纯度</th><th>接头</th><th>备注</th>' +
         '</tr></thead><tbody>' +
         list.map(function (l) {
+          var ue = S.elements[l.user && l.user.elementId] || {};
+          var se = S.elements[l.source && l.source.elementId] || {};
           return '<tr>' +
             '<td><b>' + esc(l.gas) + '</b>' + (l.name && l.name !== l.gas ? ' <span style="color:#94a3b8">' + esc(l.name) + '</span>' : '') + '</td>' +
             '<td>' + lv(l) + '</td>' +
             '<td>' + esc(l.source.name || '—') + '</td>' +
+            '<td class="ty">' + esc(se.type || '—') + '</td>' +
             '<td>' + esc(l.user.name || '—') + '</td>' +
+            '<td class="ty">' + esc(ue.type || '—') + '</td>' +
+            '<td class="ty">' + esc(ue.zone || se.zone || '—') + '</td>' +
             '<td class="mono">' + esc(l.inlet || '—') + '</td>' +
             '<td class="mono">' + esc(l.outlet || '—') + '</td>' +
             '<td class="mono">' + esc(l.purity || '—') + '</td>' +
@@ -192,6 +201,8 @@
       var r = await fetch(DATA_URL + '?t=' + Date.now(), { cache: 'no-store' });
       var j = await r.json();
       S.lines = Array.isArray(j.lines) ? j.lines : [];
+      S.elements = {};
+      (Array.isArray(j.elements) ? j.elements : []).forEach(function (e) { S.elements[e.id] = e; });
     } catch (e) {
       S.lines = [];
       $('#table').innerHTML = '<div class="empty">读取 data.json 失败：' + esc(e.message) + '</div>';

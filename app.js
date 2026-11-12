@@ -808,6 +808,12 @@
     parts.push('<div class="nav-section">' + esc(cget('site.navMolecules', '小分子')) + '</div>');
     parts.push(navItem('#/molecules', '⬢', cget('molecules.title', '小分子性质'), moleculeRows().length, state.view === 'molecules'));
 
+    parts.push('<div class="nav-section">' + esc(cget('site.navLab', '实验室')) + '</div>');
+    parts.push('<a class="nav-item" href="gas/" target="_blank" rel="noopener">' +
+      '<span class="ico">⌁</span><span class="lbl">' + esc(cget('site.navGas', '气路图')) + '</span></a>');
+    parts.push('<a class="nav-item" href="gas/list.html" target="_blank" rel="noopener">' +
+      '<span class="ico">☰</span><span class="lbl">' + esc(cget('site.navGasList', '气路速查表')) + '</span></a>');
+
     nav.innerHTML = parts.join('');
 
     const status = $('#sidebarStatus');

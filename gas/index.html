@@ -67,6 +67,8 @@
   .el-row .tag{font-size:10px;padding:1px 6px;border-radius:999px;color:#fff;flex:0 0 auto}
   .el-row .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .el-row .c{margin-left:auto;font-size:11px;color:var(--muted);flex:0 0 auto}
+  .typesum{padding:7px 10px;font-size:11.8px;color:#334155;background:#f8fafc;border-bottom:1px solid #f1f5f9;line-height:1.9}
+  .typesum .g{margin-left:3px}
   .chips{display:flex;gap:5px;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid #f1f5f9}
   .chip{font-size:11.5px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);cursor:pointer;background:#fff}
   .chip.on{background:#e0f2fe;border-color:#7dd3fc;color:#0369a1;font-weight:650}
@@ -163,6 +165,7 @@
     <div class="card">
       <h2>基本元素 <span class="r" id="elCount"></span></h2>
       <div class="chips" id="typeChips"></div>
+      <div id="typeSummary" class="typesum" style="display:none"></div>
       <div id="elList"></div>
     </div>
     <div class="card">
@@ -191,7 +194,10 @@
       <div class="f"><label>名称</label><input type="text" id="elName" placeholder="通风柜 4 号" /></div>
       <div class="f"><label>类型</label><select id="elType"></select></div>
     </div>
-    <div class="f"><label>备注</label><input type="text" id="elNote" placeholder="可选" /></div>
+    <div class="row2">
+      <div class="f"><label>分区（可选）</label><input type="text" id="elZone" placeholder="如：东侧 / 通风柜区" /></div>
+      <div class="f"><label>备注</label><input type="text" id="elNote" placeholder="可选" /></div>
+    </div>
     <div class="foot">
       <button class="primary" id="elSave">保存</button>
       <button id="elCancel">取消</button>
@@ -226,7 +232,10 @@
       <div class="f"><label>纯度</label><input type="text" id="edPurity" placeholder="99.999%" /></div>
       <div class="f"><label>接头</label><input type="text" id="edConn" placeholder="W21.8 / G3/8" /></div>
     </div>
-    <div class="f"><label>备注</label><input type="text" id="edNote" /></div>
+    <div class="row2">
+      <div class="f"><label>管路材质</label><input type="text" id="edTube" placeholder="316L BA 1/4&quot; OD" /></div>
+      <div class="f"><label>备注</label><input type="text" id="edNote" /></div>
+    </div>
     <div class="foot">
       <button class="primary" id="edSave">保存</button>
       <button id="edCancel">取消</button>
@@ -499,9 +508,23 @@
     var g = $('#lines'), hl = $('#hl');
     g.innerHTML = ''; hl.innerHTML = '';
     S.lines.forEach(function (l) {
+      var sel = S.selLine === l.id;
       g.appendChild(svgEl('path', {
-        d: routeD(l), fill: 'none', stroke: lineColor(l), 'stroke-width': 1.4, opacity: '0.5'
+        d: routeD(l), fill: 'none', stroke: lineColor(l),
+        'stroke-width': sel ? 2 : 1.4, opacity: sel ? '0.95' : '0.5'
       }));
+      /* 透明加粗命中层：点线路即可选中 */
+      var hit = svgEl('path', {
+        d: routeD(l), fill: 'none', stroke: 'transparent', 'stroke-width': 12,
+        'pointer-events': 'stroke', style: 'cursor:pointer'
+      });
+      hit.setAttribute('data-line-hit', l.id);
+      hit.addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        if (S.placing) return;
+        selectLine(l.id);
+      });
+      g.appendChild(hit);
     });
     if (S.selLine) {
       var l = findLine(S.selLine);
@@ -702,6 +725,7 @@
     $('#elName').value = e.name || '';
     $('#elType').value = e.type || '其他';
     $('#elNote').value = e.note || '';
+    $('#elZone').value = e.zone || '';
     $('#elModal').classList.add('open');
     $('#elName').focus();
   }
@@ -714,6 +738,7 @@
       e.name = $('#elName').value.trim() || '未命名';
       e.type = $('#elType').value;
       e.note = $('#elNote').value.trim();
+      e.zone = $('#elZone').value.trim();
       $('#elModal').classList.remove('open');
       syncLineEnds();
       renderAll();
@@ -759,6 +784,7 @@
     $('#edOutlet').value = l ? (l.outlet || '') : '';
     $('#edPurity').value = l ? (l.purity || '') : '';
     $('#edConn').value = l ? (l.connector || '') : '';
+    $('#edTube').value = l ? (l.tube || '') : '';
     $('#edNote').value = l ? (l.note || '') : '';
     $('#edDel').style.display = l ? '' : 'none';
     $('#edDup').style.display = l ? '' : 'none';
@@ -789,6 +815,7 @@
         user: { elementId: uid, name: ue.name, x: c2.x, y: c2.y },
         inlet: $('#edInlet').value.trim(), outlet: $('#edOutlet').value.trim(),
         purity: $('#edPurity').value.trim(), connector: $('#edConn').value.trim(),
+        tube: $('#edTube').value.trim(),
         note: $('#edNote').value.trim()
       };
       var i = -1;
@@ -863,7 +890,7 @@
     $$('.chip', host).forEach(function (el) {
       el.addEventListener('click', function () {
         S.typeFilter = el.getAttribute('data-type');
-        renderTypeChips(); renderElementList();
+        renderTypeChips(); renderElementList(); renderTypeSummary();
       });
     });
   }
@@ -876,16 +903,54 @@
     return S.lines.filter(function (l) { return l.source.elementId === elId || l.user.elementId === elId; });
   }
 
+  /* 当前筛选类型下：有哪些元素、合计涉及哪些气体 */
+  function renderTypeSummary() {
+    var box = $('#typeSummary');
+    if (!box) return;
+    if (!S.typeFilter) { box.style.display = 'none'; return; }
+
+    var els = S.elements.filter(function (e) { return e.type === S.typeFilter; });
+    if (!els.length) {
+      box.style.display = 'block';
+      box.innerHTML = '<b>' + esc(S.typeFilter) + '</b>：暂无元素';
+      return;
+    }
+    var ids = {};
+    els.forEach(function (e) { ids[e.id] = 1; });
+    var gs = S.lines.filter(function (l) {
+      return ids[l.source.elementId] || ids[l.user.elementId];
+    });
+    var seen = {}, chips = [];
+    gs.forEach(function (l) {
+      if (seen[l.gas]) return;
+      seen[l.gas] = 1;
+      var cls = l.kind === 'reserved' ? 're' : (l.level === 'low' ? 'lo' : 'hi');
+      chips.push('<span class="g ' + cls + '" data-line="' + esc(l.id) + '">' + esc(l.gas) + '</span>');
+    });
+
+    box.style.display = 'block';
+    box.innerHTML = '<b>' + esc(S.typeFilter) + '</b> · ' + els.length + ' 个元素 · 涉及 ' +
+      (chips.length ? chips.join('') : '<span class="muted">暂无气体</span>');
+
+    Array.prototype.forEach.call(box.querySelectorAll('.g'), function (el) {
+      el.addEventListener('click', function () { selectLine(el.getAttribute('data-line')); });
+    });
+  }
+
   function renderElementList() {
     var host = $('#elList');
-    var rows = elementsOfType();
+    var q = S.q.trim().toLowerCase();
+    var rows = elementsOfType().filter(function (e) {
+      if (!q) return true;
+      return [e.name, e.type, e.zone, e.note].join(' ').toLowerCase().indexOf(q) >= 0;
+    });
     $('#elCount').textContent = S.elements.length;
     if (!rows.length) { host.innerHTML = '<div class="empty">还没有元素，点右上角「＋ 元素」添加</div>'; return; }
     host.innerHTML = rows.map(function (e) {
       var n = gasesOf(e.id).length;
       return '<div class="el-row' + (S.selEl === e.id ? ' active' : '') + '" data-eid="' + esc(e.id) + '">' +
         '<span class="tag" style="background:' + typeColor(e.type) + '">' + esc(e.type) + '</span>' +
-        '<span class="n">' + esc(e.name) + '</span>' +
+        '<span class="n">' + esc(e.name) + (e.zone ? '<i style="font-style:normal;color:#94a3b8;font-size:10.5px"> ' + esc(e.zone) + '</i>' : '') + '</span>' +
         '<span class="c">' + (n ? n + ' 路' : '—') + '</span></div>';
     }).join('');
     $$('.el-row', host).forEach(function (el) {
@@ -902,7 +967,7 @@
       var gs = gasesOf(e.id);
       host.innerHTML = '<div class="dt">' +
         '<h3>' + esc(e.name) + '</h3>' +
-        '<div class="sub">' + esc(e.type) + (e.note ? ' · ' + esc(e.note) : '') + '</div>' +
+        '<div class="sub">' + esc(e.type) + (e.zone ? ' · ' + esc(e.zone) : '') + (e.note ? ' · ' + esc(e.note) : '') + '</div>' +
         '<div class="kv">' +
           '<div class="k">位置</div><div>x ' + e.x.toFixed(2) + '　y ' + e.y.toFixed(2) + '</div>' +
           '<div class="k">尺寸</div><div>' + e.w.toFixed(2) + ' × ' + e.h.toFixed(2) + '</div>' +
@@ -1024,7 +1089,7 @@
   async function saveData(msg) {
     setStatus('保存中…');
     var payload = JSON.stringify({
-      updatedAt: new Date().toISOString(), plan: S.plan || {},
+      updatedAt: new Date().toISOString(),
       elements: S.elements, lines: S.lines
     }, null, 1);
 
@@ -1092,12 +1157,12 @@
     });
   }
 
-  function renderAll() { drawBase(); drawFurniture(); drawLines(); renderList(); renderTypeChips(); renderElementList(); renderDetail(); }
+  function renderAll() { drawBase(); drawFurniture(); drawLines(); renderList(); renderTypeChips(); renderElementList(); renderTypeSummary(); renderDetail(); }
 
   function boot() {
     bindEdit(); bindElModal(); bindLineModal(); bindExport();
     $('#elType').innerHTML = TYPES.map(function (t) { return '<option>' + t.key + '</option>'; }).join('');
-    $('#q').addEventListener('input', function () { S.q = this.value; renderList(); });
+    $('#q').addEventListener('input', function () { S.q = this.value; renderList(); renderElementList(); });
     bindPlacing();
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
