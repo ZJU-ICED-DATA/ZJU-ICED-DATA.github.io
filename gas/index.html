@@ -151,6 +151,7 @@
         <g id="base"></g>
         <g id="furn"></g>
         <g id="lines"></g>
+        <g id="draft"></g>
         <g id="hl"></g>
       </svg>
       <div id="markers"></div>
@@ -277,7 +278,7 @@
     editing: false, q: '', typeFilter: '',
     placing: null, newType: '其他',
     elEditId: null, lineEditId: null, level: 'high',
-    drag: null, lastDrag: 0
+    drag: null, lastDrag: 0, draftRect: null
   };
 
   function $(s, r) { return (r || document).querySelector(s); }
@@ -477,26 +478,106 @@
     });
   }
 
-  /* ================= 放置元素 ================= */
-  function onMapClick(ev) {
-    if (!S.editing || S.placing !== 'element') return;
-    if (Date.now() - (S.lastDrag || 0) < 300) return;
-    if (ev.target.closest && ev.target.closest('[data-eid]')) return;
-    var wrap = $('#mapWrap'), rect = wrap.getBoundingClientRect();
-    var x = r3((ev.clientX - rect.left) / rect.width);
-    var y = r3((ev.clientY - rect.top) / rect.height);
-    if (x < 0 || x > 1 || y < 0 || y > 1) return;
+  /* ================= 放置元素（按住拖拽，实时预览） ================= */
+  function clamp01(v) { return Math.max(0, Math.min(1, v)); }
+  function pointOf(ev) {
+    var rect = $('#mapWrap').getBoundingClientRect();
+    return {
+      x: clamp01((ev.clientX - rect.left) / rect.width),
+      y: clamp01((ev.clientY - rect.top) / rect.height)
+    };
+  }
 
-    var e = { id: 'e-' + Date.now().toString(36), type: S.newType, name: '',
-              x: r3(Math.max(0, Math.min(0.88, x - 0.05))),
-              y: r3(Math.max(0, Math.min(0.94, y - 0.025))),
-              w: 0.10, h: 0.05, note: '' };
-    S.elements.push(e);
-    S.selEl = e.id;
-    stopPlacing();
-    drawFurniture();
-    renderElementList(); renderDetail();
-    openElModal(e.id);
+  /* 拖动中的虚线预览框 */
+  function drawDraft() {
+    var g = $('#draft');
+    if (!g) return;
+    g.innerHTML = '';
+    var d = S.draftRect;
+    if (!d) return;
+    var x = Math.min(d.x0, d.x1), y = Math.min(d.y0, d.y1);
+    var w = Math.abs(d.x1 - d.x0), h = Math.abs(d.y1 - d.y0);
+    var c = typeColor(S.newType);
+
+    g.appendChild(svgEl('rect', {
+      x: px(x), y: py(y), width: px(w), height: py(h),
+      rx: 5, fill: c, 'fill-opacity': '0.18',
+      stroke: c, 'stroke-width': 1.8, 'stroke-dasharray': '6 4'
+    }));
+
+    /* 尺寸标签 */
+    var label = (w * 100).toFixed(0) + '% × ' + (h * 100).toFixed(0) + '%';
+    var ty = py(y) - 4;
+    if (ty < 12) ty = py(y + h) + 12;
+    var tx = px(x);
+    var txt = svgEl('text', {
+      x: tx, y: ty, 'font-size': 10.5, fill: c, 'font-weight': 700,
+      stroke: '#ffffff', 'stroke-width': 3, 'paint-order': 'stroke'
+    });
+    txt.textContent = label;
+    g.appendChild(txt);
+  }
+
+  function bindPlacing() {
+    var wrap = $('#mapWrap');
+
+    wrap.addEventListener('pointerdown', function (ev) {
+      if (!S.editing || S.placing !== 'element') return;
+      if (ev.target.closest && ev.target.closest('[data-eid]')) return;
+      if (ev.button !== undefined && ev.button !== 0) return;
+      ev.preventDefault();
+
+      var p = pointOf(ev);
+      S.draftRect = { x0: p.x, y0: p.y, x1: p.x, y1: p.y, moved: false };
+      drawDraft();
+      showTip('拖出方框大小，松手后命名（也可以直接单击放一个小方框）');
+      try { wrap.setPointerCapture(ev.pointerId); } catch (e) { /* 忽略 */ }
+    });
+
+    wrap.addEventListener('pointermove', function (ev) {
+      if (!S.draftRect) return;
+      ev.preventDefault();
+      var p = pointOf(ev);
+      if (Math.abs(p.x - S.draftRect.x0) > 0.004 || Math.abs(p.y - S.draftRect.y0) > 0.004) {
+        S.draftRect.moved = true;
+      }
+      S.draftRect.x1 = p.x;
+      S.draftRect.y1 = p.y;
+      drawDraft();
+    });
+
+    var finish = function (ev) {
+      if (!S.draftRect) return;
+      var d = S.draftRect;
+      S.draftRect = null;
+      drawDraft();
+
+      var x = Math.min(d.x0, d.x1), y = Math.min(d.y0, d.y1);
+      var w = Math.abs(d.x1 - d.x0), h = Math.abs(d.y1 - d.y0);
+
+      /* 只是点了一下（几乎没拖动）→ 用默认尺寸居中 */
+      if (w < 0.015 || h < 0.015) {
+        w = 0.10; h = 0.05;
+        x = clamp01(x - w / 2);
+        y = clamp01(y - h / 2);
+      }
+      if (x + w > 1) x = 1 - w;
+      if (y + h > 1) y = 1 - h;
+
+      var e = {
+        id: 'e-' + Date.now().toString(36), type: S.newType, name: '',
+        x: r3(x), y: r3(y), w: r3(Math.max(0.02, w)), h: r3(Math.max(0.02, h)), note: ''
+      };
+      S.elements.push(e);
+      S.selEl = e.id;
+      stopPlacing();
+      drawFurniture();
+      renderElementList(); renderDetail();
+      openElModal(e.id);
+    };
+
+    wrap.addEventListener('pointerup', finish);
+    wrap.addEventListener('pointercancel', finish);
   }
 
   function showTip(msg) {
@@ -507,12 +588,16 @@
   function startPlacing() {
     S.newType = S.typeFilter || '其他';
     S.placing = 'element';
+    S.draftRect = null;
+    drawDraft();
     $('#mapWrap').classList.add('armed');
-    showTip('点击图上位置放置「' + S.newType + '」元素');
-    setStatus('点选位置…', 'warn');
+    showTip('按住鼠标拖出「' + S.newType + '」的大小，松手后命名');
+    setStatus('拖拽绘制中…', 'warn');
   }
   function stopPlacing() {
     S.placing = null;
+    S.draftRect = null;
+    drawDraft();
     $('#mapWrap').classList.remove('armed');
     showTip('');
     setStatus(S.editing ? '编辑模式' : '浏览模式', S.editing ? 'warn' : '');
@@ -925,7 +1010,7 @@
     bindEdit(); bindElModal(); bindLineModal(); bindExport();
     $('#elType').innerHTML = TYPES.map(function (t) { return '<option>' + t.key + '</option>'; }).join('');
     $('#q').addEventListener('input', function () { S.q = this.value; renderList(); });
-    $('#mapWrap').addEventListener('click', onMapClick);
+    bindPlacing();
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
         $('#loginModal').classList.remove('open');
