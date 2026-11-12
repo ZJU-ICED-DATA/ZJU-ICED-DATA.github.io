@@ -148,6 +148,7 @@
           </pattern>
         </defs>
         <rect x="0" y="0" width="1000" height="820" fill="url(#grid)"></rect>
+        <g id="base"></g>
         <g id="furn"></g>
         <g id="lines"></g>
         <g id="hl"></g>
@@ -271,7 +272,7 @@
   }
 
   var S = {
-    lines: [], elements: [], plan: {},
+    lines: [], elements: [], plan: {}, planRects: [],
     selLine: null, selEl: null,
     editing: false, q: '', typeFilter: '',
     placing: null, newType: '其他',
@@ -310,6 +311,10 @@
       S.lines = Array.isArray(j.lines) ? j.lines : [];
       S.elements = Array.isArray(j.elements) ? j.elements : [];
       S.plan = j.plan || {};
+      try {
+        var pr = await fetch('plan.json?t=' + Date.now(), { cache: 'no-store' });
+        if (pr.ok) { var pj = await pr.json(); S.planRects = Array.isArray(pj.rects) ? pj.rects : []; }
+      } catch (e) { S.planRects = []; }
       setStatus('已加载 ' + S.lines.length + ' 条气路 · ' + S.elements.length + ' 个元素', 'ok');
     } catch (e) {
       setStatus('读取失败：' + e.message, 'warn');
@@ -323,6 +328,18 @@
   }
 
   /* ================= 画布 ================= */
+  function drawBase() {
+    var g = $('#base');
+    if (!g) return;
+    g.innerHTML = '';
+    (S.planRects || []).forEach(function (r) {
+      g.appendChild(svgEl('rect', {
+        x: r[0], y: r[1], width: r[2], height: r[3],
+        fill: '#b9c6d6', 'shape-rendering': 'crispEdges'
+      }));
+    });
+  }
+
   function drawFurniture() {
     var g = $('#furn');
     if (!g) return;
@@ -837,24 +854,57 @@
       updatedAt: new Date().toISOString(), plan: S.plan || {},
       elements: S.elements, lines: S.lines
     }, null, 1);
-    try {
-      var api = 'https://api.github.com/repos/' + GH.owner + '/' + GH.repo + '/contents/' + GH.path;
-      var cur = await fetch(api + '?ref=' + GH.branch + '&t=' + Date.now(), { headers: ghHeaders(), cache: 'no-store' });
-      var sha = cur.ok ? (await cur.json()).sha : null;
-      var res = await fetch(api, {
-        method: 'PUT', headers: ghHeaders(),
-        body: JSON.stringify({ message: (msg || '更新布置') + '（网页编辑）', content: b64(payload), branch: GH.branch, sha: sha })
-      });
-      if (!res.ok) {
-        var j = await res.json().catch(function () { return {}; });
-        throw new Error(j.message || ('HTTP ' + res.status));
+
+    var api = 'https://api.github.com/repos/' + GH.owner + '/' + GH.repo + '/contents/' + GH.path;
+    var lastErr = null;
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        var cur = await fetch(api + '?ref=' + GH.branch + '&t=' + Date.now(), { headers: ghHeaders(), cache: 'no-store' });
+        if (!cur.ok) {
+          throw new Error('读取当前文件失败 HTTP ' + cur.status + (cur.status === 401 ? '（令牌无效）' : ''));
+        }
+        var sha = (await cur.json()).sha;
+
+        var res = await fetch(api, {
+          method: 'PUT', headers: ghHeaders(),
+          body: JSON.stringify({ message: (msg || '更新布置') + '（网页编辑）', content: b64(payload), branch: GH.branch, sha: sha })
+        });
+
+        if (res.ok) {
+          setStatus('已保存，约 1 分钟后生效', 'ok');
+          toast('已保存');
+          return true;
+        }
+
+        var detail = '';
+        try { var j = await res.json(); detail = j.message || ''; } catch (e) { detail = ''; }
+        lastErr = new Error('HTTP ' + res.status + (detail ? '：' + detail : ''));
+
+        /* 409 = sha 冲突，重读一次再写 */
+        if (res.status === 409 && attempt === 0) { await new Promise(function (r) { setTimeout(r, 600); }); continue; }
+        break;
+      } catch (e) {
+        lastErr = e;
+        if (attempt === 0) { await new Promise(function (r) { setTimeout(r, 600); }); continue; }
+        break;
       }
-      setStatus('已保存，约 1 分钟后生效', 'ok');
-      toast('已保存');
-    } catch (e) {
-      setStatus('保存失败：' + e.message, 'warn');
-      toast('保存失败：' + e.message, 4200);
     }
+
+    var hint = '';
+    if (lastErr) {
+      var m = String(lastErr.message || lastErr);
+      if (/Failed to fetch|NetworkError|Load failed/i.test(m)) hint = '（网络被拦截，可能是浏览器插件或网络限制）';
+      else if (/401/.test(m)) hint = '（写入令牌无效或已过期）';
+      else if (/403/.test(m)) hint = '（令牌权限不足或触发限流，稍后再试）';
+      else if (/409/.test(m)) hint = '（文件刚被别处修改，已重试仍冲突，请再点一次保存）';
+      else if (/422/.test(m)) hint = '（提交内容过大或格式不被接受）';
+    }
+    var text = '保存失败：' + (lastErr ? (lastErr.message || lastErr) : '未知错误') + hint;
+    setStatus(text, 'warn');
+    toast(text, 6000);
+    console.error('[保存失败]', lastErr);
+    return false;
   }
 
   function bindExport() {
@@ -869,7 +919,7 @@
     });
   }
 
-  function renderAll() { drawFurniture(); drawLines(); renderList(); renderTypeChips(); renderElementList(); renderDetail(); }
+  function renderAll() { drawBase(); drawFurniture(); drawLines(); renderList(); renderTypeChips(); renderElementList(); renderDetail(); }
 
   function boot() {
     bindEdit(); bindElModal(); bindLineModal(); bindExport();
