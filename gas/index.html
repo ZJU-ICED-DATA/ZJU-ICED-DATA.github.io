@@ -142,12 +142,7 @@
     <div class="tip" id="tip"></div>
     <div id="mapWrap">
       <svg id="canvas" viewBox="0 0 1000 820" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <pattern id="grid" width="25" height="25" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="0.8" fill="#e6ecf3"></circle>
-          </pattern>
-        </defs>
-        <rect x="0" y="0" width="1000" height="820" fill="url(#grid)"></rect>
+        <rect x="0" y="0" width="1000" height="820" fill="#ffffff"></rect>
         <g id="base"></g>
         <g id="furn"></g>
         <g id="lines"></g>
@@ -334,9 +329,12 @@
     if (!g) return;
     g.innerHTML = '';
     (S.planRects || []).forEach(function (r) {
+      /* 线稿本身只有 1 个单位粗，向外扩 0.7 让墙看起来更实 */
+      var pad = 0.7;
       g.appendChild(svgEl('rect', {
-        x: r[0], y: r[1], width: r[2], height: r[3],
-        fill: '#b9c6d6', 'shape-rendering': 'crispEdges'
+        x: (r[0] - pad).toFixed(2), y: (r[1] - pad).toFixed(2),
+        width: (r[2] + pad * 2).toFixed(2), height: (r[3] + pad * 2).toFixed(2),
+        fill: '#3f4c5c', 'shape-rendering': 'crispEdges'
       }));
     });
   }
@@ -349,13 +347,24 @@
     S.elements.forEach(function (e) {
       var c = typeColor(e.type);
       var sel = S.selEl === e.id;
-      g.appendChild(svgEl('rect', {
-        x: px(e.x), y: py(e.y), width: px(e.w), height: py(e.h),
-        rx: 5, fill: c, 'fill-opacity': sel ? '0.32' : '0.16',
-        stroke: c, 'stroke-width': sel ? 2.6 : 1.6
-      }));
 
-      /* 名称：框够大就居中显示在框内；框太小则完整显示在框上方（不截断） */
+      /* 主体：白底 + 加粗描边（参考图风格） */
+      var box = svgEl('rect', {
+        x: px(e.x), y: py(e.y), width: px(e.w), height: py(e.h),
+        rx: 3, fill: sel ? '#f3f8ff' : '#ffffff',
+        stroke: sel ? '#1d6fb8' : c, 'stroke-width': sel ? 3 : 2.2
+      });
+      box.setAttribute('data-eid', e.id);
+      g.appendChild(box);
+
+      /* 类型色细条，保留分类识别 */
+      if (parseFloat(px(e.w)) > 14) {
+        g.appendChild(svgEl('rect', {
+          x: px(e.x), y: py(e.y), width: 3.2, height: py(e.h),
+          rx: 1.5, fill: c, 'fill-opacity': '0.85'
+        }));
+      }
+
       var bw = parseFloat(px(e.w)), bh = parseFloat(py(e.h));
       var name = e.name || '';
       if (!name) return;
@@ -368,35 +377,35 @@
         return wsum * size;
       }
 
-      var inside = bw >= 40 && bh >= 16;   /* 框足够大 → 文字放框内 */
+      var inside = bw >= 42 && bh >= 16;
       var fs = 10.5;
       var shown = name;
-
       if (inside) {
-        while (fs > 7 && (emWidth(name, fs) > bw - 8 || fs > bh - 4)) fs -= 0.5;
-        if (emWidth(name, fs) > bw - 8) {
-          shown = name;
-          while (shown.length > 1 && emWidth(shown + '…', fs) > bw - 8) shown = shown.slice(0, -1);
+        while (fs > 7 && (emWidth(name, fs) > bw - 12 || fs > bh - 4)) fs -= 0.5;
+        if (emWidth(name, fs) > bw - 12) {
+          while (shown.length > 1 && emWidth(shown + '…', fs) > bw - 12) shown = shown.slice(0, -1);
           shown = shown + '…';
         }
       } else {
-        fs = 9;   /* 小框：标签放到上方，完整显示 */
+        fs = 9;
       }
 
-      var tx = bw / 2;
+      var tx = bw / 2 + (bw > 14 ? 1.5 : 0);
       var ty = inside ? (bh / 2 + fs * 0.34) : -4;
 
-      var t = svgEl('text', {
+      var tEl = svgEl('text', {
         x: (parseFloat(px(e.x)) + tx).toFixed(1),
         y: (parseFloat(py(e.y)) + ty).toFixed(1),
-        'text-anchor': 'middle',
-        'font-size': fs,
-        fill: '#1f2d3d', 'font-weight': 650,
-        stroke: '#ffffff', 'stroke-width': inside ? 2.2 : 3,
+        'text-anchor': 'middle', 'font-size': fs,
+        fill: sel ? '#0f3f66' : '#1f2d3d', 'font-weight': 650,
+        stroke: '#ffffff', 'stroke-width': inside ? 2 : 3,
         'paint-order': 'stroke', 'pointer-events': 'none'
       });
-      t.textContent = shown;
-      g.appendChild(t);
+      tEl.textContent = shown;
+      g.appendChild(tEl);
+
+      /* 选中时画尺寸线（参考图的标注风格） */
+      if (sel) drawDims(g, e);
     });
 
     var host = $('#markers');
@@ -426,6 +435,48 @@
         host.appendChild(h);
       }
     }
+  }
+
+  /* 每单位对应的毫米数（由 CAD 上 9600mm 房间宽度反推） */
+  var MM_PER_UNIT = 12.1;
+
+  function fmtM(unitsVal) {
+    var m = unitsVal * MM_PER_UNIT / 1000;
+    return (m >= 1 ? m.toFixed(2) : (m * 100).toFixed(0) + ' cm');
+  }
+
+  /* 在元素下方画宽度尺寸线，右侧画高度尺寸线 */
+  function drawDims(g, e) {
+    var x = parseFloat(px(e.x)), y = parseFloat(py(e.y));
+    var w = parseFloat(px(e.w)), h = parseFloat(py(e.h));
+    var col = '#3b82f6';
+    var off = 14;
+
+    /* 宽度（下方） */
+    var yb = y + h + off;
+    g.appendChild(svgEl('line', { x1: x, y1: yb, x2: x + w, y2: yb, stroke: col, 'stroke-width': 1.1 }));
+    g.appendChild(svgEl('line', { x1: x, y1: yb - 4, x2: x, y2: yb + 4, stroke: col, 'stroke-width': 1.1 }));
+    g.appendChild(svgEl('line', { x1: x + w, y1: yb - 4, x2: x + w, y2: yb + 4, stroke: col, 'stroke-width': 1.1 }));
+    var t1 = svgEl('text', {
+      x: (x + w / 2).toFixed(1), y: (yb + 12).toFixed(1),
+      'text-anchor': 'middle', 'font-size': 10.5, fill: col, 'font-weight': 700,
+      stroke: '#ffffff', 'stroke-width': 3, 'paint-order': 'stroke'
+    });
+    t1.textContent = fmtM(e.w * 1000);
+    g.appendChild(t1);
+
+    /* 高度（右侧） */
+    var xr = x + w + off;
+    g.appendChild(svgEl('line', { x1: xr, y1: y, x2: xr, y2: y + h, stroke: col, 'stroke-width': 1.1 }));
+    g.appendChild(svgEl('line', { x1: xr - 4, y1: y, x2: xr + 4, y2: y, stroke: col, 'stroke-width': 1.1 }));
+    g.appendChild(svgEl('line', { x1: xr - 4, y1: y + h, x2: xr + 4, y2: y + h, stroke: col, 'stroke-width': 1.1 }));
+    var t2 = svgEl('text', {
+      x: (xr + 5).toFixed(1), y: (y + h / 2 + 3.5).toFixed(1),
+      'font-size': 10.5, fill: col, 'font-weight': 700,
+      stroke: '#ffffff', 'stroke-width': 3, 'paint-order': 'stroke'
+    });
+    t2.textContent = fmtM(e.h * 1000 / (820 / 820));
+    g.appendChild(t2);
   }
 
   function lineColor(l) {
@@ -646,8 +697,8 @@
     if (!e) return;
     S.elEditId = id;
     $('#elTitle').textContent = '元素：' + (e.name || '未命名');
-    $('#elHint').textContent = '位置 x=' + e.x.toFixed(3) + ' y=' + e.y.toFixed(3) +
-      ' · 尺寸 ' + e.w.toFixed(3) + '×' + e.h.toFixed(3);
+    $('#elHint').textContent = '尺寸约 ' + fmtM(e.w * 1000) + ' × ' + fmtM(e.h * 1000) +
+      '　·　位置 x=' + e.x.toFixed(3) + ' y=' + e.y.toFixed(3);
     $('#elName').value = e.name || '';
     $('#elType').value = e.type || '其他';
     $('#elNote').value = e.note || '';
