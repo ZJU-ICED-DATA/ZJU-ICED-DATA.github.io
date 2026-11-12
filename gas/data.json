@@ -1,973 +1,9 @@
 {
- "updatedAt": "",
+ "updatedAt": "2026-11-12T11:55:10.798Z",
  "plan": {
   "image": "plan.png",
   "note": "材 2-607 供气系统平面图（底图来自 材2-607供气系统平面图2-Model.pdf）"
  },
- "lines": [
-  {
-   "id": "L-001",
-   "gas": "N₂",
-   "name": "氮气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "N₂ 气源",
-    "x": 0.1514,
-    "y": 0.4955,
-    "elementId": "e-001"
-   },
-   "user": {
-    "name": "大固定床电脑+GC",
-    "x": 0.2684,
-    "y": 0.704,
-    "elementId": "e-002"
-   },
-   "inlet": "25 MPa（气瓶）",
-   "outlet": "0–10 MPa（减压后）",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "图纸标注：N2, 25MPA → 10MPA",
-   "unplaced": false
-  },
-  {
-   "id": "L-002",
-   "gas": "N₂",
-   "name": "氮气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "N₂ 气源",
-    "x": 0.1514,
-    "y": 0.4955,
-    "elementId": "e-001"
-   },
-   "user": {
-    "name": "在线分析仪",
-    "x": 0.4028,
-    "y": 0.4607,
-    "elementId": "e-003"
-   },
-   "inlet": "25 MPa（气瓶）",
-   "outlet": "0–10 MPa（减压后）",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "图纸标注：N2, 25MPA → 10MPA",
-   "unplaced": false
-  },
-  {
-   "id": "L-003",
-   "gas": "CO₂",
-   "name": "二氧化碳",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "CO₂ 气源",
-    "x": 0.1514,
-    "y": 0.4668,
-    "elementId": "e-004"
-   },
-   "user": {
-    "name": "大固定床电脑+GC",
-    "x": 0.2684,
-    "y": 0.704,
-    "elementId": "e-002"
-   },
-   "inlet": "25 MPa（气瓶）",
-   "outlet": "0–10 MPa（减压后）",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "图纸标注：CO2, 25MPA → 10MPA",
-   "unplaced": false
-  },
-  {
-   "id": "L-004",
-   "gas": "CO₂",
-   "name": "二氧化碳",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "CO₂ 气源",
-    "x": 0.1514,
-    "y": 0.4668,
-    "elementId": "e-004"
-   },
-   "user": {
-    "name": "电化学",
-    "x": 0.6455,
-    "y": 0.4477,
-    "elementId": "e-005"
-   },
-   "inlet": "25 MPa（气瓶）",
-   "outlet": "0–10 MPa（减压后）",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "图纸标注：CO2, 25MPA → 10MPA",
-   "unplaced": false
-  },
-  {
-   "id": "L-005",
-   "gas": "CO₂",
-   "name": "二氧化碳",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "CO₂ 气源",
-    "x": 0.1514,
-    "y": 0.4668,
-    "elementId": "e-004"
-   },
-   "user": {
-    "name": "3台高压釜",
-    "x": 0.6412,
-    "y": 0.3348,
-    "elementId": "e-006"
-   },
-   "inlet": "25 MPa（气瓶）",
-   "outlet": "0–10 MPa（减压后）",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "图纸标注：CO2, 25MPA → 10MPA",
-   "unplaced": false
-  },
-  {
-   "id": "L-006",
-   "gas": "He",
-   "name": "氦气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "He 气源",
-    "x": 0.1514,
-    "y": 0.4373,
-    "elementId": "e-007"
-   },
-   "user": {
-    "name": "大固定床电脑+GC",
-    "x": 0.2684,
-    "y": 0.704,
-    "elementId": "e-002"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "载气 / 检漏",
-   "unplaced": false
-  },
-  {
-   "id": "L-007",
-   "gas": "O₂",
-   "name": "氧气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "O₂ 气源",
-    "x": 0.1514,
-    "y": 0.4086,
-    "elementId": "e-008"
-   },
-   "user": {
-    "name": "3台高压釜",
-    "x": 0.6412,
-    "y": 0.3348,
-    "elementId": "e-006"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8（禁油）",
-   "tube": "316L BA 1/4\" OD",
-   "note": "强氧化性，接头与管路必须禁油",
-   "unplaced": false
-  },
-  {
-   "id": "L-008",
-   "gas": "AIR",
-   "name": "压缩空气",
-   "level": "low",
-   "kind": "gas",
-   "source": {
-    "name": "AIR 气源",
-    "x": 0.1514,
-    "y": 0.3765,
-    "elementId": "e-009"
-   },
-   "user": {
-    "name": "常压固定床",
-    "x": 0.4028,
-    "y": 0.3217,
-    "elementId": "e-010"
-   },
-   "inlet": "厂务压缩空气",
-   "outlet": "0–10 MPa",
-   "purity": "仪表空气",
-   "connector": "G3/8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-009",
-   "gas": "AIR",
-   "name": "压缩空气",
-   "level": "low",
-   "kind": "gas",
-   "source": {
-    "name": "AIR 气源",
-    "x": 0.1514,
-    "y": 0.3765,
-    "elementId": "e-009"
-   },
-   "user": {
-    "name": "电化学",
-    "x": 0.6455,
-    "y": 0.4477,
-    "elementId": "e-005"
-   },
-   "inlet": "厂务压缩空气",
-   "outlet": "0–10 MPa",
-   "purity": "仪表空气",
-   "connector": "G3/8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-010",
-   "gas": "AIR",
-   "name": "压缩空气",
-   "level": "low",
-   "kind": "gas",
-   "source": {
-    "name": "AIR 气源",
-    "x": 0.1514,
-    "y": 0.3765,
-    "elementId": "e-009"
-   },
-   "user": {
-    "name": "大固定床电脑+GC",
-    "x": 0.2684,
-    "y": 0.704,
-    "elementId": "e-002"
-   },
-   "inlet": "厂务压缩空气",
-   "outlet": "0–10 MPa",
-   "purity": "仪表空气",
-   "connector": "G3/8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-011",
-   "gas": "Ar",
-   "name": "氩气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "Ar 气源",
-    "x": 0.1514,
-    "y": 0.3478,
-    "elementId": "e-011"
-   },
-   "user": {
-    "name": "常压固定床",
-    "x": 0.4028,
-    "y": 0.3217,
-    "elementId": "e-010"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "保护气",
-   "unplaced": false
-  },
-  {
-   "id": "L-012",
-   "gas": "Ar",
-   "name": "氩气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "Ar 气源",
-    "x": 0.1514,
-    "y": 0.3478,
-    "elementId": "e-011"
-   },
-   "user": {
-    "name": "电化学",
-    "x": 0.6455,
-    "y": 0.4477,
-    "elementId": "e-005"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "保护气",
-   "unplaced": false
-  },
-  {
-   "id": "L-013",
-   "gas": "备用1",
-   "name": "备用气路 1",
-   "level": "low",
-   "kind": "reserved",
-   "source": {
-    "name": "备用1 气源",
-    "x": 0.1514,
-    "y": 0.32,
-    "elementId": "e-012"
-   },
-   "user": {
-    "name": "常压固定床",
-    "x": 0.4028,
-    "y": 0.3217,
-    "elementId": "e-010"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "空置备用",
-   "unplaced": false
-  },
-  {
-   "id": "L-014",
-   "gas": "备用1",
-   "name": "备用气路 1",
-   "level": "low",
-   "kind": "reserved",
-   "source": {
-    "name": "备用1 气源",
-    "x": 0.1514,
-    "y": 0.32,
-    "elementId": "e-012"
-   },
-   "user": {
-    "name": "在线分析仪",
-    "x": 0.4028,
-    "y": 0.4607,
-    "elementId": "e-003"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "空置备用",
-   "unplaced": false
-  },
-  {
-   "id": "L-015",
-   "gas": "备用2",
-   "name": "备用气路 2",
-   "level": "low",
-   "kind": "reserved",
-   "source": {
-    "name": "备用2 气源",
-    "x": 0.1514,
-    "y": 0.2939,
-    "elementId": "e-013"
-   },
-   "user": {
-    "name": "常压固定床",
-    "x": 0.4028,
-    "y": 0.3217,
-    "elementId": "e-010"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-016",
-   "gas": "备用2",
-   "name": "备用气路 2",
-   "level": "low",
-   "kind": "reserved",
-   "source": {
-    "name": "备用2 气源",
-    "x": 0.1514,
-    "y": 0.2939,
-    "elementId": "e-013"
-   },
-   "user": {
-    "name": "在线分析仪",
-    "x": 0.4028,
-    "y": 0.4607,
-    "elementId": "e-003"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-017",
-   "gas": "备用3",
-   "name": "备用气路 3",
-   "level": "low",
-   "kind": "reserved",
-   "source": {
-    "name": "备用3 气源",
-    "x": 0.1514,
-    "y": 0.267,
-    "elementId": "e-014"
-   },
-   "user": {
-    "name": "常压固定床",
-    "x": 0.4028,
-    "y": 0.3217,
-    "elementId": "e-010"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-018",
-   "gas": "备用3",
-   "name": "备用气路 3",
-   "level": "low",
-   "kind": "reserved",
-   "source": {
-    "name": "备用3 气源",
-    "x": 0.1514,
-    "y": 0.267,
-    "elementId": "e-014"
-   },
-   "user": {
-    "name": "在线分析仪",
-    "x": 0.4028,
-    "y": 0.4607,
-    "elementId": "e-003"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-019",
-   "gas": "备用4",
-   "name": "备用气路 4",
-   "level": "low",
-   "kind": "reserved",
-   "source": {
-    "name": "备用4 气源",
-    "x": 0.1514,
-    "y": 0.24350000000000002,
-    "elementId": "e-015"
-   },
-   "user": {
-    "name": "常压固定床",
-    "x": 0.4028,
-    "y": 0.3217,
-    "elementId": "e-010"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-020",
-   "gas": "备用4",
-   "name": "备用气路 4",
-   "level": "low",
-   "kind": "reserved",
-   "source": {
-    "name": "备用4 气源",
-    "x": 0.1514,
-    "y": 0.24350000000000002,
-    "elementId": "e-015"
-   },
-   "user": {
-    "name": "在线分析仪",
-    "x": 0.4028,
-    "y": 0.4607,
-    "elementId": "e-003"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-021",
-   "gas": "备用6",
-   "name": "备用气路 6",
-   "level": "low",
-   "kind": "reserved",
-   "source": {
-    "name": "备用6 气源",
-    "x": 0.1514,
-    "y": 0.2018,
-    "elementId": "e-016"
-   },
-   "user": {
-    "name": "在线分析仪",
-    "x": 0.4028,
-    "y": 0.4607,
-    "elementId": "e-003"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-022",
-   "gas": "备用7",
-   "name": "备用气路 7",
-   "level": "low",
-   "kind": "reserved",
-   "source": {
-    "name": "备用7 气源",
-    "x": 0.1514,
-    "y": 0.1766,
-    "elementId": "e-017"
-   },
-   "user": {
-    "name": "在线分析仪",
-    "x": 0.4028,
-    "y": 0.4607,
-    "elementId": "e-003"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-023",
-   "gas": "备用7",
-   "name": "备用气路 7",
-   "level": "low",
-   "kind": "reserved",
-   "source": {
-    "name": "备用7 气源",
-    "x": 0.1514,
-    "y": 0.1766,
-    "elementId": "e-017"
-   },
-   "user": {
-    "name": "红外",
-    "x": 0.47650000000000003,
-    "y": 0.5389,
-    "elementId": "e-018"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-024",
-   "gas": "备用10",
-   "name": "备用气路 10",
-   "level": "high",
-   "kind": "reserved",
-   "source": {
-    "name": "备用10 气源",
-    "x": 0.1514,
-    "y": 0.1506,
-    "elementId": "e-019"
-   },
-   "user": {
-    "name": "吸附仪",
-    "x": 0.4808,
-    "y": 0.439,
-    "elementId": "e-020"
-   },
-   "inlet": "25 MPa",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "图纸标注：备用10, 25MPA、10MPA",
-   "unplaced": false
-  },
-  {
-   "id": "L-025",
-   "gas": "备用10",
-   "name": "备用气路 10",
-   "level": "high",
-   "kind": "reserved",
-   "source": {
-    "name": "备用10 气源",
-    "x": 0.1514,
-    "y": 0.1506,
-    "elementId": "e-019"
-   },
-   "user": {
-    "name": "红外",
-    "x": 0.47650000000000003,
-    "y": 0.5389,
-    "elementId": "e-018"
-   },
-   "inlet": "25 MPa",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "图纸标注：备用10, 25MPA、10MPA",
-   "unplaced": false
-  },
-  {
-   "id": "L-026",
-   "gas": "备用11",
-   "name": "备用气路 11",
-   "level": "high",
-   "kind": "reserved",
-   "source": {
-    "name": "备用11 气源",
-    "x": 0.1514,
-    "y": 0.128,
-    "elementId": "e-021"
-   },
-   "user": {
-    "name": "吸附仪",
-    "x": 0.4808,
-    "y": 0.439,
-    "elementId": "e-020"
-   },
-   "inlet": "25 MPa",
-   "outlet": "10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "图纸标注：备用11, 25MPA → 10MPA",
-   "unplaced": false
-  },
-  {
-   "id": "L-027",
-   "gas": "备用12",
-   "name": "备用气路 12",
-   "level": "low",
-   "kind": "reserved",
-   "source": {
-    "name": "备用12 气源",
-    "x": 0.1514,
-    "y": 0.1071,
-    "elementId": "e-022"
-   },
-   "user": {
-    "name": "吸附仪",
-    "x": 0.4808,
-    "y": 0.439,
-    "elementId": "e-020"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-028",
-   "gas": "CH₄",
-   "name": "甲烷",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "CH₄ 气源",
-    "x": 0.3074,
-    "y": 0.869,
-    "elementId": "e-023"
-   },
-   "user": {
-    "name": "3台高压釜",
-    "x": 0.6412,
-    "y": 0.3348,
-    "elementId": "e-006"
-   },
-   "inlet": "25 MPa（气瓶）",
-   "outlet": "0–10 MPa（减压后）",
-   "purity": "待确认（≥99.99%）",
-   "connector": "W21.8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "易燃易爆，与氧化性气体分开存放；图纸标注：CH4, 25MPA → 10MPA",
-   "unplaced": false
-  },
-  {
-   "id": "L-029",
-   "gas": "CO+N₂",
-   "name": "CO/N₂ 混合气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "CO+N₂ 气源",
-    "x": 0.2814,
-    "y": 0.869,
-    "elementId": "e-024"
-   },
-   "user": {
-    "name": "在线分析仪",
-    "x": 0.4028,
-    "y": 0.4607,
-    "elementId": "e-003"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "待确认",
-   "connector": "W21.8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "CO 剧毒，注意泄漏报警与通风",
-   "unplaced": false
-  },
-  {
-   "id": "L-030",
-   "gas": "CO+N₂",
-   "name": "CO/N₂ 混合气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "CO+N₂ 气源",
-    "x": 0.2814,
-    "y": 0.869,
-    "elementId": "e-024"
-   },
-   "user": {
-    "name": "吸附仪",
-    "x": 0.4808,
-    "y": 0.439,
-    "elementId": "e-020"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "待确认",
-   "connector": "W21.8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "CO 剧毒，注意泄漏报警与通风",
-   "unplaced": false
-  },
-  {
-   "id": "L-031",
-   "gas": "CO+N₂",
-   "name": "CO/N₂ 混合气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "CO+N₂ 气源",
-    "x": 0.2814,
-    "y": 0.869,
-    "elementId": "e-024"
-   },
-   "user": {
-    "name": "红外",
-    "x": 0.47650000000000003,
-    "y": 0.5389,
-    "elementId": "e-018"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "待确认",
-   "connector": "W21.8",
-   "tube": "316L BA 1/4\" OD",
-   "note": "CO 剧毒，注意泄漏报警与通风",
-   "unplaced": false
-  },
-  {
-   "id": "L-032",
-   "gas": "H₂",
-   "name": "氢气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "H₂ 气源",
-    "x": 0.3594,
-    "y": 0.869,
-    "elementId": "e-025"
-   },
-   "user": {
-    "name": "常压固定床",
-    "x": 0.4028,
-    "y": 0.3217,
-    "elementId": "e-010"
-   },
-   "inlet": "25 MPa（气瓶）",
-   "outlet": "10 MPa",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8（左旋）",
-   "tube": "316L BA 1/4\" OD",
-   "note": "极易燃；图纸标注：H2, 25MPA → 10MPA。瓶阀为左旋螺纹",
-   "unplaced": false
-  },
-  {
-   "id": "L-033",
-   "gas": "H₂",
-   "name": "氢气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "H₂ 气源",
-    "x": 0.3594,
-    "y": 0.869,
-    "elementId": "e-025"
-   },
-   "user": {
-    "name": "电化学",
-    "x": 0.6455,
-    "y": 0.4477,
-    "elementId": "e-005"
-   },
-   "inlet": "25 MPa（气瓶）",
-   "outlet": "10 MPa",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8（左旋）",
-   "tube": "316L BA 1/4\" OD",
-   "note": "极易燃；图纸标注：H2, 25MPA → 10MPA。瓶阀为左旋螺纹",
-   "unplaced": false
-  },
-  {
-   "id": "L-034",
-   "gas": "H₂",
-   "name": "氢气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "H₂ 气源",
-    "x": 0.3594,
-    "y": 0.869,
-    "elementId": "e-025"
-   },
-   "user": {
-    "name": "3台高压釜",
-    "x": 0.6412,
-    "y": 0.3348,
-    "elementId": "e-006"
-   },
-   "inlet": "25 MPa（气瓶）",
-   "outlet": "10 MPa",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8（左旋）",
-   "tube": "316L BA 1/4\" OD",
-   "note": "极易燃；图纸标注：H2, 25MPA → 10MPA。瓶阀为左旋螺纹",
-   "unplaced": false
-  },
-  {
-   "id": "L-035",
-   "gas": "H₂",
-   "name": "氢气",
-   "level": "high",
-   "kind": "gas",
-   "source": {
-    "name": "H₂ 气源",
-    "x": 0.3594,
-    "y": 0.869,
-    "elementId": "e-025"
-   },
-   "user": {
-    "name": "大固定床电脑+GC",
-    "x": 0.2684,
-    "y": 0.704,
-    "elementId": "e-002"
-   },
-   "inlet": "25 MPa（气瓶）",
-   "outlet": "10 MPa",
-   "purity": "待确认（≥99.999%）",
-   "connector": "W21.8（左旋）",
-   "tube": "316L BA 1/4\" OD",
-   "note": "极易燃；图纸标注：H2, 25MPA → 10MPA。瓶阀为左旋螺纹",
-   "unplaced": false
-  },
-  {
-   "id": "L-036",
-   "gas": "备用8",
-   "name": "备用气路 8（气瓶）",
-   "level": "high",
-   "kind": "reserved",
-   "source": {
-    "name": "备用8 气源",
-    "x": 0.4288,
-    "y": 0.869,
-    "elementId": "e-026"
-   },
-   "user": {
-    "name": "管式炉",
-    "x": 0.7582,
-    "y": 0.1958,
-    "elementId": "e-027"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  },
-  {
-   "id": "L-037",
-   "gas": "备用9",
-   "name": "备用气路 9（气瓶）",
-   "level": "high",
-   "kind": "reserved",
-   "source": {
-    "name": "备用9 气源",
-    "x": 0.4635,
-    "y": 0.869,
-    "elementId": "e-028"
-   },
-   "user": {
-    "name": "管式炉",
-    "x": 0.7582,
-    "y": 0.1958,
-    "elementId": "e-027"
-   },
-   "inlet": "待确认",
-   "outlet": "0–10 MPa",
-   "purity": "—",
-   "connector": "待确认",
-   "tube": "316L BA 1/4\" OD",
-   "note": "",
-   "unplaced": false
-  }
- ],
  "elements": [
   {
    "id": "e-001",
@@ -1248,6 +284,980 @@
    "w": 0.02,
    "h": 0.02,
    "note": ""
+  },
+  {
+   "id": "e-mwdhqean",
+   "type": "气瓶柜",
+   "name": "气瓶柜1",
+   "x": 0.273,
+   "y": 0.625,
+   "w": 0.1,
+   "h": 0.05,
+   "note": "高纯氢储备"
+  }
+ ],
+ "lines": [
+  {
+   "id": "L-001",
+   "gas": "N₂",
+   "name": "氮气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "N₂ 气源",
+    "x": 0.151,
+    "y": 0.496,
+    "elementId": "e-001"
+   },
+   "user": {
+    "name": "大固定床电脑+GC",
+    "x": 0.268,
+    "y": 0.704,
+    "elementId": "e-002"
+   },
+   "inlet": "25 MPa（气瓶）",
+   "outlet": "0–10 MPa（减压后）",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "图纸标注：N2, 25MPA → 10MPA",
+   "unplaced": false
+  },
+  {
+   "id": "L-002",
+   "gas": "N₂",
+   "name": "氮气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "N₂ 气源",
+    "x": 0.151,
+    "y": 0.496,
+    "elementId": "e-001"
+   },
+   "user": {
+    "name": "在线分析仪",
+    "x": 0.403,
+    "y": 0.461,
+    "elementId": "e-003"
+   },
+   "inlet": "25 MPa（气瓶）",
+   "outlet": "0–10 MPa（减压后）",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "图纸标注：N2, 25MPA → 10MPA",
+   "unplaced": false
+  },
+  {
+   "id": "L-003",
+   "gas": "CO₂",
+   "name": "二氧化碳",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "CO₂ 气源",
+    "x": 0.151,
+    "y": 0.467,
+    "elementId": "e-004"
+   },
+   "user": {
+    "name": "大固定床电脑+GC",
+    "x": 0.268,
+    "y": 0.704,
+    "elementId": "e-002"
+   },
+   "inlet": "25 MPa（气瓶）",
+   "outlet": "0–10 MPa（减压后）",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "图纸标注：CO2, 25MPA → 10MPA",
+   "unplaced": false
+  },
+  {
+   "id": "L-004",
+   "gas": "CO₂",
+   "name": "二氧化碳",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "CO₂ 气源",
+    "x": 0.151,
+    "y": 0.467,
+    "elementId": "e-004"
+   },
+   "user": {
+    "name": "电化学",
+    "x": 0.646,
+    "y": 0.448,
+    "elementId": "e-005"
+   },
+   "inlet": "25 MPa（气瓶）",
+   "outlet": "0–10 MPa（减压后）",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "图纸标注：CO2, 25MPA → 10MPA",
+   "unplaced": false
+  },
+  {
+   "id": "L-005",
+   "gas": "CO₂",
+   "name": "二氧化碳",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "CO₂ 气源",
+    "x": 0.151,
+    "y": 0.467,
+    "elementId": "e-004"
+   },
+   "user": {
+    "name": "3台高压釜",
+    "x": 0.641,
+    "y": 0.335,
+    "elementId": "e-006"
+   },
+   "inlet": "25 MPa（气瓶）",
+   "outlet": "0–10 MPa（减压后）",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "图纸标注：CO2, 25MPA → 10MPA",
+   "unplaced": false
+  },
+  {
+   "id": "L-006",
+   "gas": "He",
+   "name": "氦气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "He 气源",
+    "x": 0.151,
+    "y": 0.437,
+    "elementId": "e-007"
+   },
+   "user": {
+    "name": "大固定床电脑+GC",
+    "x": 0.268,
+    "y": 0.704,
+    "elementId": "e-002"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "载气 / 检漏",
+   "unplaced": false
+  },
+  {
+   "id": "L-007",
+   "gas": "O₂",
+   "name": "氧气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "O₂ 气源",
+    "x": 0.151,
+    "y": 0.409,
+    "elementId": "e-008"
+   },
+   "user": {
+    "name": "3台高压釜",
+    "x": 0.641,
+    "y": 0.335,
+    "elementId": "e-006"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8（禁油）",
+   "tube": "316L BA 1/4\" OD",
+   "note": "强氧化性，接头与管路必须禁油",
+   "unplaced": false
+  },
+  {
+   "id": "L-008",
+   "gas": "AIR",
+   "name": "压缩空气",
+   "level": "low",
+   "kind": "gas",
+   "source": {
+    "name": "AIR 气源",
+    "x": 0.151,
+    "y": 0.377,
+    "elementId": "e-009"
+   },
+   "user": {
+    "name": "常压固定床",
+    "x": 0.403,
+    "y": 0.322,
+    "elementId": "e-010"
+   },
+   "inlet": "厂务压缩空气",
+   "outlet": "0–10 MPa",
+   "purity": "仪表空气",
+   "connector": "G3/8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-009",
+   "gas": "AIR",
+   "name": "压缩空气",
+   "level": "low",
+   "kind": "gas",
+   "source": {
+    "name": "AIR 气源",
+    "x": 0.151,
+    "y": 0.377,
+    "elementId": "e-009"
+   },
+   "user": {
+    "name": "电化学",
+    "x": 0.646,
+    "y": 0.448,
+    "elementId": "e-005"
+   },
+   "inlet": "厂务压缩空气",
+   "outlet": "0–10 MPa",
+   "purity": "仪表空气",
+   "connector": "G3/8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-010",
+   "gas": "AIR",
+   "name": "压缩空气",
+   "level": "low",
+   "kind": "gas",
+   "source": {
+    "name": "AIR 气源",
+    "x": 0.151,
+    "y": 0.377,
+    "elementId": "e-009"
+   },
+   "user": {
+    "name": "大固定床电脑+GC",
+    "x": 0.268,
+    "y": 0.704,
+    "elementId": "e-002"
+   },
+   "inlet": "厂务压缩空气",
+   "outlet": "0–10 MPa",
+   "purity": "仪表空气",
+   "connector": "G3/8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-011",
+   "gas": "Ar",
+   "name": "氩气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "Ar 气源",
+    "x": 0.151,
+    "y": 0.348,
+    "elementId": "e-011"
+   },
+   "user": {
+    "name": "常压固定床",
+    "x": 0.403,
+    "y": 0.322,
+    "elementId": "e-010"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "保护气",
+   "unplaced": false
+  },
+  {
+   "id": "L-012",
+   "gas": "Ar",
+   "name": "氩气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "Ar 气源",
+    "x": 0.151,
+    "y": 0.348,
+    "elementId": "e-011"
+   },
+   "user": {
+    "name": "电化学",
+    "x": 0.646,
+    "y": 0.448,
+    "elementId": "e-005"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "保护气",
+   "unplaced": false
+  },
+  {
+   "id": "L-013",
+   "gas": "备用1",
+   "name": "备用气路 1",
+   "level": "low",
+   "kind": "reserved",
+   "source": {
+    "name": "备用1 气源",
+    "x": 0.151,
+    "y": 0.32,
+    "elementId": "e-012"
+   },
+   "user": {
+    "name": "常压固定床",
+    "x": 0.403,
+    "y": 0.322,
+    "elementId": "e-010"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "空置备用",
+   "unplaced": false
+  },
+  {
+   "id": "L-014",
+   "gas": "备用1",
+   "name": "备用气路 1",
+   "level": "low",
+   "kind": "reserved",
+   "source": {
+    "name": "备用1 气源",
+    "x": 0.151,
+    "y": 0.32,
+    "elementId": "e-012"
+   },
+   "user": {
+    "name": "在线分析仪",
+    "x": 0.403,
+    "y": 0.461,
+    "elementId": "e-003"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "空置备用",
+   "unplaced": false
+  },
+  {
+   "id": "L-015",
+   "gas": "备用2",
+   "name": "备用气路 2",
+   "level": "low",
+   "kind": "reserved",
+   "source": {
+    "name": "备用2 气源",
+    "x": 0.151,
+    "y": 0.294,
+    "elementId": "e-013"
+   },
+   "user": {
+    "name": "常压固定床",
+    "x": 0.403,
+    "y": 0.322,
+    "elementId": "e-010"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-016",
+   "gas": "备用2",
+   "name": "备用气路 2",
+   "level": "low",
+   "kind": "reserved",
+   "source": {
+    "name": "备用2 气源",
+    "x": 0.151,
+    "y": 0.294,
+    "elementId": "e-013"
+   },
+   "user": {
+    "name": "在线分析仪",
+    "x": 0.403,
+    "y": 0.461,
+    "elementId": "e-003"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-017",
+   "gas": "备用3",
+   "name": "备用气路 3",
+   "level": "low",
+   "kind": "reserved",
+   "source": {
+    "name": "备用3 气源",
+    "x": 0.151,
+    "y": 0.267,
+    "elementId": "e-014"
+   },
+   "user": {
+    "name": "常压固定床",
+    "x": 0.403,
+    "y": 0.322,
+    "elementId": "e-010"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-018",
+   "gas": "备用3",
+   "name": "备用气路 3",
+   "level": "low",
+   "kind": "reserved",
+   "source": {
+    "name": "备用3 气源",
+    "x": 0.151,
+    "y": 0.267,
+    "elementId": "e-014"
+   },
+   "user": {
+    "name": "在线分析仪",
+    "x": 0.403,
+    "y": 0.461,
+    "elementId": "e-003"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-019",
+   "gas": "备用4",
+   "name": "备用气路 4",
+   "level": "low",
+   "kind": "reserved",
+   "source": {
+    "name": "备用4 气源",
+    "x": 0.151,
+    "y": 0.244,
+    "elementId": "e-015"
+   },
+   "user": {
+    "name": "常压固定床",
+    "x": 0.403,
+    "y": 0.322,
+    "elementId": "e-010"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-020",
+   "gas": "备用4",
+   "name": "备用气路 4",
+   "level": "low",
+   "kind": "reserved",
+   "source": {
+    "name": "备用4 气源",
+    "x": 0.151,
+    "y": 0.244,
+    "elementId": "e-015"
+   },
+   "user": {
+    "name": "在线分析仪",
+    "x": 0.403,
+    "y": 0.461,
+    "elementId": "e-003"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-021",
+   "gas": "备用6",
+   "name": "备用气路 6",
+   "level": "low",
+   "kind": "reserved",
+   "source": {
+    "name": "备用6 气源",
+    "x": 0.151,
+    "y": 0.202,
+    "elementId": "e-016"
+   },
+   "user": {
+    "name": "在线分析仪",
+    "x": 0.403,
+    "y": 0.461,
+    "elementId": "e-003"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-022",
+   "gas": "备用7",
+   "name": "备用气路 7",
+   "level": "low",
+   "kind": "reserved",
+   "source": {
+    "name": "备用7 气源",
+    "x": 0.151,
+    "y": 0.177,
+    "elementId": "e-017"
+   },
+   "user": {
+    "name": "在线分析仪",
+    "x": 0.403,
+    "y": 0.461,
+    "elementId": "e-003"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-023",
+   "gas": "备用7",
+   "name": "备用气路 7",
+   "level": "low",
+   "kind": "reserved",
+   "source": {
+    "name": "备用7 气源",
+    "x": 0.151,
+    "y": 0.177,
+    "elementId": "e-017"
+   },
+   "user": {
+    "name": "红外",
+    "x": 0.477,
+    "y": 0.539,
+    "elementId": "e-018"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-024",
+   "gas": "备用10",
+   "name": "备用气路 10",
+   "level": "high",
+   "kind": "reserved",
+   "source": {
+    "name": "备用10 气源",
+    "x": 0.151,
+    "y": 0.151,
+    "elementId": "e-019"
+   },
+   "user": {
+    "name": "吸附仪",
+    "x": 0.481,
+    "y": 0.439,
+    "elementId": "e-020"
+   },
+   "inlet": "25 MPa",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "图纸标注：备用10, 25MPA、10MPA",
+   "unplaced": false
+  },
+  {
+   "id": "L-025",
+   "gas": "备用10",
+   "name": "备用气路 10",
+   "level": "high",
+   "kind": "reserved",
+   "source": {
+    "name": "备用10 气源",
+    "x": 0.151,
+    "y": 0.151,
+    "elementId": "e-019"
+   },
+   "user": {
+    "name": "红外",
+    "x": 0.477,
+    "y": 0.539,
+    "elementId": "e-018"
+   },
+   "inlet": "25 MPa",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "图纸标注：备用10, 25MPA、10MPA",
+   "unplaced": false
+  },
+  {
+   "id": "L-026",
+   "gas": "备用11",
+   "name": "备用气路 11",
+   "level": "high",
+   "kind": "reserved",
+   "source": {
+    "name": "备用11 气源",
+    "x": 0.151,
+    "y": 0.128,
+    "elementId": "e-021"
+   },
+   "user": {
+    "name": "吸附仪",
+    "x": 0.481,
+    "y": 0.439,
+    "elementId": "e-020"
+   },
+   "inlet": "25 MPa",
+   "outlet": "10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "图纸标注：备用11, 25MPA → 10MPA",
+   "unplaced": false
+  },
+  {
+   "id": "L-027",
+   "gas": "备用12",
+   "name": "备用气路 12",
+   "level": "low",
+   "kind": "reserved",
+   "source": {
+    "name": "备用12 气源",
+    "x": 0.151,
+    "y": 0.107,
+    "elementId": "e-022"
+   },
+   "user": {
+    "name": "吸附仪",
+    "x": 0.481,
+    "y": 0.439,
+    "elementId": "e-020"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-028",
+   "gas": "CH₄",
+   "name": "甲烷",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "CH₄ 气源",
+    "x": 0.307,
+    "y": 0.869,
+    "elementId": "e-023"
+   },
+   "user": {
+    "name": "3台高压釜",
+    "x": 0.641,
+    "y": 0.335,
+    "elementId": "e-006"
+   },
+   "inlet": "25 MPa（气瓶）",
+   "outlet": "0–10 MPa（减压后）",
+   "purity": "待确认（≥99.99%）",
+   "connector": "W21.8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "易燃易爆，与氧化性气体分开存放；图纸标注：CH4, 25MPA → 10MPA",
+   "unplaced": false
+  },
+  {
+   "id": "L-029",
+   "gas": "CO+N₂",
+   "name": "CO/N₂ 混合气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "CO+N₂ 气源",
+    "x": 0.281,
+    "y": 0.869,
+    "elementId": "e-024"
+   },
+   "user": {
+    "name": "在线分析仪",
+    "x": 0.403,
+    "y": 0.461,
+    "elementId": "e-003"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "待确认",
+   "connector": "W21.8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "CO 剧毒，注意泄漏报警与通风",
+   "unplaced": false
+  },
+  {
+   "id": "L-030",
+   "gas": "CO+N₂",
+   "name": "CO/N₂ 混合气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "CO+N₂ 气源",
+    "x": 0.281,
+    "y": 0.869,
+    "elementId": "e-024"
+   },
+   "user": {
+    "name": "吸附仪",
+    "x": 0.481,
+    "y": 0.439,
+    "elementId": "e-020"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "待确认",
+   "connector": "W21.8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "CO 剧毒，注意泄漏报警与通风",
+   "unplaced": false
+  },
+  {
+   "id": "L-031",
+   "gas": "CO+N₂",
+   "name": "CO/N₂ 混合气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "CO+N₂ 气源",
+    "x": 0.281,
+    "y": 0.869,
+    "elementId": "e-024"
+   },
+   "user": {
+    "name": "红外",
+    "x": 0.477,
+    "y": 0.539,
+    "elementId": "e-018"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "待确认",
+   "connector": "W21.8",
+   "tube": "316L BA 1/4\" OD",
+   "note": "CO 剧毒，注意泄漏报警与通风",
+   "unplaced": false
+  },
+  {
+   "id": "L-032",
+   "gas": "H₂",
+   "name": "氢气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "H₂ 气源",
+    "x": 0.359,
+    "y": 0.869,
+    "elementId": "e-025"
+   },
+   "user": {
+    "name": "常压固定床",
+    "x": 0.403,
+    "y": 0.322,
+    "elementId": "e-010"
+   },
+   "inlet": "25 MPa（气瓶）",
+   "outlet": "10 MPa",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8（左旋）",
+   "tube": "316L BA 1/4\" OD",
+   "note": "极易燃；图纸标注：H2, 25MPA → 10MPA。瓶阀为左旋螺纹",
+   "unplaced": false
+  },
+  {
+   "id": "L-033",
+   "gas": "H₂",
+   "name": "氢气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "H₂ 气源",
+    "x": 0.359,
+    "y": 0.869,
+    "elementId": "e-025"
+   },
+   "user": {
+    "name": "电化学",
+    "x": 0.646,
+    "y": 0.448,
+    "elementId": "e-005"
+   },
+   "inlet": "25 MPa（气瓶）",
+   "outlet": "10 MPa",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8（左旋）",
+   "tube": "316L BA 1/4\" OD",
+   "note": "极易燃；图纸标注：H2, 25MPA → 10MPA。瓶阀为左旋螺纹",
+   "unplaced": false
+  },
+  {
+   "id": "L-034",
+   "gas": "H₂",
+   "name": "氢气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "H₂ 气源",
+    "x": 0.359,
+    "y": 0.869,
+    "elementId": "e-025"
+   },
+   "user": {
+    "name": "3台高压釜",
+    "x": 0.641,
+    "y": 0.335,
+    "elementId": "e-006"
+   },
+   "inlet": "25 MPa（气瓶）",
+   "outlet": "10 MPa",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8（左旋）",
+   "tube": "316L BA 1/4\" OD",
+   "note": "极易燃；图纸标注：H2, 25MPA → 10MPA。瓶阀为左旋螺纹",
+   "unplaced": false
+  },
+  {
+   "id": "L-035",
+   "gas": "H₂",
+   "name": "氢气",
+   "level": "high",
+   "kind": "gas",
+   "source": {
+    "name": "H₂ 气源",
+    "x": 0.359,
+    "y": 0.869,
+    "elementId": "e-025"
+   },
+   "user": {
+    "name": "大固定床电脑+GC",
+    "x": 0.268,
+    "y": 0.704,
+    "elementId": "e-002"
+   },
+   "inlet": "25 MPa（气瓶）",
+   "outlet": "10 MPa",
+   "purity": "待确认（≥99.999%）",
+   "connector": "W21.8（左旋）",
+   "tube": "316L BA 1/4\" OD",
+   "note": "极易燃；图纸标注：H2, 25MPA → 10MPA。瓶阀为左旋螺纹",
+   "unplaced": false
+  },
+  {
+   "id": "L-036",
+   "gas": "备用8",
+   "name": "备用气路 8（气瓶）",
+   "level": "high",
+   "kind": "reserved",
+   "source": {
+    "name": "备用8 气源",
+    "x": 0.429,
+    "y": 0.869,
+    "elementId": "e-026"
+   },
+   "user": {
+    "name": "管式炉",
+    "x": 0.758,
+    "y": 0.196,
+    "elementId": "e-027"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
+  },
+  {
+   "id": "L-037",
+   "gas": "备用9",
+   "name": "备用气路 9（气瓶）",
+   "level": "high",
+   "kind": "reserved",
+   "source": {
+    "name": "备用9 气源",
+    "x": 0.464,
+    "y": 0.869,
+    "elementId": "e-028"
+   },
+   "user": {
+    "name": "管式炉",
+    "x": 0.758,
+    "y": 0.196,
+    "elementId": "e-027"
+   },
+   "inlet": "待确认",
+   "outlet": "0–10 MPa",
+   "purity": "—",
+   "connector": "待确认",
+   "tube": "316L BA 1/4\" OD",
+   "note": "",
+   "unplaced": false
   }
  ]
 }
