@@ -13,95 +13,95 @@
   *{box-sizing:border-box}
   body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
        background:var(--bg);color:var(--text);font-size:14px}
-  header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);
+  header{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#fff;border-bottom:1px solid var(--line);
          position:sticky;top:0;z-index:30;flex-wrap:wrap}
-  .brand{font-weight:750;font-size:16px;letter-spacing:.3px}
+  .brand{font-weight:750;font-size:15.5px}
   .brand .sub{font-weight:500;font-size:12px;color:var(--muted);margin-left:6px}
-  .tools{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+  .tools{display:flex;align-items:center;gap:7px;margin-left:auto;flex-wrap:wrap}
   input[type=text],input[type=password],textarea,select{
-    border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;font-family:inherit;background:#fff;color:var(--text)}
+    border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:13px;font-family:inherit;background:#fff;color:var(--text)}
   input:focus,textarea:focus,select:focus{outline:2px solid #bfdbfe;border-color:#93c5fd}
-  #q{width:190px}
-  button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font-size:13px;
+  #q{width:170px}
+  button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 11px;font-size:13px;
          cursor:pointer;font-family:inherit;color:var(--text);transition:.15s}
   button:hover{background:#f1f5f9}
   button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
   button.primary:hover{background:var(--accent-d)}
   button.danger{color:var(--danger);border-color:#fecaca}
-  button.danger:hover{background:#fef2f2}
+  button.sm{padding:3px 8px;font-size:12px}
   a{text-decoration:none}
   .pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:3px 8px;border-radius:999px;background:#eef2f7;color:#475569}
   .pill.high{background:#fef2f2;color:#b91c1c}
   .pill.low{background:#eff6ff;color:#1d4ed8}
   .pill.ok{background:#ecfdf5;color:#047857}
   .pill.warn{background:#fff7ed;color:#c2410c}
-  main{display:grid;grid-template-columns:250px minmax(0,1fr) 330px;gap:12px;padding:12px;align-items:start}
-  @media (max-width:1180px){ main{grid-template-columns:1fr} }
-  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-  .card h2{margin:0;padding:10px 12px;font-size:12.5px;font-weight:700;color:var(--muted);
-           border-bottom:1px solid var(--line);letter-spacing:.4px}
-  #list{max-height:calc(100vh - 96px);overflow:auto}
-  .li{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer}
+  main{display:grid;grid-template-columns:225px minmax(0,1fr) 335px;gap:10px;padding:10px;align-items:start}
+  @media (max-width:1200px){ main{grid-template-columns:1fr} }
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:10px}
+  .card h2{margin:0;padding:9px 12px;font-size:12.5px;font-weight:700;color:var(--muted);
+           border-bottom:1px solid var(--line);letter-spacing:.3px;display:flex;align-items:center;gap:6px}
+  .card h2 .r{margin-left:auto;font-weight:600}
+  #list{max-height:calc(100vh - 170px);overflow:auto}
+  .li{display:flex;align-items:center;gap:7px;padding:6px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer}
   .li:hover{background:#f8fafc}
   .li.active{background:#eff6ff}
   .li .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto;border:1px solid rgba(0,0,0,.15)}
   .li .nm{font-weight:650;white-space:nowrap}
-  .li .to{font-size:11px;color:var(--muted);margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:110px}
-  #stage{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}
+  .li .to{font-size:11px;color:var(--muted);margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:95px}
+  #stage{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px}
   #mapWrap{position:relative;line-height:0;user-select:none;touch-action:none;border-radius:8px;overflow:hidden;
-           background:#fbfcfe;border:1px solid #eef2f7}
+           background:#fcfdfe;border:1px solid #eef2f7}
   #mapWrap.armed{cursor:crosshair;border-color:#f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,.15)}
   #canvas{width:100%;height:auto;display:block}
   #markers{position:absolute;inset:0}
-  .mk{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:2px solid #fff;
-      box-shadow:0 1px 5px rgba(15,23,42,.35);cursor:pointer;display:flex;align-items:center;justify-content:center;
-      transition:transform .12s}
-  .mk.src{width:20px;height:20px;font-size:8.5px;font-weight:700;color:#fff}
-  .mk.user{width:13px;height:13px;border-radius:3px;background:#fff;border:2.5px solid #0ea5e9}
-  .mk:hover{transform:translate(-50%,-50%) scale(1.25);z-index:5}
-  .mk.sel{transform:translate(-50%,-50%) scale(1.4);z-index:6}
-  .mk.gas.high{background:var(--c-high)}
-  .mk.gas.low{background:var(--c-low)}
-  .mk.gas.reserved{background:var(--c-res)}
-  .mk .lb{position:absolute;left:23px;top:50%;transform:translateY(-50%);white-space:nowrap;
-          font-size:10px;font-weight:600;color:#334155;background:rgba(255,255,255,.9);padding:0 4px;border-radius:4px;
-          pointer-events:none}
-  .mk .lb.under{left:50%;top:22px;transform:translateX(-50%)}
-  .legend{display:flex;gap:14px;flex-wrap:wrap;padding:8px 2px 2px;font-size:11.5px;color:var(--muted);line-height:1.2}
-  .legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
-  .legend .sq{display:inline-block;width:9px;height:9px;border-radius:2px;background:#fff;border:2px solid #0ea5e9;margin-right:5px;vertical-align:-1px}
-  .legend .ln{display:inline-block;width:18px;height:0;border-top:2px dashed #f59e0b;margin-right:5px;vertical-align:3px}
-  #detail{max-height:calc(100vh - 96px);overflow:auto}
-  .dt{padding:12px}
-  .dt h3{margin:0 0 2px;font-size:16px}
-  .dt .sub{color:var(--muted);font-size:12px;margin-bottom:10px}
-  .kv{display:grid;grid-template-columns:72px 1fr;gap:6px 10px;font-size:13px;margin-bottom:12px}
+  .el-hit{position:absolute;cursor:move}
+  .el-handle{position:absolute;width:13px;height:13px;margin:-6px 0 0 -6px;background:#1d6fb8;
+             border:2px solid #fff;border-radius:3px;cursor:nwse-resize;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;padding:7px 2px 0;font-size:11.5px;color:var(--muted);line-height:1.2}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+  .legend .ln{display:inline-block;width:16px;height:0;border-top:2px dashed #f59e0b;margin-right:4px;vertical-align:3px}
+  #elList{max-height:calc(100vh - 400px);overflow:auto}
+  .el-row{display:flex;align-items:center;gap:7px;padding:6px 10px;border-bottom:1px solid #f1f5f9;cursor:pointer}
+  .el-row:hover{background:#f8fafc}
+  .el-row.active{background:#eff6ff}
+  .el-row .tag{font-size:10px;padding:1px 6px;border-radius:999px;color:#fff;flex:0 0 auto}
+  .el-row .n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .el-row .c{margin-left:auto;font-size:11px;color:var(--muted);flex:0 0 auto}
+  .chips{display:flex;gap:5px;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid #f1f5f9}
+  .chip{font-size:11.5px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);cursor:pointer;background:#fff}
+  .chip.on{background:#e0f2fe;border-color:#7dd3fc;color:#0369a1;font-weight:650}
+  #detail{padding:10px 12px;max-height:calc(100vh - 400px);overflow:auto}
+  .dt h3{margin:0 0 2px;font-size:15.5px}
+  .dt .sub{color:var(--muted);font-size:12px;margin-bottom:8px}
+  .kv{display:grid;grid-template-columns:60px 1fr;gap:5px 9px;font-size:12.5px;margin-bottom:9px}
   .kv .k{color:var(--muted)}
-  .route{background:#f8fafc;border:1px solid #eef2f7;border-radius:8px;padding:8px 10px;margin-bottom:12px;font-size:12.5px}
-  .route .arrow{color:#94a3b8;margin:0 4px}
-  .empty{color:var(--muted);font-size:13px;padding:16px 12px}
-  #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0f172a;color:#fff;
-         padding:9px 16px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:99}
+  .glist{display:flex;flex-wrap:wrap;gap:5px}
+  .g{font-size:11.5px;padding:2px 8px;border-radius:999px;background:#f1f5f9;cursor:pointer;border:1px solid #e2e8f0}
+  .g:hover{background:#e2e8f0}
+  .g.hi{background:#fef2f2;border-color:#fecaca;color:#b91c1c}
+  .g.lo{background:#eff6ff;border-color:#dbeafe;color:#1d4ed8}
+  .g.re{background:#f8fafc;color:#64748b}
+  .empty{color:var(--muted);font-size:12.5px;padding:12px}
+  #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#0f172a;color:#fff;
+         padding:8px 15px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:99}
   #toast.show{opacity:.94}
   .modal{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:60}
   .modal.open{display:flex}
-  .box{background:#fff;border-radius:14px;width:min(580px,96vw);max-height:92vh;overflow:auto;padding:16px 18px}
-  .box h3{margin:0 0 4px;font-size:16px}
-  .box .muted{color:var(--muted);font-size:12px;margin-bottom:12px}
-  .f{margin-bottom:10px}
-  .f label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  .box{background:#fff;border-radius:14px;width:min(520px,96vw);max-height:92vh;overflow:auto;padding:15px 17px}
+  .box h3{margin:0 0 4px;font-size:15.5px}
+  .box .muted{color:var(--muted);font-size:12px;margin-bottom:10px}
+  .f{margin-bottom:9px}
+  .f label{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
   .f input,.f textarea,.f select{width:100%}
-  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-  .foot{display:flex;gap:8px;margin-top:6px;flex-wrap:wrap}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .foot{display:flex;gap:7px;margin-top:6px;flex-wrap:wrap}
   .foot .right{margin-left:auto}
   .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-  .seg button{border:0;border-radius:0;padding:6px 14px}
+  .seg button{border:0;border-radius:0;padding:5px 13px}
   .seg button+button{border-left:1px solid var(--line)}
   .seg button.on{background:#e0f2fe;color:#0369a1;font-weight:650}
-  .tip{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:7px 10px;font-size:12.5px;margin-bottom:10px;display:none}
+  .tip{background:#fffbeb;border:1px solid #fde68a;color:#92400e;border-radius:8px;padding:6px 10px;font-size:12.5px;margin-bottom:8px;display:none}
   .tip.show{display:block}
-
-  /* ---------- 打印（贴墙用） ---------- */
   @media print{
     @page{ size:A4 landscape; margin:10mm; }
     body{background:#fff}
@@ -112,66 +112,45 @@
     .print-title{display:block !important}
   }
   .print-title{display:none;font-size:14px;font-weight:700;margin:0 0 4px}
-
-  /* 布置编辑 */
-  .furn-box{ position:absolute; box-sizing:border-box; border:2px solid #7c8ea3; border-radius:6px;
-             background:rgba(124,142,163,.12); cursor:move; }
-  .furn-box.sel{ border-color:#1d6fb8; background:rgba(29,111,184,.14); box-shadow:0 0 0 3px rgba(29,111,184,.15); }
-  .furn-box .fname{ position:absolute; left:4px; top:50%; transform:translateY(-50%);
-                    font-size:10px; font-weight:650; color:#334155; white-space:nowrap;
-                    background:rgba(255,255,255,.75); padding:0 3px; border-radius:3px; pointer-events:none; }
-  .furn-box .fh{ position:absolute; right:-6px; bottom:-6px; width:12px; height:12px; background:#1d6fb8;
-                 border:2px solid #fff; border-radius:3px; cursor:nwse-resize; display:none; }
-  .furn-box.sel .fh{ display:block; }
-  .tool-sep{ width:1px; height:20px; background:var(--line); margin:0 2px; }
-  .chk{ display:inline-flex; align-items:center; gap:5px; font-size:12.5px; color:var(--muted); cursor:pointer; }
-  .chk input{ margin:0; }
 </style>
 </head>
 <body>
 
 <header>
-  <div class="brand">实验室气路图<span class="sub">材 2-607 · 气源 → 用户端</span></div>
+  <div class="brand">实验室气路图<span class="sub">材 2-607 · 气源 → 用气端</span></div>
   <div class="tools">
-    <input type="text" id="q" placeholder="搜索气体 / 用户端…" />
+    <input type="text" id="q" placeholder="搜索气体 / 元素…" />
     <a href="list.html"><button>速查清单</button></a>
     <button id="btnExport">导出 JSON</button>
     <button id="btnEdit">编辑</button>
-    <button class="primary" id="btnAdd" style="display:none">＋ 新气路</button>
-    <button id="btnLayout" style="display:none">布置</button>
-    <button id="btnFurnAdd" style="display:none">＋ 方框</button>
-    <label class="chk" id="lblBase" style="display:none"><input type="checkbox" id="chkBase" checked />显示底图</label>
+    <button class="primary" id="btnAddEl" style="display:none">＋ 元素</button>
+    <button class="primary" id="btnAddLine" style="display:none">＋ 气路</button>
     <span class="pill" id="status">加载中…</span>
   </div>
 </header>
 
 <main>
-  <aside class="card">
-    <h2>气路清单 <span id="cnt"></span></h2>
-    <div id="list"></div>
+  <aside>
+    <div class="card">
+      <h2>气路清单 <span class="r" id="cnt"></span></h2>
+      <div id="list"></div>
+    </div>
   </aside>
 
   <section id="stage">
-    <div class="print-title" id="printTitle">材 2-607 实验室供气系统示意图</div>
+    <div class="print-title">材 2-607 实验室供气系统示意图</div>
     <div class="tip" id="tip"></div>
     <div id="mapWrap">
       <svg id="canvas" viewBox="0 0 1000 820" xmlns="http://www.w3.org/2000/svg">
         <defs>
-          <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="0.8" fill="#dbe3ec"></circle>
+          <pattern id="grid" width="25" height="25" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="0.8" fill="#e6ecf3"></circle>
           </pattern>
-          <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
-            <feDropShadow dx="0" dy="1" stdDeviation="2" flood-color="#0f172a" flood-opacity="0.10" />
-          </filter>
         </defs>
         <rect x="0" y="0" width="1000" height="820" fill="url(#grid)"></rect>
-        <g id="rooms"></g>
-        <g id="decor"></g>
-        <g id="lines"></g>
-        <g id="equip"></g>
         <g id="furn"></g>
+        <g id="lines"></g>
         <g id="hl"></g>
-        <g id="spots"></g>
       </svg>
       <div id="markers"></div>
     </div>
@@ -179,81 +158,83 @@
       <span><i style="background:var(--c-high)"></i>高压</span>
       <span><i style="background:var(--c-low)"></i>低压</span>
       <span><i style="background:var(--c-res)"></i>备用</span>
-      <span><span class="sq"></span>用户端</span>
       <span><span class="ln"></span>选中气路</span>
     </div>
   </section>
 
-  <aside class="card">
-    <h2>气路详情</h2>
-    <div id="detail"><div class="empty">从左侧列表或图上气源点选择一条气路</div></div>
+  <aside>
+    <div class="card">
+      <h2>基本元素 <span class="r" id="elCount"></span></h2>
+      <div class="chips" id="typeChips"></div>
+      <div id="elList"></div>
+    </div>
+    <div class="card">
+      <h2>详情</h2>
+      <div id="detail"><div class="empty">选择右侧元素或左侧气路</div></div>
+    </div>
   </aside>
 </main>
 
 <div class="modal" id="loginModal">
-  <div class="box" style="width:min(380px,96vw)">
+  <div class="box" style="width:min(370px,96vw)">
     <h3>编辑模式</h3>
-    <div class="muted">输入管理密码后可新建 / 修改 / 移动气路点位。</div>
-    <div class="f"><label>用户名</label><input type="text" id="lgUser" value="admin" autocomplete="username" /></div>
-    <div class="f"><label>密码</label><input type="password" id="lgPass" autocomplete="current-password" /></div>
-    <div class="muted" id="lgErr" style="color:#b91c1c;min-height:18px"></div>
+    <div class="muted">输入管理密码后可添加 / 修改元素与气路。</div>
+    <div class="f"><label>用户名</label><input type="text" id="lgUser" value="admin" /></div>
+    <div class="f"><label>密码</label><input type="password" id="lgPass" /></div>
+    <div class="muted" id="lgErr" style="color:#b91c1c;min-height:16px"></div>
     <div class="foot"><button class="primary" id="lgOk">进入</button><button id="lgCancel">取消</button></div>
   </div>
 </div>
 
-<div class="modal" id="editModal">
-  <div class="box">
-    <h3 id="edTitle">新建气路</h3>
-    <div class="muted" id="edHint"></div>
+<div class="modal" id="elModal">
+  <div class="box" style="width:min(420px,96vw)">
+    <h3 id="elTitle">元素</h3>
+    <div class="muted" id="elHint"></div>
     <div class="row2">
-      <div class="f"><label>气体（图上短标签）</label><input type="text" id="edGas" placeholder="N₂ / H₂ / CH₄" /></div>
-      <div class="f"><label>气体名称</label><input type="text" id="edName" placeholder="氮气" /></div>
+      <div class="f"><label>名称</label><input type="text" id="elName" placeholder="通风柜 4 号" /></div>
+      <div class="f"><label>类型</label><select id="elType"></select></div>
     </div>
-    <div class="row2">
-      <div class="f"><label>压力类型</label>
-        <div class="seg" id="edLevelSeg">
-          <button type="button" data-v="high">高压</button>
-          <button type="button" data-v="low">低压</button>
-        </div>
-        <div class="muted" style="margin-top:6px">同一气源可同时存在高压、低压两条线路</div>
-      </div>
-      <div class="f"><label>气路状态</label>
-        <select id="edKind"><option value="gas">在用</option><option value="reserved">备用（空置）</option></select>
-      </div>
-    </div>
-    <div class="row2">
-      <div class="f"><label>气源端名称</label><input type="text" id="edSrcName" placeholder="H₂ 气瓶（底部柜）" /></div>
-      <div class="f"><label>用户端名称</label><input type="text" id="edUserName" placeholder="常压固定床" /></div>
-    </div>
-    <div class="row2">
-      <div class="f"><label>进气压力</label><input type="text" id="edInlet" placeholder="25 MPa（气瓶）" /></div>
-      <div class="f"><label>输出压力</label><input type="text" id="edOutlet" placeholder="0–10 MPa" /></div>
-    </div>
-    <div class="row2">
-      <div class="f"><label>纯度</label><input type="text" id="edPurity" placeholder="99.999%" /></div>
-      <div class="f"><label>接头规格</label><input type="text" id="edConn" placeholder="W21.8 / G3/8" /></div>
-    </div>
-    <div class="f"><label>管路材质/规格</label><input type="text" id="edTube" placeholder="316L BA 1/4&quot; OD" /></div>
-    <div class="f"><label>备注（安全提示等）</label><textarea id="edNote" rows="2"></textarea></div>
+    <div class="f"><label>备注</label><input type="text" id="elNote" placeholder="可选" /></div>
     <div class="foot">
-      <button class="primary" id="edSave">保存</button>
-      <button id="edCancel">取消</button>
-      <button id="edDup">另存为另一种压力</button>
-      <button class="danger right" id="edDel">删除</button>
+      <button class="primary" id="elSave">保存</button>
+      <button id="elCancel">取消</button>
+      <button class="danger right" id="elDel">删除</button>
     </div>
   </div>
 </div>
 
-<div class="modal" id="furnModal">
-  <div class="box" style="width:min(400px,96vw)">
-    <h3>布置方框</h3>
-    <div class="muted">给它起个名字，选择类型；位置和大小已按你画的位置记录。</div>
-    <div class="f"><label>名称</label><input type="text" id="fnName" placeholder="如：实验台 1 / 气瓶柜 A" /></div>
-    <div class="f"><label>类型</label><select id="fnType"></select></div>
+<div class="modal" id="lineModal">
+  <div class="box">
+    <h3 id="edTitle">新建气路</h3>
+    <div class="muted" id="edHint"></div>
+    <div class="row2">
+      <div class="f"><label>气体（短标签）</label><input type="text" id="edGas" placeholder="N₂" /></div>
+      <div class="f"><label>气体名称</label><input type="text" id="edName" placeholder="氮气" /></div>
+    </div>
+    <div class="row2">
+      <div class="f"><label>气源端</label><select id="edSrc"></select></div>
+      <div class="f"><label>用气端</label><select id="edUser"></select></div>
+    </div>
+    <div class="row2">
+      <div class="f"><label>压力类型</label>
+        <div class="seg" id="edLevelSeg"><button type="button" data-v="high">高压</button><button type="button" data-v="low">低压</button></div>
+      </div>
+      <div class="f"><label>状态</label><select id="edKind"><option value="gas">在用</option><option value="reserved">备用</option></select></div>
+    </div>
+    <div class="row2">
+      <div class="f"><label>进气压力</label><input type="text" id="edInlet" placeholder="25 MPa" /></div>
+      <div class="f"><label>输出压力</label><input type="text" id="edOutlet" placeholder="0–10 MPa" /></div>
+    </div>
+    <div class="row2">
+      <div class="f"><label>纯度</label><input type="text" id="edPurity" placeholder="99.999%" /></div>
+      <div class="f"><label>接头</label><input type="text" id="edConn" placeholder="W21.8 / G3/8" /></div>
+    </div>
+    <div class="f"><label>备注</label><input type="text" id="edNote" /></div>
     <div class="foot">
-      <button class="primary" id="fnSave">保存</button>
-      <button id="fnCancel">取消</button>
-      <button class="danger right" id="fnDel">删除</button>
+      <button class="primary" id="edSave">保存</button>
+      <button id="edCancel">取消</button>
+      <button id="edDup">同源另一压力</button>
+      <button class="danger right" id="edDel">删除</button>
     </div>
   </div>
 </div>
@@ -274,12 +255,28 @@
   var SESSION_KEY = 'gas:admin:v1';
   var VBW = 1000, VBH = 820;
 
+  var TYPES = [
+    { key: '通风柜', color: '#8b5cf6' },
+    { key: '气瓶柜', color: '#f59e0b' },
+    { key: '用气端', color: '#0ea5e9' },
+    { key: '实验台', color: '#10b981' },
+    { key: '手套箱', color: '#64748b' },
+    { key: '水槽',   color: '#06b6d4' },
+    { key: '门',     color: '#a3a3a3' },
+    { key: '其他',   color: '#94a3b8' }
+  ];
+  function typeColor(t) {
+    for (var i = 0; i < TYPES.length; i++) if (TYPES[i].key === t) return TYPES[i].color;
+    return '#94a3b8';
+  }
+
   var S = {
-    plan: null,
-    data: { lines: [], rooms: [], equipment: [], spots: [] },
-    sel: null, editing: false, q: '', pick: null, draft: null, drag: null, editId: null, level: 'high',
-    furn: [], layout: false, furnSel: null, furnDrag: null, baseOn: true,
-    placeMode: false, lastDrag: 0
+    lines: [], elements: [], plan: {},
+    selLine: null, selEl: null,
+    editing: false, q: '', typeFilter: '',
+    placing: null, newType: '其他',
+    elEditId: null, lineEditId: null, level: 'high',
+    drag: null, lastDrag: 0
   };
 
   function $(s, r) { return (r || document).querySelector(s); }
@@ -301,27 +298,19 @@
     return el;
   }
   function r3(v) { return Math.round(v * 1000) / 1000; }
+  function findEl(id) { for (var i = 0; i < S.elements.length; i++) if (S.elements[i].id === id) return S.elements[i]; return null; }
+  function findLine(id) { for (var i = 0; i < S.lines.length; i++) if (S.lines[i].id === id) return S.lines[i]; return null; }
+  function elCenter(e) { return { x: r3(e.x + e.w / 2), y: r3(e.y + e.h / 2) }; }
 
-  /* ================= 数据 ================= */
   async function loadData() {
     try {
       var r = await fetch(DATA_URL + '?t=' + Date.now(), { cache: 'no-store' });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       var j = await r.json();
-      try {
-        var pr = await fetch('plan.json?t=' + Date.now(), { cache: 'no-store' });
-        if (pr.ok) S.plan = await pr.json();
-      } catch (e) { S.plan = null; }
-      S.data = {
-        lines: Array.isArray(j.lines) ? j.lines : [],
-        rooms: Array.isArray(j.rooms) ? j.rooms : [],
-        equipment: Array.isArray(j.equipment) ? j.equipment : [],
-        spots: Array.isArray(j.spots) ? j.spots : [],
-        furniture: Array.isArray(j.furniture) ? j.furniture : [],
-        plan: j.plan || {}
-      };
-      S.furn = S.data.furniture || [];
-      setStatus('已加载 ' + S.data.lines.length + ' 条气路', 'ok');
+      S.lines = Array.isArray(j.lines) ? j.lines : [];
+      S.elements = Array.isArray(j.elements) ? j.elements : [];
+      S.plan = j.plan || {};
+      setStatus('已加载 ' + S.lines.length + ' 条气路 · ' + S.elements.length + ' 个元素', 'ok');
     } catch (e) {
       setStatus('读取失败：' + e.message, 'warn');
     }
@@ -333,248 +322,124 @@
     el.className = 'pill' + (cls ? ' ' + cls : '');
   }
 
-  /* ================= 底图 ================= */
-  function drawPlan() {
-    var rooms = $('#rooms'), equip = $('#equip');
-    rooms.innerHTML = ''; equip.innerHTML = '';
-
-    /* 真实 CAD 几何（栅格矢量化结果） */
-    if (S.plan && Array.isArray(S.plan.rects)) {
-      var frag = document.createDocumentFragment();
-      S.plan.rects.forEach(function (r) {
-        var x = r[0], y = r[1], w = r[2], h = r[3];
-        var thin = Math.min(w, h);
-        var long = Math.max(w, h);
-        var fill = thin >= 2.2 ? '#5b6b80' : (long >= 55 ? '#a9b6c6' : '#d5dde7');
-        frag.appendChild(svgEl('rect', {
-          x: x.toFixed(2), y: y.toFixed(2), width: w.toFixed(2), height: h.toFixed(2),
-          fill: fill, 'shape-rendering': 'crispEdges'
-        }));
-      });
-      rooms.appendChild(frag);
-    }
-
-    /* 区域名称（只做文字提示，不画框） */
-    (S.data.rooms || []).forEach(function (r) {
-      var label = svgEl('text', {
-        x: px(r.x) + 10, y: py(r.y + r.h) - 9,
-        'font-size': 10, fill: '#b6c2d1', 'font-weight': 600
-      });
-      label.textContent = r.name || '';
-      equip.appendChild(label);
-    });
-
-    drawDecor();
-  }
-
-  function drawDecor() {
-    var g = $('#decor');
+  /* ================= 画布 ================= */
+  function drawFurniture() {
+    var g = $('#furn');
+    if (!g) return;
     g.innerHTML = '';
 
-    var nx = 962, ny = 44;
-    g.appendChild(svgEl('path', {
-      d: 'M' + nx + ',' + (ny - 13) + ' L' + (nx - 6.5) + ',' + (ny + 6) + ' L' + nx + ',' + (ny + 1) +
-         ' L' + (nx + 6.5) + ',' + (ny + 6) + ' Z', fill: '#cbd5e1'
-    }));
-    var nt = svgEl('text', { x: nx, y: ny + 21, 'text-anchor': 'middle', 'font-size': 10, fill: '#b6c2d1', 'font-weight': 700 });
-    nt.textContent = 'N';
-    g.appendChild(nt);
+    S.elements.forEach(function (e) {
+      var c = typeColor(e.type);
+      var sel = S.selEl === e.id;
+      g.appendChild(svgEl('rect', {
+        x: px(e.x), y: py(e.y), width: px(e.w), height: py(e.h),
+        rx: 5, fill: c, 'fill-opacity': sel ? '0.32' : '0.16',
+        stroke: c, 'stroke-width': sel ? 2.6 : 1.6
+      }));
+      var t = svgEl('text', {
+        x: px(e.x) + 5, y: py(e.y + e.h / 2) + 3.5,
+        'font-size': 10, fill: '#243447', 'font-weight': 650
+      });
+      t.textContent = e.name || '';
+      g.appendChild(t);
+    });
 
-    var bx = 726, by = 742, bw = 260, bh = 60;
-    g.appendChild(svgEl('rect', { x: bx, y: by, width: bw, height: bh, rx: 6,
-      fill: '#ffffff', 'fill-opacity': '0.92', stroke: '#e3e8ef', 'stroke-width': 1 }));
-    var t1 = svgEl('text', { x: bx + 10, y: by + 16, 'font-size': 11, fill: '#475569', 'font-weight': 700 });
-    t1.textContent = '材 2-607 实验室供气系统示意图';
-    g.appendChild(t1);
-    var t2 = svgEl('text', { x: bx + 10, y: by + 36, 'font-size': 9.5, fill: '#94a3b8' });
-    t2.textContent = '气源 → 用户端　·　共 ' + (S.data.lines || []).length + ' 条气路';
-    g.appendChild(t2);
-    var t3 = svgEl('text', { x: bx + 10, y: by + 50, 'font-size': 9, fill: '#c7d2df' });
-    t3.textContent = '按 CAD 平面图矢量化重绘；如与现场不符以现场为准';
-    g.appendChild(t3);
+    var host = $('#markers');
+    host.innerHTML = '';
+    if (!S.editing) return;
+
+    S.elements.forEach(function (e) {
+      var hit = document.createElement('div');
+      hit.className = 'el-hit';
+      hit.setAttribute('data-eid', e.id);
+      hit.style.cssText = 'left:' + (e.x * 100) + '%;top:' + (e.y * 100) + '%;' +
+        'width:' + (e.w * 100) + '%;height:' + (e.h * 100) + '%;';
+      hit.addEventListener('pointerdown', function (ev) { onElDown(ev, e.id, 'move'); });
+      hit.addEventListener('click', function (ev) { ev.stopPropagation(); });
+      host.appendChild(hit);
+    });
+
+    /* 选中元素的缩放手柄 */
+    if (S.selEl) {
+      var e2 = findEl(S.selEl);
+      if (e2) {
+        var h = document.createElement('div');
+        h.className = 'el-handle';
+        h.style.left = ((e2.x + e2.w) * 100) + '%';
+        h.style.top = ((e2.y + e2.h) * 100) + '%';
+        h.addEventListener('pointerdown', function (ev) { onElDown(ev, e2.id, 'resize'); });
+        host.appendChild(h);
+      }
+    }
   }
 
-  /* ================= 线路 ================= */
   function lineColor(l) {
     if (l.kind === 'reserved') return '#94a3b8';
     return l.level === 'low' ? '#2563eb' : '#dc2626';
   }
-  function routeD(l, off) {
+  function routeD(l) {
     var sx = l.source.x, sy = l.source.y, ex = l.user.x, ey = l.user.y;
-    var o = off || 0;
     if (Math.abs(ey - sy) >= Math.abs(ex - sx) * 0.35) {
-      var midY = (sy + ey) / 2 + o;
-      return 'M' + px(sx) + ',' + py(sy) + ' L' + px(sx) + ',' + py(midY) +
-             ' L' + px(ex) + ',' + py(midY) + ' L' + px(ex) + ',' + py(ey);
+      var my = (sy + ey) / 2;
+      return 'M' + px(sx) + ',' + py(sy) + ' L' + px(sx) + ',' + py(my) +
+             ' L' + px(ex) + ',' + py(my) + ' L' + px(ex) + ',' + py(ey);
     }
-    var midX = (sx + ex) / 2 + o;
-    return 'M' + px(sx) + ',' + py(sy) + ' L' + px(midX) + ',' + py(sy) +
-           ' L' + px(midX) + ',' + py(ey) + ' L' + px(ex) + ',' + py(ey);
+    var mx = (sx + ex) / 2;
+    return 'M' + px(sx) + ',' + py(sy) + ' L' + px(mx) + ',' + py(sy) +
+           ' L' + px(mx) + ',' + py(ey) + ' L' + px(ex) + ',' + py(ey);
   }
 
   function drawLines() {
-    var lines = $('#lines'), hl = $('#hl');
-    lines.innerHTML = ''; hl.innerHTML = '';
-
-    S.data.lines.forEach(function (l, i) {
-      var off = ((i % 7) - 3) * 0.0035;
-      lines.appendChild(svgEl('path', {
-        d: routeD(l, off), fill: 'none',
-        stroke: lineColor(l), 'stroke-width': 1.1, opacity: '0.13'
+    var g = $('#lines'), hl = $('#hl');
+    g.innerHTML = ''; hl.innerHTML = '';
+    S.lines.forEach(function (l) {
+      g.appendChild(svgEl('path', {
+        d: routeD(l), fill: 'none', stroke: lineColor(l), 'stroke-width': 1.4, opacity: '0.5'
       }));
     });
-
-    if (S.sel) {
-      var l = findLine(S.sel);
-      if (l) {
-        hl.appendChild(svgEl('path', {
-          d: routeD(l, 0), fill: 'none', stroke: lineColor(l),
-          'stroke-width': 2.6, 'stroke-dasharray': '8 4',
-          'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: '0.98'
-        }));
-      }
+    if (S.selLine) {
+      var l = findLine(S.selLine);
+      if (l) hl.appendChild(svgEl('path', {
+        d: routeD(l), fill: 'none', stroke: lineColor(l), 'stroke-width': 2.8,
+        'stroke-dasharray': '8 4', 'stroke-linejoin': 'round', 'stroke-linecap': 'round'
+      }));
     }
   }
 
-  function renderMarkers() {
-    var host = $('#markers');
-    host.innerHTML = '';
-
-    var srcKeys = {};
-    S.data.lines.forEach(function (l) {
-      var k = l.source.x.toFixed(3) + ',' + l.source.y.toFixed(3);
-      if (!srcKeys[k]) srcKeys[k] = { x: l.source.x, y: l.source.y, gas: l.gas, lines: [] };
-      srcKeys[k].lines.push(l);
-    });
-
-    Object.keys(srcKeys).forEach(function (k) {
-      var s = srcKeys[k];
-      var l0 = s.lines[0];
-      var sel = s.lines.some(function (x) { return x.id === S.sel; });
-      var el = document.createElement('div');
-      el.className = 'mk src ' + (l0.kind === 'reserved' ? 'gas reserved' : 'gas ' + (l0.level === 'low' ? 'low' : 'high')) +
-        (sel ? ' sel' : '');
-      el.style.left = (s.x * 100) + '%';
-      el.style.top = (s.y * 100) + '%';
-      el.title = l0.gas + ' 气源（' + s.lines.length + ' 条线路）';
-      var lb = document.createElement('span');
-      lb.className = 'lb'; lb.textContent = l0.gas;
-      if (s.y > 0.85) lb.classList.add('under');
-      el.appendChild(lb);
-      el.addEventListener('pointerdown', function (ev) { onMarkerDown(ev, { type: 'source', key: k }); });
-      el.addEventListener('click', function (ev) {
-        ev.stopPropagation();
-        if (S.drag && S.drag.moved) return;
-        select(s.lines[0].id);
-      });
-      host.appendChild(el);
-    });
-
-    S.data.lines.forEach(function (l) {
-      var el = document.createElement('div');
-      el.className = 'mk user' + (S.sel === l.id ? ' sel' : '');
-      el.style.left = (l.user.x * 100) + '%';
-      el.style.top = (l.user.y * 100) + '%';
-      el.title = '用户端：' + (l.user.name || '') + '（' + l.gas + '）';
-      el.addEventListener('pointerdown', function (ev) { onMarkerDown(ev, { type: 'user', id: l.id }); });
-      el.addEventListener('click', function (ev) { ev.stopPropagation(); if (!(S.drag && S.drag.moved)) select(l.id); });
-      host.appendChild(el);
-    });
-  }
-
-  /* ================= 列表 / 详情 ================= */
-  function renderAll() { drawPlan(); drawFurniture(); drawLines(); renderMarkers(); renderList(); renderDetail(); }
-
-  function renderList() {
-    var host = $('#list');
-    var q = S.q.trim().toLowerCase();
-    var rows = S.data.lines.filter(function (l) {
-      if (!q) return true;
-      return [l.gas, l.name, l.user.name, l.source.name, l.connector, l.purity, l.note]
-        .join(' ').toLowerCase().indexOf(q) >= 0;
-    });
-    $('#cnt').textContent = '（' + rows.length + '/' + S.data.lines.length + '）';
-    if (!rows.length) { host.innerHTML = '<div class="empty">没有匹配的气路</div>'; return; }
-
-    host.innerHTML = rows.map(function (l) {
-      return '<div class="li' + (S.sel === l.id ? ' active' : '') + '" data-id="' + esc(l.id) + '">' +
-        '<span class="dot" style="background:' + lineColor(l) + '"></span>' +
-        '<span class="nm">' + esc(l.gas) + (l.level === 'low' ? '·低压' : '') + '</span>' +
-        '<span class="to">→ ' + esc(l.user.name || '未命名') + '</span></div>';
-    }).join('');
-
-    $$('.li', host).forEach(function (el) {
-      el.addEventListener('click', function () { select(el.getAttribute('data-id')); });
-    });
-  }
-
-  function renderDetail() {
-    var host = $('#detail');
-    var l = S.sel ? findLine(S.sel) : null;
-    if (!l) { host.innerHTML = '<div class="empty">从左侧列表或图上气源点选择一条气路</div>'; return; }
-
-    var lvl = l.level === 'low' ? '<span class="pill low">低压</span>' : '<span class="pill high">高压</span>';
-    var kind = l.kind === 'reserved' ? '<span class="pill">备用</span>' : '<span class="pill ok">在用</span>';
-
-    host.innerHTML = '<div class="dt">' +
-      '<h3>' + esc(l.gas) + ' ' + lvl + ' ' + kind + '</h3>' +
-      '<div class="sub">' + esc(l.name || '') + '</div>' +
-      '<div class="route"><b>' + esc(l.source.name || '气源端') + '</b><span class="arrow">────▶</span><b>' +
-        esc(l.user.name || '用户端') + '</b></div>' +
-      '<div class="kv">' +
-        '<div class="k">进气压力</div><div>' + esc(l.inlet || '—') + '</div>' +
-        '<div class="k">输出压力</div><div>' + esc(l.outlet || '—') + '</div>' +
-        '<div class="k">纯度</div><div>' + esc(l.purity || '—') + '</div>' +
-        '<div class="k">接头</div><div>' + esc(l.connector || '—') + '</div>' +
-        '<div class="k">管路</div><div>' + esc(l.tube || '—') + '</div>' +
-      '</div>' +
-      (l.note ? '<div class="kv"><div class="k">备注</div><div>' + esc(l.note) + '</div></div>' : '') +
-      (S.editing ? '<div class="foot" style="margin-top:4px"><button class="primary" id="dtEdit">编辑</button>' +
-        '<button id="dtSame">同源加另一压力</button></div>' : '') +
-      '</div>';
-
-    var b = $('#dtEdit');
-    if (b) b.addEventListener('click', function () { openEditor(l.id); });
-    var c = $('#dtSame');
-    if (c) c.addEventListener('click', function () { duplicateLine(l.id, true); });
-  }
-
-  function findLine(id) {
-    for (var i = 0; i < S.data.lines.length; i++) if (S.data.lines[i].id === id) return S.data.lines[i];
-    return null;
-  }
-  function select(id) { S.sel = id; drawLines(); renderMarkers(); renderList(); renderDetail(); }
-
-  /* ================= 拖拽 ================= */
-  function onMarkerDown(ev, target) {
+  /* ================= 元素拖动/缩放 ================= */
+  function onElDown(ev, id, mode) {
     if (!S.editing) return;
-    ev.preventDefault();
-    var wrap = $('#mapWrap');
-    var rect = wrap.getBoundingClientRect();
-    S.drag = { target: target, moved: false, x0: ev.clientX, y0: ev.clientY };
-    var move = function (e) {
+    ev.preventDefault(); ev.stopPropagation();
+    var wrap = $('#mapWrap'), rect = wrap.getBoundingClientRect();
+    var e = findEl(id);
+    if (!e) return;
+    S.drag = { id: id, mode: mode, x0: ev.clientX, y0: ev.clientY,
+               orig: { x: e.x, y: e.y, w: e.w, h: e.h }, moved: false };
+    S.selEl = id; S.selLine = null;
+
+    var move = function (ev2) {
       if (!S.drag) return;
-      if (Math.abs(e.clientX - S.drag.x0) > 3 || Math.abs(e.clientY - S.drag.y0) > 3) S.drag.moved = true;
-      var x = r3(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
-      var y = r3(Math.max(0, Math.min(1, (e.clientY - rect.top) / rect.height)));
-      if (target.type === 'user') {
-        var l = findLine(target.id); if (!l) return;
-        l.user.x = x; l.user.y = y;
+      var dx = (ev2.clientX - S.drag.x0) / rect.width;
+      var dy = (ev2.clientY - S.drag.y0) / rect.height;
+      if (Math.abs(dx) > 0.002 || Math.abs(dy) > 0.002) S.drag.moved = true;
+      var o = S.drag.orig;
+      if (mode === 'move') {
+        e.x = r3(Math.max(0, Math.min(1 - o.w, o.x + dx)));
+        e.y = r3(Math.max(0, Math.min(1 - o.h, o.y + dy)));
       } else {
-        S.data.lines.forEach(function (l) {
-          var k = l.source.x.toFixed(3) + ',' + l.source.y.toFixed(3);
-          if (k !== target.key) return;
-          l.source.x = x; l.source.y = y;
-        });
+        e.w = r3(Math.max(0.02, Math.min(1 - e.x, o.w + dx)));
+        e.h = r3(Math.max(0.02, Math.min(1 - e.y, o.h + dy)));
       }
-      drawLines(); renderMarkers();
+      syncLineEnds();
+      drawFurniture(); drawLines();
     };
     var up = function () {
       document.removeEventListener('pointermove', move);
       document.removeEventListener('pointerup', up);
       if (S.drag && S.drag.moved) {
-        if (target.type === 'user') select(target.id);
-        saveData('移动点位');
+        S.lastDrag = Date.now();
+        renderElementList(); renderDetail();
+        saveData('调整元素：' + e.name);
       }
       setTimeout(function () { S.drag = null; }, 0);
     };
@@ -582,370 +447,347 @@
     document.addEventListener('pointerup', up);
   }
 
-  /* ================= 选点建线路 ================= */
+  function syncLineEnds() {
+    S.lines.forEach(function (l) {
+      if (l.source.elementId) {
+        var se = findEl(l.source.elementId);
+        if (se) { var c1 = elCenter(se); l.source.x = c1.x; l.source.y = c1.y; l.source.name = se.name; }
+      }
+      if (l.user.elementId) {
+        var ue = findEl(l.user.elementId);
+        if (ue) { var c2 = elCenter(ue); l.user.x = c2.x; l.user.y = c2.y; l.user.name = ue.name; }
+      }
+    });
+  }
+
+  /* ================= 放置元素 ================= */
+  function onMapClick(ev) {
+    if (!S.editing || S.placing !== 'element') return;
+    if (Date.now() - (S.lastDrag || 0) < 300) return;
+    if (ev.target.closest && ev.target.closest('[data-eid]')) return;
+    var wrap = $('#mapWrap'), rect = wrap.getBoundingClientRect();
+    var x = r3((ev.clientX - rect.left) / rect.width);
+    var y = r3((ev.clientY - rect.top) / rect.height);
+    if (x < 0 || x > 1 || y < 0 || y > 1) return;
+
+    var e = { id: 'e-' + Date.now().toString(36), type: S.newType, name: '',
+              x: r3(Math.max(0, Math.min(0.88, x - 0.05))),
+              y: r3(Math.max(0, Math.min(0.94, y - 0.025))),
+              w: 0.10, h: 0.05, note: '' };
+    S.elements.push(e);
+    S.selEl = e.id;
+    stopPlacing();
+    drawFurniture();
+    renderElementList(); renderDetail();
+    openElModal(e.id);
+  }
+
   function showTip(msg) {
     var t = $('#tip');
     if (!msg) { t.classList.remove('show'); t.textContent = ''; return; }
     t.textContent = msg; t.classList.add('show');
   }
-  function startPick() {
-    if (!S.editing) return;
-    S.draft = { level: 'high', kind: 'gas' };
-    S.pick = 'source';
+  function startPlacing() {
+    S.newType = S.typeFilter || '其他';
+    S.placing = 'element';
     $('#mapWrap').classList.add('armed');
-    showTip('① 请在图上点击「气源端」位置');
-    setStatus('选点中：气源端', 'warn');
+    showTip('点击图上位置放置「' + S.newType + '」元素');
+    setStatus('点选位置…', 'warn');
   }
-  function cancelPick() {
-    S.pick = null; S.draft = null;
+  function stopPlacing() {
+    S.placing = null;
     $('#mapWrap').classList.remove('armed');
     showTip('');
-    setStatus('编辑模式', 'warn');
+    setStatus(S.editing ? '编辑模式' : '浏览模式', S.editing ? 'warn' : '');
   }
 
-  function bindMapClick() {
-    $('#mapWrap').addEventListener('click', function (ev) {
-      if (!S.editing) return;
-      if (ev.target.closest && ev.target.closest('.mk')) return;
-      var rect = this.getBoundingClientRect();
-      var x = r3((ev.clientX - rect.left) / rect.width);
-      var y = r3((ev.clientY - rect.top) / rect.height);
-      if (x < 0 || x > 1 || y < 0 || y > 1) return;
+  /* ================= 元素弹窗 ================= */
+  function openElModal(id) {
+    var e = findEl(id);
+    if (!e) return;
+    S.elEditId = id;
+    $('#elTitle').textContent = '元素：' + (e.name || '未命名');
+    $('#elHint').textContent = '位置 x=' + e.x.toFixed(3) + ' y=' + e.y.toFixed(3) +
+      ' · 尺寸 ' + e.w.toFixed(3) + '×' + e.h.toFixed(3);
+    $('#elName').value = e.name || '';
+    $('#elType').value = e.type || '其他';
+    $('#elNote').value = e.note || '';
+    $('#elModal').classList.add('open');
+    $('#elName').focus();
+  }
 
-      if (S.pick === 'source') {
-        S.draft.source = { name: '', x: x, y: y };
-        S.pick = 'user';
-        showTip('② 请在图上点击「用户端」（用气设备）的位置');
-        setStatus('选点中：用户端', 'warn');
-        return;
-      }
-      if (S.pick === 'user') {
-        S.draft.user = { name: '', x: x, y: y };
-        S.pick = null;
-        $('#mapWrap').classList.remove('armed');
-        showTip('');
-        openEditor(null, S.draft);
-      }
+  function bindElModal() {
+    $('#elCancel').addEventListener('click', function () { $('#elModal').classList.remove('open'); });
+    $('#elSave').addEventListener('click', function () {
+      var e = findEl(S.elEditId);
+      if (!e) return;
+      e.name = $('#elName').value.trim() || '未命名';
+      e.type = $('#elType').value;
+      e.note = $('#elNote').value.trim();
+      $('#elModal').classList.remove('open');
+      syncLineEnds();
+      renderAll();
+      saveData('元素：' + e.name);
+    });
+    $('#elDel').addEventListener('click', function () {
+      var id = S.elEditId;
+      var used = S.lines.filter(function (l) { return l.source.elementId === id || l.user.elementId === id; });
+      if (used.length && !window.confirm('该元素关联 ' + used.length + ' 条气路，删除元素会一并删除这些气路，确定？')) return;
+      S.elements = S.elements.filter(function (x) { return x.id !== id; });
+      S.lines = S.lines.filter(function (l) { return l.source.elementId !== id && l.user.elementId !== id; });
+      if (S.selEl === id) S.selEl = null;
+      $('#elModal').classList.remove('open');
+      renderAll();
+      saveData('删除元素');
     });
   }
 
-  /* ================= 编辑弹窗 ================= */
+  /* ================= 气路弹窗 ================= */
   function setLevel(v) {
     S.level = v;
     $$('#edLevelSeg button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); });
   }
-  function bindLevelSeg() {
-    $$('#edLevelSeg button').forEach(function (b) {
-      b.addEventListener('click', function () { setLevel(b.getAttribute('data-v')); });
-    });
+  function fillElSelect(sel, value) {
+    sel.innerHTML = '<option value="">— 选择 —</option>' + S.elements.map(function (e) {
+      return '<option value="' + esc(e.id) + '">' + esc(e.type) + ' · ' + esc(e.name) + '</option>';
+    }).join('');
+    sel.value = value || '';
   }
 
-  function openEditor(id, draft) {
+  function openLineModal(id) {
     var l = id ? findLine(id) : null;
-    S.editId = id || null;
-    setLevel(l ? l.level : (draft ? draft.level : 'high'));
-
+    S.lineEditId = id || null;
+    setLevel(l ? l.level : 'high');
     $('#edTitle').textContent = l ? '编辑气路：' + l.gas : '新建气路';
-    $('#edHint').textContent = l
-      ? '气源端 (' + l.source.x.toFixed(3) + ', ' + l.source.y.toFixed(3) + ')　用户端 (' + l.user.x.toFixed(3) + ', ' + l.user.y.toFixed(3) + ')'
-      : '已选点：气源端 (' + (draft ? draft.source.x.toFixed(3) : '—') + ', ' + (draft ? draft.source.y.toFixed(3) : '—') + ')' +
-        '　用户端 (' + (draft ? draft.user.x.toFixed(3) : '—') + ', ' + (draft ? draft.user.y.toFixed(3) : '—') + ')';
-
+    $('#edHint').textContent = '气源端与用气端都从元素中选择，便于按设备分类查询';
     $('#edGas').value = l ? l.gas : '';
     $('#edName').value = l ? (l.name || '') : '';
     $('#edKind').value = l ? (l.kind || 'gas') : 'gas';
-    $('#edSrcName').value = l ? (l.source.name || '') : '';
-    $('#edUserName').value = l ? (l.user.name || '') : '';
+    fillElSelect($('#edSrc'), l ? (l.source.elementId || '') : '');
+    fillElSelect($('#edUser'), l ? (l.user.elementId || '') : '');
     $('#edInlet').value = l ? (l.inlet || '') : '';
     $('#edOutlet').value = l ? (l.outlet || '') : '';
     $('#edPurity').value = l ? (l.purity || '') : '';
     $('#edConn').value = l ? (l.connector || '') : '';
-    $('#edTube').value = l ? (l.tube || '') : '316L BA 1/4" OD';
     $('#edNote').value = l ? (l.note || '') : '';
     $('#edDel').style.display = l ? '' : 'none';
     $('#edDup').style.display = l ? '' : 'none';
-    $('#editModal').classList.add('open');
+    $('#lineModal').classList.add('open');
     $('#edGas').focus();
   }
 
-  function readForm() {
-    if (!$('#edGas').value.trim()) return null;
-    var base = S.editId ? findLine(S.editId) : S.draft;
-    if (!base || !base.source || !base.user) return null;
-    return {
-      id: S.editId || ('L-' + Date.now().toString(36)),
-      gas: $('#edGas').value.trim(),
-      name: $('#edName').value.trim(),
-      level: S.level || 'high',
-      kind: $('#edKind').value,
-      source: { name: $('#edSrcName').value.trim(), x: base.source.x, y: base.source.y },
-      user: { name: $('#edUserName').value.trim(), x: base.user.x, y: base.user.y },
-      inlet: $('#edInlet').value.trim(),
-      outlet: $('#edOutlet').value.trim(),
-      purity: $('#edPurity').value.trim(),
-      connector: $('#edConn').value.trim(),
-      tube: $('#edTube').value.trim(),
-      note: $('#edNote').value.trim()
-    };
-  }
+  function bindLineModal() {
+    $('#edCancel').addEventListener('click', function () { $('#lineModal').classList.remove('open'); });
+    $$('#edLevelSeg button').forEach(function (b) {
+      b.addEventListener('click', function () { setLevel(b.getAttribute('data-v')); });
+    });
 
-  function bindEditor() {
-    $('#edCancel').addEventListener('click', function () { $('#editModal').classList.remove('open'); });
-
-    $('#edSave').addEventListener('click', async function () {
-      var rec = readForm();
-      if (!rec) { toast('请填写气体标签'); return; }
+    $('#edSave').addEventListener('click', function () {
+      var gas = $('#edGas').value.trim();
+      if (!gas) { toast('请填写气体标签'); return; }
+      var sid = $('#edSrc').value, uid = $('#edUser').value;
+      if (!sid || !uid) { toast('请选择气源端与用气端'); return; }
+      if (sid === uid) { toast('气源端与用气端不能是同一个元素'); return; }
+      var se = findEl(sid), ue = findEl(uid);
+      if (!se || !ue) { toast('元素不存在'); return; }
+      var c1 = elCenter(se), c2 = elCenter(ue);
+      var rec = {
+        id: S.lineEditId || ('L-' + Date.now().toString(36)),
+        gas: gas, name: $('#edName').value.trim(),
+        level: S.level, kind: $('#edKind').value,
+        source: { elementId: sid, name: se.name, x: c1.x, y: c1.y },
+        user: { elementId: uid, name: ue.name, x: c2.x, y: c2.y },
+        inlet: $('#edInlet').value.trim(), outlet: $('#edOutlet').value.trim(),
+        purity: $('#edPurity').value.trim(), connector: $('#edConn').value.trim(),
+        note: $('#edNote').value.trim()
+      };
       var i = -1;
-      for (var k = 0; k < S.data.lines.length; k++) if (S.data.lines[k].id === rec.id) { i = k; break; }
-      if (i >= 0) S.data.lines[i] = rec; else S.data.lines.push(rec);
-      $('#editModal').classList.remove('open');
-      S.sel = rec.id;
+      for (var k = 0; k < S.lines.length; k++) if (S.lines[k].id === rec.id) { i = k; break; }
+      if (i >= 0) S.lines[i] = rec; else S.lines.push(rec);
+      $('#lineModal').classList.remove('open');
+      S.selLine = rec.id; S.selEl = null;
       renderAll();
-      await saveData('更新气路：' + rec.gas + ' → ' + (rec.user.name || ''));
+      saveData('更新气路：' + rec.gas);
     });
 
     $('#edDup').addEventListener('click', function () {
-      if (!S.editId) return;
-      $('#editModal').classList.remove('open');
-      duplicateLine(S.editId, true);
+      var l = findLine(S.lineEditId);
+      if (!l) return;
+      var copy = JSON.parse(JSON.stringify(l));
+      copy.id = 'L-' + Date.now().toString(36);
+      copy.level = l.level === 'low' ? 'high' : 'low';
+      copy.note = (l.note ? l.note + ' ' : '') + '（同源另一压力支路）';
+      S.lines.push(copy);
+      $('#lineModal').classList.remove('open');
+      S.selLine = copy.id;
+      renderAll();
+      saveData('同源新增' + (copy.level === 'low' ? '低压' : '高压') + '：' + copy.gas);
+      toast('已复制为' + (copy.level === 'low' ? '低压' : '高压') + '支路');
     });
 
-    $('#edDel').addEventListener('click', async function () {
-      var id = S.editId;
+    $('#edDel').addEventListener('click', function () {
+      var id = S.lineEditId;
       if (!id) return;
       if (!window.confirm('确定删除这条气路吗？')) return;
-      var l = findLine(id);
-      S.data.lines = S.data.lines.filter(function (x) { return x.id !== id; });
-      $('#editModal').classList.remove('open');
-      S.sel = null; renderAll();
-      await saveData('删除气路：' + (l ? l.gas : id));
+      S.lines = S.lines.filter(function (x) { return x.id !== id; });
+      $('#lineModal').classList.remove('open');
+      S.selLine = null;
+      renderAll();
+      saveData('删除气路');
     });
   }
 
-  function duplicateLine(id, autoSave) {
-    var l = findLine(id);
-    if (!l) return;
-    var copy = JSON.parse(JSON.stringify(l));
-    copy.id = 'L-' + Date.now().toString(36);
-    copy.level = l.level === 'low' ? 'high' : 'low';
-    copy.note = (l.note ? l.note + ' ' : '') + '（同源另一压力支路）';
-    S.data.lines.push(copy);
-    S.sel = copy.id;
-    renderAll();
-    if (autoSave) saveData('同源新增' + (copy.level === 'low' ? '低压' : '高压') + '支路：' + copy.gas);
-    toast('已复制为' + (copy.level === 'low' ? '低压' : '高压') + '支路，可再改用户端');
+  /* ================= 清单 ================= */
+  function renderList() {
+    var host = $('#list');
+    var q = S.q.trim().toLowerCase();
+    var rows = S.lines.filter(function (l) {
+      if (!q) return true;
+      return [l.gas, l.name, l.source.name, l.user.name, l.connector, l.purity, l.note]
+        .join(' ').toLowerCase().indexOf(q) >= 0;
+    });
+    $('#cnt').textContent = rows.length + '/' + S.lines.length;
+    if (!rows.length) { host.innerHTML = '<div class="empty">没有匹配的气路</div>'; return; }
+    host.innerHTML = rows.map(function (l) {
+      return '<div class="li' + (S.selLine === l.id ? ' active' : '') + '" data-id="' + esc(l.id) + '">' +
+        '<span class="dot" style="background:' + lineColor(l) + '"></span>' +
+        '<span class="nm">' + esc(l.gas) + (l.level === 'low' ? '·低' : '') + '</span>' +
+        '<span class="to">→ ' + esc(l.user.name || '') + '</span></div>';
+    }).join('');
+    $$('.li', host).forEach(function (el) {
+      el.addEventListener('click', function () { selectLine(el.getAttribute('data-id')); });
+    });
   }
 
-
-  /* ================= 布置（家具/设备方框） ================= */
-  var FURN_TYPES = ['实验台', '气瓶柜', '手套箱', '通风柜', '水槽', '柜子', '门', '其他'];
-
-  function drawFurniture() {
-    var g = $('#furn');
-    if (!g) return;
-    g.innerHTML = '';
-
-    /* 底图开关 */
-    var rooms = $('#rooms');
-    if (rooms) rooms.style.display = S.baseOn ? '' : 'none';
-
-    var host = $('#markers');
-    /* 用 SVG 画方框（可缩放、清晰） */
-    S.furn.forEach(function (f) {
-      var sel = S.layout && S.furnSel === f.id;
-      var rect = svgEl('rect', {
-        x: px(f.x), y: py(f.y), width: px(f.w), height: py(f.h),
-        rx: 6, fill: sel ? 'rgba(29,111,184,.16)' : 'rgba(124,142,163,.12)',
-        stroke: sel ? '#1d6fb8' : '#7c8ea3', 'stroke-width': sel ? 2.4 : 1.6
+  function renderTypeChips() {
+    var host = $('#typeChips');
+    var counts = {};
+    S.elements.forEach(function (e) { counts[e.type] = (counts[e.type] || 0) + 1; });
+    var chips = [{ key: '', label: '全部 ' + S.elements.length }].concat(TYPES.map(function (t) {
+      return { key: t.key, label: t.key + ' ' + (counts[t.key] || 0), color: t.color };
+    }));
+    host.innerHTML = chips.map(function (c) {
+      return '<span class="chip' + (S.typeFilter === c.key ? ' on' : '') + '" data-type="' + esc(c.key) + '"' +
+        (c.color ? ' style="border-left:3px solid ' + c.color + '"' : '') + '>' + esc(c.label) + '</span>';
+    }).join('');
+    $$('.chip', host).forEach(function (el) {
+      el.addEventListener('click', function () {
+        S.typeFilter = el.getAttribute('data-type');
+        renderTypeChips(); renderElementList();
       });
-      g.appendChild(rect);
+    });
+  }
 
-      var t = svgEl('text', {
-        x: px(f.x) + 6, y: py(f.y + f.h / 2) + 3.5,
-        'font-size': 10.5, fill: '#334155', 'font-weight': 650
+  function elementsOfType() {
+    return S.elements.filter(function (e) { return !S.typeFilter || e.type === S.typeFilter; })
+      .sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'zh'); });
+  }
+  function gasesOf(elId) {
+    return S.lines.filter(function (l) { return l.source.elementId === elId || l.user.elementId === elId; });
+  }
+
+  function renderElementList() {
+    var host = $('#elList');
+    var rows = elementsOfType();
+    $('#elCount').textContent = S.elements.length;
+    if (!rows.length) { host.innerHTML = '<div class="empty">还没有元素，点右上角「＋ 元素」添加</div>'; return; }
+    host.innerHTML = rows.map(function (e) {
+      var n = gasesOf(e.id).length;
+      return '<div class="el-row' + (S.selEl === e.id ? ' active' : '') + '" data-eid="' + esc(e.id) + '">' +
+        '<span class="tag" style="background:' + typeColor(e.type) + '">' + esc(e.type) + '</span>' +
+        '<span class="n">' + esc(e.name) + '</span>' +
+        '<span class="c">' + (n ? n + ' 路' : '—') + '</span></div>';
+    }).join('');
+    $$('.el-row', host).forEach(function (el) {
+      el.addEventListener('click', function () { selectElement(el.getAttribute('data-eid')); });
+    });
+  }
+
+  /* ================= 详情 ================= */
+  function renderDetail() {
+    var host = $('#detail');
+    if (S.selEl) {
+      var e = findEl(S.selEl);
+      if (!e) { host.innerHTML = '<div class="empty">选择元素或气路</div>'; return; }
+      var gs = gasesOf(e.id);
+      host.innerHTML = '<div class="dt">' +
+        '<h3>' + esc(e.name) + '</h3>' +
+        '<div class="sub">' + esc(e.type) + (e.note ? ' · ' + esc(e.note) : '') + '</div>' +
+        '<div class="kv">' +
+          '<div class="k">位置</div><div>x ' + e.x.toFixed(2) + '　y ' + e.y.toFixed(2) + '</div>' +
+          '<div class="k">尺寸</div><div>' + e.w.toFixed(2) + ' × ' + e.h.toFixed(2) + '</div>' +
+          '<div class="k">涉及</div><div>' + gs.length + ' 条气路</div>' +
+        '</div>' +
+        '<div class="kv"><div class="k">气体</div><div class="glist">' +
+          (gs.length ? gs.map(function (l) {
+            var cls = l.kind === 'reserved' ? 're' : (l.level === 'low' ? 'lo' : 'hi');
+            var dir = l.source.elementId === e.id ? '→ ' + l.user.name : '← ' + l.source.name;
+            return '<span class="g ' + cls + '" data-line="' + esc(l.id) + '" title="' + esc(dir) + '">' +
+              esc(l.gas) + (l.level === 'low' ? '（低压）' : '') + '</span>';
+          }).join('') : '<span class="muted">暂无</span>') +
+        '</div></div>' +
+        (S.editing ? '<div class="foot"><button class="primary sm" id="dtElEdit">编辑元素</button></div>' : '') +
+        '</div>';
+      $$('.g', host).forEach(function (el) {
+        el.addEventListener('click', function () { selectLine(el.getAttribute('data-line')); });
       });
-      t.textContent = f.name || '';
-      g.appendChild(t);
+      var b = $('#dtElEdit');
+      if (b) b.addEventListener('click', function () { openElModal(e.id); });
+      return;
+    }
 
-      if (sel) {
-        /* 右下角缩放手柄 */
-        g.appendChild(svgEl('rect', {
-          x: px(f.x + f.w) - 5, y: py(f.y + f.h) - 5, width: 9, height: 9, rx: 2,
-          fill: '#1d6fb8', stroke: '#fff', 'stroke-width': 1.6,
-          'data-handle': f.id, style: 'cursor:nwse-resize'
-        }));
-      }
-    });
+    if (S.selLine) {
+      var l = findLine(S.selLine);
+      if (!l) { host.innerHTML = '<div class="empty">选择元素或气路</div>'; return; }
+      var lvl = l.level === 'low' ? '<span class="pill low">低压</span>' : '<span class="pill high">高压</span>';
+      var kind = l.kind === 'reserved' ? '<span class="pill">备用</span>' : '<span class="pill ok">在用</span>';
+      host.innerHTML = '<div class="dt">' +
+        '<h3>' + esc(l.gas) + ' ' + lvl + ' ' + kind + '</h3>' +
+        '<div class="sub">' + esc(l.name || '') + '</div>' +
+        '<div class="kv">' +
+          '<div class="k">气源端</div><div><b>' + esc(l.source.name) + '</b></div>' +
+          '<div class="k">用气端</div><div><b>' + esc(l.user.name) + '</b></div>' +
+          '<div class="k">进气</div><div>' + esc(l.inlet || '—') + '</div>' +
+          '<div class="k">输出</div><div>' + esc(l.outlet || '—') + '</div>' +
+          '<div class="k">纯度</div><div>' + esc(l.purity || '—') + '</div>' +
+          '<div class="k">接头</div><div>' + esc(l.connector || '—') + '</div>' +
+        '</div>' +
+        (l.note ? '<div class="kv"><div class="k">备注</div><div>' + esc(l.note) + '</div></div>' : '') +
+        (S.editing ? '<div class="foot"><button class="primary sm" id="dtLineEdit">编辑气路</button></div>' : '') +
+        '</div>';
+      var b2 = $('#dtLineEdit');
+      if (b2) b2.addEventListener('click', function () { openLineModal(l.id); });
+      return;
+    }
 
-    /* 透明交互层：布置模式下接管点击/拖动 */
-    if (!S.layout) return;
-    S.furn.forEach(function (f) {
-      var hit = document.createElement('div');
-      hit.className = 'furn-hit';
-      hit.setAttribute('data-fid', f.id);
-      hit.style.cssText = 'position:absolute;left:' + (f.x * 100) + '%;top:' + (f.y * 100) + '%;' +
-        'width:' + (f.w * 100) + '%;height:' + (f.h * 100) + '%;cursor:move;';
-      hit.addEventListener('pointerdown', function (ev) { onFurnDown(ev, f.id, 'move'); });
-      hit.addEventListener('click', function (ev) { ev.stopPropagation(); });
-      host.appendChild(hit);
-    });
+    host.innerHTML = '<div class="empty">从右侧元素或左侧气路中选择</div>';
   }
 
-  function onFurnDown(ev, id, mode) {
-    if (!S.layout) return;
-    ev.preventDefault(); ev.stopPropagation();
-    var wrap = $('#mapWrap'), rect = wrap.getBoundingClientRect();
-    var f = S.furn.find(function (x) { return x.id === id; });
-    if (!f) return;
-    S.furnSel = id;
-    S.furnDrag = { id: id, mode: mode, x0: ev.clientX, y0: ev.clientY,
-      orig: { x: f.x, y: f.y, w: f.w, h: f.h }, moved: false };
-
-    var move = function (e) {
-      if (!S.furnDrag) return;
-      var dx = (e.clientX - S.furnDrag.x0) / rect.width;
-      var dy = (e.clientY - S.furnDrag.y0) / rect.height;
-      if (Math.abs(dx) > 0.002 || Math.abs(dy) > 0.002) S.furnDrag.moved = true;
-      var o = S.furnDrag.orig;
-      if (S.furnDrag.mode === 'move') {
-        f.x = r3(Math.max(0, Math.min(1 - o.w, o.x + dx)));
-        f.y = r3(Math.max(0, Math.min(1 - o.h, o.y + dy)));
-      } else {
-        f.w = r3(Math.max(0.02, Math.min(1 - f.x, o.w + dx)));
-        f.h = r3(Math.max(0.02, Math.min(1 - f.y, o.h + dy)));
-      }
-      drawFurniture();
-    };
-    var up = function () {
-      document.removeEventListener('pointermove', move);
-      document.removeEventListener('pointerup', up);
-      if (S.furnDrag && S.furnDrag.moved) {
-        S.lastDrag = Date.now();
-        drawFurniture();
-        saveData('调整布置：' + (f.name || f.id));
-      } else if (!S.furnDrag || !S.furnDrag.moved) {
-        /* 没移动 = 单击选中并打开属性 */
-        setTimeout(function () { openFurnModal(id); }, 40);
-      }
-      setTimeout(function () { S.furnDrag = null; }, 0);
-    };
-    document.addEventListener('pointermove', move);
-    document.addEventListener('pointerup', up);
+  function selectElement(id) {
+    S.selEl = id; S.selLine = null;
+    drawFurniture(); drawLines(); renderElementList(); renderDetail();
+  }
+  function selectLine(id) {
+    S.selLine = id; S.selEl = null;
+    drawFurniture(); drawLines(); renderList(); renderDetail();
   }
 
-  function startLayout() {
-    S.layout = true;
-    S.placeMode = false;
-    $('#btnLayout').textContent = '退出布置';
-    $('#btnFurnAdd').style.display = '';
-    showTip('拖动方框可移动，拖右下角小方块可缩放；要新增请点「＋ 方框」');
-    setStatus('布置编辑中', 'warn');
-    drawFurniture();
-  }
-  function stopLayout() {
-    S.layout = false; S.furnSel = null; S.placeMode = false;
-    $('#btnLayout').textContent = '布置';
-    $('#btnFurnAdd').style.display = 'none';
-    $('#mapWrap').classList.remove('armed');
-    showTip('');
-    setStatus('编辑模式', 'warn');
-    drawFurniture();
-  }
-
-  function bindLayout() {
-    $('#btnLayout').addEventListener('click', function () {
-      if (S.layout) stopLayout(); else startLayout();
-    });
-    $('#chkBase').addEventListener('change', function () {
-      S.baseOn = this.checked;
-      drawFurniture();
-    });
-
-    /* 「＋ 方框」：进入放置状态，下一次点击才落点 */
-    $('#btnFurnAdd').addEventListener('click', function () {
-      if (!S.layout) return;
-      S.placeMode = true;
-      $('#mapWrap').classList.add('armed');
-      showTip('点击图上位置放置方框（Esc 取消）');
-      setStatus('放置方框中…', 'warn');
-    });
-
-    /* 只有处于放置状态时才新建；拖动后 300ms 内的 click 一律忽略 */
-    $('#mapWrap').addEventListener('click', function (ev) {
-      if (!S.layout || !S.placeMode) return;
-      if (Date.now() - (S.lastDrag || 0) < 300) return;
-      if (ev.target.closest && (ev.target.closest('[data-fid]') || ev.target.closest('.mk'))) return;
-      var rect = this.getBoundingClientRect();
-      var x = r3((ev.clientX - rect.left) / rect.width);
-      var y = r3((ev.clientY - rect.top) / rect.height);
-      if (x < 0 || x > 1 || y < 0 || y > 1) return;
-
-      var f = { id: 'f-' + Date.now().toString(36), name: '新方框', type: '实验台',
-                x: r3(Math.max(0, Math.min(0.88, x - 0.06))),
-                y: r3(Math.max(0, Math.min(0.94, y - 0.03))), w: 0.12, h: 0.06 };
-      S.furn.push(f);
-      S.furnSel = f.id;
-      S.placeMode = false;
-      $('#mapWrap').classList.remove('armed');
-      showTip('');
-      setStatus('布置编辑中', 'warn');
-      drawFurniture();
-      openFurnModal(f.id);
-    });
-  }
-
-  function openFurnModal(id) {
-    var f = S.furn.find(function (x) { return x.id === id; });
-    if (!f) return;
-    S.furnEditId = id;
-    $('#fnName').value = f.name || '';
-    $('#fnType').value = f.type || '实验台';
-    $('#furnModal').classList.add('open');
-    $('#fnName').focus();
-  }
-
-  function bindFurnModal() {
-    $('#fnCancel').addEventListener('click', function () { $('#furnModal').classList.remove('open'); });
-    $('#fnSave').addEventListener('click', function () {
-      var f = S.furn.find(function (x) { return x.id === S.furnEditId; });
-      if (!f) return;
-      f.name = $('#fnName').value.trim() || '未命名';
-      f.type = $('#fnType').value;
-      $('#furnModal').classList.remove('open');
-      drawFurniture();
-      saveData('布置：' + f.name);
-    });
-    $('#fnDel').addEventListener('click', function () {
-      var id = S.furnEditId;
-      S.furn = S.furn.filter(function (x) { return x.id !== id; });
-      S.furnSel = null;
-      $('#furnModal').classList.remove('open');
-      drawFurniture();
-      saveData('删除方框');
-    });
-  }
-
-
-  /* ================= 登录 ================= */
+  /* ================= 编辑开关 ================= */
   function isAuthed() { try { return sessionStorage.getItem(SESSION_KEY) === 'ok'; } catch (e) { return false; } }
   function setAuthed(v) { try { v ? sessionStorage.setItem(SESSION_KEY, 'ok') : sessionStorage.removeItem(SESSION_KEY); } catch (e) {} }
-
   async function sha256Hex(str) {
     var buf = new TextEncoder().encode(str);
     var d = await crypto.subtle.digest('SHA-256', buf);
     return Array.prototype.map.call(new Uint8Array(d), function (b) { return b.toString(16).padStart(2, '0'); }).join('');
   }
 
-  function bindLogin() {
+  function bindEdit() {
     $('#btnEdit').addEventListener('click', function () {
       if (S.editing) {
-        S.editing = false; cancelPick();
+        S.editing = false; stopPlacing();
         $('#btnEdit').textContent = '编辑';
-        $('#btnAdd').style.display = 'none';
-        $('#btnLayout').style.display = 'none';
-        $('#btnFurnAdd').style.display = 'none';
-        $('#lblBase').style.display = 'none';
-        if (S.layout) stopLayout();
+        $('#btnAddEl').style.display = 'none';
+        $('#btnAddLine').style.display = 'none';
         setStatus('浏览模式'); renderAll(); return;
       }
       if (isAuthed()) { startEdit(); return; }
@@ -962,15 +804,20 @@
         $('#lgErr').textContent = '用户名或密码不正确'; $('#lgPass').value = '';
       }
     });
+
+    $('#btnAddEl').addEventListener('click', startPlacing);
+    $('#btnAddLine').addEventListener('click', function () {
+      if (!S.elements.length) { toast('请先添加元素'); return; }
+      openLineModal(null);
+    });
   }
 
   function startEdit() {
     S.editing = true;
     $('#btnEdit').textContent = '退出编辑';
-    $('#btnAdd').style.display = '';
-    $('#btnLayout').style.display = '';
-    $('#lblBase').style.display = '';
-    setStatus('编辑模式：可拖点位、建新线路', 'warn');
+    $('#btnAddEl').style.display = '';
+    $('#btnAddLine').style.display = '';
+    setStatus('编辑模式：可增删元素与气路', 'warn');
     renderAll();
   }
 
@@ -984,13 +831,11 @@
     for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
     return btoa(bin);
   }
-
   async function saveData(msg) {
     setStatus('保存中…');
     var payload = JSON.stringify({
-      updatedAt: new Date().toISOString(), plan: S.data.plan || {},
-      rooms: S.data.rooms, equipment: S.data.equipment, spots: S.data.spots, lines: S.data.lines,
-      furniture: S.furn
+      updatedAt: new Date().toISOString(), plan: S.plan || {},
+      elements: S.elements, lines: S.lines
     }, null, 1);
     try {
       var api = 'https://api.github.com/repos/' + GH.owner + '/' + GH.repo + '/contents/' + GH.path;
@@ -998,7 +843,7 @@
       var sha = cur.ok ? (await cur.json()).sha : null;
       var res = await fetch(api, {
         method: 'PUT', headers: ghHeaders(),
-        body: JSON.stringify({ message: (msg || '更新气路') + '（网页编辑）', content: b64(payload), branch: GH.branch, sha: sha })
+        body: JSON.stringify({ message: (msg || '更新布置') + '（网页编辑）', content: b64(payload), branch: GH.branch, sha: sha })
       });
       if (!res.ok) {
         var j = await res.json().catch(function () { return {}; });
@@ -1014,9 +859,8 @@
 
   function bindExport() {
     $('#btnExport').addEventListener('click', function () {
-      var blob = new Blob([JSON.stringify({
-        rooms: S.data.rooms, equipment: S.data.equipment, spots: S.data.spots, lines: S.data.lines
-      }, null, 1)], { type: 'application/json;charset=utf-8' });
+      var blob = new Blob([JSON.stringify({ elements: S.elements, lines: S.lines }, null, 1)],
+        { type: 'application/json;charset=utf-8' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'gas-data-' + new Date().toISOString().slice(0, 10) + '.json';
@@ -1025,24 +869,19 @@
     });
   }
 
+  function renderAll() { drawFurniture(); drawLines(); renderList(); renderTypeChips(); renderElementList(); renderDetail(); }
+
   function boot() {
-    bindLogin(); bindEditor(); bindLevelSeg(); bindMapClick(); bindExport();
-    bindLayout(); bindFurnModal();
-    $('#fnType').innerHTML = FURN_TYPES.map(function (x) { return '<option>' + x + '</option>'; }).join('');
+    bindEdit(); bindElModal(); bindLineModal(); bindExport();
+    $('#elType').innerHTML = TYPES.map(function (t) { return '<option>' + t.key + '</option>'; }).join('');
     $('#q').addEventListener('input', function () { S.q = this.value; renderList(); });
-    $('#btnAdd').addEventListener('click', startPick);
+    $('#mapWrap').addEventListener('click', onMapClick);
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
         $('#loginModal').classList.remove('open');
-        $('#editModal').classList.remove('open');
-        $('#furnModal').classList.remove('open');
-        cancelPick();
-        if (S.placeMode) {
-          S.placeMode = false;
-          $('#mapWrap').classList.remove('armed');
-          showTip('');
-          setStatus(S.layout ? '布置编辑中' : '浏览模式', S.layout ? 'warn' : '');
-        }
+        $('#elModal').classList.remove('open');
+        $('#lineModal').classList.remove('open');
+        stopPlacing();
       }
     });
     loadData();
