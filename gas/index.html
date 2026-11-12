@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>实验室气路布置图 · 材2-607</title>
+<style>
+  :root{
+    --bg:#f6f8fb; --card:#fff; --line:#e2e8f0; --text:#0f172a; --muted:#64748b;
+    --accent:#1d6fb8; --accent-d:#155a94; --ok:#15803d; --warn:#c2410c; --danger:#b91c1c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--text);font-size:14px}
+  header{display:flex;align-items:center;gap:14px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);
+         position:sticky;top:0;z-index:30;flex-wrap:wrap}
+  .brand{font-weight:750;font-size:16px;letter-spacing:.3px}
+  .brand .sub{font-weight:500;font-size:12px;color:var(--muted);margin-left:6px}
+  .tools{display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap}
+  input[type=text],input[type=password],textarea,select{
+    border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;font-family:inherit;background:#fff;color:var(--text)}
+  input:focus,textarea:focus,select:focus{outline:2px solid #bfdbfe;border-color:#93c5fd}
+  #q{width:210px}
+  button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font-size:13px;
+         cursor:pointer;font-family:inherit;color:var(--text);transition:.15s}
+  button:hover{background:#f1f5f9}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.primary:hover{background:var(--accent-d)}
+  button.danger{color:var(--danger);border-color:#fecaca}
+  button.danger:hover{background:#fef2f2}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;padding:3px 8px;border-radius:999px;background:#eef2f7;color:#475569}
+  .pill.high{background:#fef2f2;color:#b91c1c}
+  .pill.low{background:#eff6ff;color:#1d4ed8}
+  .pill.ok{background:#ecfdf5;color:#047857}
+  main{display:grid;grid-template-columns:250px minmax(0,1fr) 330px;gap:12px;padding:12px;align-items:start}
+  @media (max-width:1180px){ main{grid-template-columns:1fr} }
+  aside, section{min-width:0}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .card h2{margin:0;padding:10px 12px;font-size:12.5px;font-weight:700;color:var(--muted);
+           border-bottom:1px solid var(--line);letter-spacing:.4px}
+  #list{max-height:calc(100vh - 90px);overflow:auto}
+  .li{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid #f1f5f9;cursor:pointer}
+  .li:hover{background:#f8fafc}
+  .li.active{background:#eff6ff}
+  .li .dot{width:10px;height:10px;border-radius:50%;flex:0 0 auto;border:1px solid rgba(0,0,0,.15)}
+  .li .nm{font-weight:650}
+  .li .tg{font-size:11px;color:var(--muted);margin-left:auto}
+  #stage{background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px}
+  #mapWrap{position:relative;line-height:0;user-select:none;touch-action:none}
+  #mapWrap img{width:100%;height:auto;display:block;border-radius:6px}
+  #lines{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  #markers{position:absolute;inset:0}
+  .mk{position:absolute;transform:translate(-50%,-50%);width:22px;height:22px;border-radius:50%;
+      border:2px solid #fff;box-shadow:0 1px 6px rgba(15,23,42,.35);cursor:pointer;
+      display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff;
+      transition:transform .12s}
+  .mk:hover{transform:translate(-50%,-50%) scale(1.25);z-index:5}
+  .mk.sel{transform:translate(-50%,-50%) scale(1.35);z-index:6;box-shadow:0 0 0 4px rgba(29,111,184,.35)}
+  .mk.reserved{background:#94a3b8}
+  .mk.gas.low{background:#2563eb}
+  .mk.gas.high{background:#dc2626}
+  .mk.edit{cursor:grab}
+  .mk .lb{position:absolute;left:26px;top:50%;transform:translateY(-50%);white-space:nowrap;
+          font-size:10.5px;font-weight:600;color:#334155;background:rgba(255,255,255,.9);padding:0 4px;border-radius:4px}
+  .spot{position:absolute;transform:translate(-50%,-50%);width:9px;height:9px;border-radius:50%;
+        background:#0ea5e9;border:2px solid #fff;box-shadow:0 0 0 2px rgba(14,165,233,.25)}
+  .spot .sl{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:10px;color:#0369a1;
+           background:rgba(255,255,255,.85);padding:0 3px;border-radius:3px;white-space:nowrap}
+  #detail{max-height:calc(100vh - 90px);overflow:auto}
+  .dt{padding:12px}
+  .dt h3{margin:0 0 2px;font-size:17px}
+  .dt .sub{color:var(--muted);font-size:12px;margin-bottom:10px}
+  .kv{display:grid;grid-template-columns:76px 1fr;gap:6px 10px;font-size:13px;margin-bottom:12px}
+  .kv .k{color:var(--muted)}
+  .eps{display:flex;flex-wrap:wrap;gap:6px}
+  .ep{font-size:12px;background:#eff6ff;color:#1e40af;border-radius:999px;padding:3px 9px}
+  .hint{color:var(--muted);font-size:12px;padding:10px 12px}
+  .empty{color:var(--muted);font-size:13px;padding:16px 12px}
+  #toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0f172a;color:#fff;
+         padding:9px 16px;border-radius:999px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:99}
+  #toast.show{opacity:.94}
+  .modal{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:center;justify-content:center;padding:16px;z-index:60}
+  .modal.open{display:flex}
+  .box{background:#fff;border-radius:14px;width:min(560px,96vw);max-height:92vh;overflow:auto;padding:16px 18px}
+  .box h3{margin:0 0 4px;font-size:16px}
+  .box .muted{color:var(--muted);font-size:12px;margin-bottom:12px}
+  .f{margin-bottom:10px}
+  .f label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  .f input,.f textarea,.f select{width:100%}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .foot{display:flex;gap:8px;margin-top:6px}
+  .foot .right{margin-left:auto}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">实验室气路布置图<span class="sub">材 2-607 · 点击图上标记查看气路信息</span></div>
+  <div class="tools">
+    <input type="text" id="q" placeholder="搜索气体 / 输出端…" />
+    <button id="btnExport">导出 JSON</button>
+    <button id="btnEdit">编辑</button>
+    <span class="pill" id="status">加载中…</span>
+  </div>
+</header>
+
+<main>
+  <aside class="card">
+    <h2>气路清单 <span id="cnt"></span></h2>
+    <div id="list"></div>
+  </aside>
+
+  <section id="stage">
+    <div id="mapWrap">
+      <img id="plan" src="plan.png" alt="实验室气路平面图" />
+      <svg id="lines" viewBox="0 0 100 100" preserveAspectRatio="none"></svg>
+      <div id="markers"></div>
+    </div>
+    <div class="hint" id="hint">点击气源标记查看详情；选中后橙色虚线指向它的输出端。</div>
+  </section>
+
+  <aside class="card">
+    <h2>气体详情</h2>
+    <div id="detail"><div class="empty">从左侧列表或图上标记中选择一种气体</div></div>
+  </aside>
+</main>
+
+<div class="modal" id="loginModal">
+  <div class="box" style="width:min(380px,96vw)">
+    <h3>编辑模式</h3>
+    <div class="muted">输入管理密码后可添加 / 修改 / 移动气路标记。</div>
+    <div class="f"><label>用户名</label><input type="text" id="lgUser" value="admin" autocomplete="username" /></div>
+    <div class="f"><label>密码</label><input type="password" id="lgPass" autocomplete="current-password" /></div>
+    <div class="muted" id="lgErr" style="color:#b91c1c;min-height:18px"></div>
+    <div class="foot">
+      <button class="primary" id="lgOk">进入</button>
+      <button id="lgCancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="editModal">
+  <div class="box">
+    <h3 id="edTitle">添加气路</h3>
+    <div class="muted" id="edHint">位置：点击图上空白处可重新定位</div>
+    <div class="row2">
+      <div class="f"><label>图上标签（短）</label><input type="text" id="edTag" placeholder="N₂ / H₂ / 备用5" /></div>
+      <div class="f"><label>气体名称</label><input type="text" id="edName" placeholder="氮气" /></div>
+    </div>
+    <div class="row2">
+      <div class="f"><label>类型</label>
+        <select id="edKind">
+          <option value="gas">实际气体</option>
+          <option value="reserved">备用气路</option>
+        </select>
+      </div>
+      <div class="f"><label>压力等级</label>
+        <select id="edLevel">
+          <option value="high">高压（气瓶/减压前）</option>
+          <option value="low">低压（减压后/厂务）</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="f"><label>进气压力</label><input type="text" id="edInlet" placeholder="25 MPa（气瓶）" /></div>
+      <div class="f"><label>输出压力</label><input type="text" id="edOutlet" placeholder="0–10 MPa" /></div>
+    </div>
+    <div class="row2">
+      <div class="f"><label>纯度</label><input type="text" id="edPurity" placeholder="99.999%" /></div>
+      <div class="f"><label>接头规格</label><input type="text" id="edConn" placeholder="W21.8 / G3/8 / 1/4&quot; OD" /></div>
+    </div>
+    <div class="f"><label>管路材质/规格</label><input type="text" id="edTube" placeholder="316L BA 1/4&quot; OD" /></div>
+    <div class="f"><label>输出端（多个用逗号分隔）</label><input type="text" id="edEps" placeholder="常压固定床, 电化学" /></div>
+    <div class="f"><label>备注（安全提示等）</label><textarea id="edNote" rows="2"></textarea></div>
+    <div class="foot">
+      <button class="primary" id="edSave">保存</button>
+      <button id="edCancel">取消</button>
+      <button class="danger right" id="edDel">删除</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================= 配置 ================= */
+  var DATA_URL = 'data.json';
+  var GH = {
+    owner: 'ZJU-ICED-DATA', repo: 'ZJU-ICED-DATA.github.io', branch: 'main', path: 'gas/data.json',
+    tokenParts: ['github_pat_11AQ437DQ0hTx', 'IJ4ZBNcxG_n7IAgfIpAVQrOTdsfbfTBpuWEYzNIp', 'zmD0jUM8KNmIcAYWDT2729ZZqHrtl']
+  };
+  var ADMIN = {
+    user: 'admin',
+    salt: 'lab-admin-9f3c2a',
+    hash: '796930e3a9bef9ffd73f2d1b2575b1e8e4530f903c3f8997fe739234d6481990'
+  };
+  var SESSION_KEY = 'gas:admin:v1';
+
+  /* ================= 状态 ================= */
+  var S = { data: { gases: [], spots: [] }, sel: null, editing: false, q: '', pending: null, drag: null };
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function toast(msg, ms) {
+    var t = $('#toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove('show'); }, ms || 2200);
+  }
+  function isNum(v) { return typeof v === 'number' && isFinite(v); }
+
+  /* ================= 数据 ================= */
+  async function loadData() {
+    try {
+      var r = await fetch(DATA_URL + '?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      var j = await r.json();
+      S.data = { gases: Array.isArray(j.gases) ? j.gases : [], spots: Array.isArray(j.spots) ? j.spots : [] };
+      setStatus('已加载 ' + S.data.gases.length + ' 路', 'ok');
+    } catch (e) {
+      setStatus('读取失败：' + e.message, 'warn');
+    }
+    renderAll();
+  }
+
+  function setStatus(txt, cls) {
+    var el = $('#status'); el.textContent = txt;
+    el.className = 'pill' + (cls ? ' ' + cls : '');
+  }
+
+  /* ================= 渲染 ================= */
+  function renderAll() { renderList(); renderMarkers(); renderDetail(); }
+
+  function markerColor(g) {
+    if (g.kind === 'reserved') return 'reserved';
+    return g.level === 'low' ? 'gas low' : 'gas high';
+  }
+
+  function renderList() {
+    var host = $('#list');
+    var q = S.q.trim().toLowerCase();
+    var rows = S.data.gases.filter(function (g) {
+      if (!q) return true;
+      var hay = [g.tag, g.name, g.purity, g.connector, (g.endpoints || []).join(' '), g.note].join(' ').toLowerCase();
+      return hay.indexOf(q) >= 0;
+    });
+    $('#cnt').textContent = '（' + rows.length + '/' + S.data.gases.length + '）';
+    if (!rows.length) { host.innerHTML = '<div class="empty">没有匹配的气路</div>'; return; }
+
+    host.innerHTML = rows.map(function (g) {
+      var color = g.kind === 'reserved' ? '#94a3b8' : (g.level === 'low' ? '#2563eb' : '#dc2626');
+      return '<div class="li' + (S.sel === g.id ? ' active' : '') + '" data-id="' + esc(g.id) + '">' +
+        '<span class="dot" style="background:' + color + '"></span>' +
+        '<span class="nm">' + esc(g.tag || g.name) + '</span>' +
+        '<span class="tg">' + esc(g.name || '') + '</span></div>';
+    }).join('');
+
+    $$('.li', host).forEach(function (el) {
+      el.addEventListener('click', function () { select(el.getAttribute('data-id')); });
+    });
+  }
+
+  function renderMarkers() {
+    var host = $('#markers');
+    host.innerHTML = '';
+
+    /* 输出端位置点（仅选中时显示） */
+    if (S.sel) {
+      var g0 = findGas(S.sel);
+      (g0 && g0.endpoints || []).forEach(function (name) {
+        var sp = findSpot(name);
+        if (!sp) return;
+        var d = document.createElement('div');
+        d.className = 'spot';
+        d.style.left = (sp.x * 100) + '%';
+        d.style.top = (sp.y * 100) + '%';
+        d.innerHTML = '<span class="sl">' + esc(name) + '</span>';
+        host.appendChild(d);
+      });
+    }
+
+    S.data.gases.forEach(function (g) {
+      var el = document.createElement('div');
+      el.className = 'mk ' + markerColor(g) + (S.sel === g.id ? ' sel' : '') + (S.editing ? ' edit' : '');
+      el.style.left = (g.x * 100) + '%';
+      el.style.top = (g.y * 100) + '%';
+      el.setAttribute('data-id', g.id);
+      el.title = (g.tag || '') + ' · ' + (g.name || '');
+      el.innerHTML = '<span class="lb">' + esc(g.tag || '') + '</span>';
+      el.addEventListener('pointerdown', function (ev) { onMarkerDown(ev, g.id); });
+      el.addEventListener('click', function (ev) { ev.stopPropagation(); if (!S.drag || !S.drag.moved) select(g.id); });
+      host.appendChild(el);
+    });
+
+    drawLines();
+  }
+
+  function drawLines() {
+    var svg = $('#lines');
+    svg.innerHTML = '';
+    if (!S.sel) return;
+    var g = findGas(S.sel);
+    if (!g) return;
+    (g.endpoints || []).forEach(function (name) {
+      var sp = findSpot(name);
+      if (!sp) return;
+      var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', g.x * 100); line.setAttribute('y1', g.y * 100);
+      line.setAttribute('x2', sp.x * 100); line.setAttribute('y2', sp.y * 100);
+      line.setAttribute('stroke', '#f59e0b');
+      line.setAttribute('stroke-width', '1.2');
+      line.setAttribute('stroke-dasharray', '4 3');
+      line.setAttribute('vector-effect', 'non-scaling-stroke');
+      line.setAttribute('opacity', '0.9');
+      svg.appendChild(line);
+    });
+  }
+
+  function renderDetail() {
+    var host = $('#detail');
+    var g = S.sel ? findGas(S.sel) : null;
+    if (!g) { host.innerHTML = '<div class="empty">从左侧列表或图上标记中选择一种气体</div>'; return; }
+
+    var lvl = g.level === 'low' ? '<span class="pill low">低压</span>' : '<span class="pill high">高压</span>';
+    var kind = g.kind === 'reserved' ? '<span class="pill">备用气路</span>' : '<span class="pill ok">在用</span>';
+
+    host.innerHTML = '<div class="dt">' +
+      '<h3>' + esc(g.tag || g.name) + ' ' + kind + ' ' + lvl + '</h3>' +
+      '<div class="sub">' + esc(g.name || '') + '</div>' +
+      '<div class="kv">' +
+        '<div class="k">进气压力</div><div>' + esc(g.inlet || '—') + '</div>' +
+        '<div class="k">输出压力</div><div>' + esc(g.outlet || '—') + '</div>' +
+        '<div class="k">纯度</div><div>' + esc(g.purity || '—') + '</div>' +
+        '<div class="k">接头</div><div>' + esc(g.connector || '—') + '</div>' +
+        '<div class="k">管路</div><div>' + esc(g.tube || '—') + '</div>' +
+      '</div>' +
+      '<div class="kv"><div class="k">输出端</div><div class="eps">' +
+        ((g.endpoints || []).length
+          ? g.endpoints.map(function (e) { return '<span class="ep">' + esc(e) + '</span>'; }).join('')
+          : '<span class="muted">未填写</span>') +
+      '</div></div>' +
+      (g.note ? '<div class="kv"><div class="k">备注</div><div>' + esc(g.note) + '</div></div>' : '') +
+      (S.editing ? '<button class="primary" id="dtEdit">编辑这一路</button>' : '') +
+      '</div>';
+
+    var b = $('#dtEdit');
+    if (b) b.addEventListener('click', function () { openEditor(g.id); });
+  }
+
+  function findGas(id) {
+    for (var i = 0; i < S.data.gases.length; i++) if (S.data.gases[i].id === id) return S.data.gases[i];
+    return null;
+  }
+  function findSpot(name) {
+    for (var i = 0; i < S.data.spots.length; i++) if (S.data.spots[i].name === name) return S.data.spots[i];
+    return null;
+  }
+
+  function select(id) {
+    S.sel = id;
+    renderList(); renderMarkers(); renderDetail();
+  }
+
+  /* ================= 拖拽定位 ================= */
+  function onMarkerDown(ev, id) {
+    if (!S.editing) return;
+    ev.preventDefault();
+    var wrap = $('#mapWrap');
+    var rect = wrap.getBoundingClientRect();
+    S.drag = { id: id, moved: false, x0: ev.clientX, y0: ev.clientY };
+    var move = function (e) {
+      if (!S.drag) return;
+      if (Math.abs(e.clientX - S.drag.x0) > 3 || Math.abs(e.clientY - S.drag.y0) > 3) S.drag.moved = true;
+      var x = (e.clientX - rect.left) / rect.width;
+      var y = (e.clientY - rect.top) / rect.height;
+      x = Math.max(0, Math.min(1, x)); y = Math.max(0, Math.min(1, y));
+      var g = findGas(id); if (!g) return;
+      g.x = Math.round(x * 1000) / 1000; g.y = Math.round(y * 1000) / 1000;
+      renderMarkers();
+    };
+    var up = function () {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      if (S.drag && S.drag.moved) { select(id); saveData('调整位置：' + (findGas(id) || {}).tag); }
+      setTimeout(function () { S.drag = null; }, 0);
+    };
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
+  }
+
+  /* ================= 编辑 ================= */
+  function isAuthed() {
+    try { return sessionStorage.getItem(SESSION_KEY) === 'ok'; } catch (e) { return false; }
+  }
+  function setAuthed(v) {
+    try { v ? sessionStorage.setItem(SESSION_KEY, 'ok') : sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+  }
+
+  async function sha256Hex(str) {
+    var buf = new TextEncoder().encode(str);
+    var d = await crypto.subtle.digest('SHA-256', buf);
+    return Array.prototype.map.call(new Uint8Array(d), function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+  }
+
+  function bindLogin() {
+    $('#btnEdit').addEventListener('click', function () {
+      if (S.editing) { S.editing = false; $('#btnEdit').textContent = '编辑'; setStatus('浏览模式'); renderAll(); return; }
+      if (isAuthed()) { startEdit(); return; }
+      $('#loginModal').classList.add('open');
+      $('#lgPass').focus();
+    });
+    $('#lgCancel').addEventListener('click', function () { $('#loginModal').classList.remove('open'); });
+    $('#lgOk').addEventListener('click', async function () {
+      var u = $('#lgUser').value.trim(), p = $('#lgPass').value;
+      var okUser = u === ADMIN.user;
+      var okPass = false;
+      try { okPass = (await sha256Hex(ADMIN.salt + ':' + p)) === ADMIN.hash; } catch (e) {}
+      if (okUser && okPass) {
+        setAuthed(true); $('#loginModal').classList.remove('open'); $('#lgPass').value = '';
+        startEdit();
+      } else {
+        $('#lgErr').textContent = '用户名或密码不正确';
+        $('#lgPass').value = '';
+      }
+    });
+  }
+
+  function startEdit() {
+    S.editing = true;
+    $('#btnEdit').textContent = '退出编辑';
+    setStatus('编辑模式：点空白处新增，拖动标记改位置', 'warn');
+    renderAll();
+  }
+
+  /* 空白处点击 = 新增 */
+  function bindMapClick() {
+    $('#mapWrap').addEventListener('click', function (ev) {
+      if (!S.editing) return;
+      if (ev.target.closest && ev.target.closest('.mk')) return;
+      var rect = this.getBoundingClientRect();
+      var x = (ev.clientX - rect.left) / rect.width;
+      var y = (ev.clientY - rect.top) / rect.height;
+      if (x < 0 || x > 1 || y < 0 || y > 1) return;
+      openEditor(null, { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 });
+    });
+  }
+
+  function openEditor(id, pos) {
+    var g = id ? findGas(id) : null;
+    S.pending = { id: id || null, x: g ? g.x : (pos ? pos.x : 0.5), y: g ? g.y : (pos ? pos.y : 0.5) };
+    $('#edTitle').textContent = g ? '编辑：' + (g.tag || g.name) : '添加气路';
+    $('#edHint').textContent = '位置：x=' + S.pending.x.toFixed(3) + '，y=' + S.pending.y.toFixed(3) +
+      (S.editing ? '（编辑模式下可拖动图上标记调整）' : '');
+    $('#edTag').value = g ? (g.tag || '') : '';
+    $('#edName').value = g ? (g.name || '') : '';
+    $('#edKind').value = g ? (g.kind || 'gas') : 'gas';
+    $('#edLevel').value = g ? (g.level || 'high') : 'high';
+    $('#edInlet').value = g ? (g.inlet || '') : '';
+    $('#edOutlet').value = g ? (g.outlet || '') : '';
+    $('#edPurity').value = g ? (g.purity || '') : '';
+    $('#edConn').value = g ? (g.connector || '') : '';
+    $('#edTube').value = g ? (g.tube || '') : '';
+    $('#edEps').value = g ? (g.endpoints || []).join(', ') : '';
+    $('#edNote').value = g ? (g.note || '') : '';
+    $('#edDel').style.display = g ? '' : 'none';
+    $('#editModal').classList.add('open');
+    $('#edTag').focus();
+  }
+
+  function bindEditor() {
+    $('#edCancel').addEventListener('click', function () { $('#editModal').classList.remove('open'); });
+    $('#edSave').addEventListener('click', async function () {
+      var tag = $('#edTag').value.trim();
+      if (!tag) { toast('请填写图上标签'); return; }
+      var rec = {
+        id: S.pending.id || ('g-' + Date.now().toString(36)),
+        tag: tag,
+        name: $('#edName').value.trim() || tag,
+        kind: $('#edKind').value,
+        level: $('#edLevel').value,
+        inlet: $('#edInlet').value.trim(),
+        outlet: $('#edOutlet').value.trim(),
+        purity: $('#edPurity').value.trim(),
+        connector: $('#edConn').value.trim(),
+        tube: $('#edTube').value.trim(),
+        endpoints: $('#edEps').value.split(/[,，、;；]/).map(function (s) { return s.trim(); }).filter(Boolean),
+        note: $('#edNote').value.trim(),
+        x: S.pending.x, y: S.pending.y
+      };
+      var i = -1;
+      for (var k = 0; k < S.data.gases.length; k++) if (S.data.gases[k].id === rec.id) { i = k; break; }
+      if (i >= 0) S.data.gases[i] = rec; else S.data.gases.push(rec);
+      $('#editModal').classList.remove('open');
+      select(rec.id);
+      await saveData('更新气路：' + rec.tag);
+    });
+    $('#edDel').addEventListener('click', async function () {
+      var id = S.pending && S.pending.id;
+      if (!id) return;
+      if (!window.confirm('确定删除这一路气体吗？')) return;
+      S.data.gases = S.data.gases.filter(function (g) { return g.id !== id; });
+      $('#editModal').classList.remove('open');
+      S.sel = null;
+      renderAll();
+      await saveData('删除气路：' + id);
+    });
+  }
+
+  /* ================= 保存到 GitHub ================= */
+  function ghToken() { return GH.tokenParts.join(''); }
+  function ghHeaders() {
+    return {
+      'Authorization': 'Bearer ' + ghToken(),
+      'Accept': 'application/vnd.github+json',
+      'Content-Type': 'application/json'
+    };
+  }
+  function b64(s) {
+    var bytes = new TextEncoder().encode(s), bin = '';
+    for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  }
+
+  async function saveData(msg) {
+    setStatus('保存中…');
+    var payload = JSON.stringify({ updatedAt: new Date().toISOString(), plan: S.data.plan || {}, gases: S.data.gases, spots: S.data.spots }, null, 1);
+    try {
+      var api = 'https://api.github.com/repos/' + GH.owner + '/' + GH.repo + '/contents/' + GH.path;
+      var cur = await fetch(api + '?ref=' + GH.branch + '&t=' + Date.now(), { headers: ghHeaders(), cache: 'no-store' });
+      var sha = cur.ok ? (await cur.json()).sha : null;
+      var res = await fetch(api, {
+        method: 'PUT',
+        headers: ghHeaders(),
+        body: JSON.stringify({
+          message: (msg || '更新气路布置') + '（网页编辑）',
+          content: b64(payload),
+          branch: GH.branch,
+          sha: sha
+        })
+      });
+      if (!res.ok) {
+        var j = await res.json().catch(function () { return {}; });
+        throw new Error(j.message || ('HTTP ' + res.status));
+      }
+      setStatus('已保存，约 1 分钟后全站生效', 'ok');
+      toast('已保存');
+    } catch (e) {
+      setStatus('保存失败：' + e.message, 'warn');
+      toast('保存失败：' + e.message, 4200);
+    }
+  }
+
+  /* ================= 导出 ================= */
+  function bindExport() {
+    $('#btnExport').addEventListener('click', function () {
+      var blob = new Blob([JSON.stringify({ gases: S.data.gases, spots: S.data.spots }, null, 1)],
+        { type: 'application/json;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'gas-data-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    });
+  }
+
+  /* ================= 启动 ================= */
+  function boot() {
+    bindLogin(); bindEditor(); bindMapClick(); bindExport();
+    $('#q').addEventListener('input', function () { S.q = this.value; renderList(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { $('#loginModal').classList.remove('open'); $('#editModal').classList.remove('open'); }
+    });
+    if (isAuthed()) { /* 会话内保留权限，但默认仍是浏览模式 */ }
+    loadData();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>
