@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>实验室气路速查表 · 材2-607</title>
+<style>
+  :root{ --bg:#f5f7fa; --card:#fff; --line:#e3e8ef; --text:#0f172a; --muted:#64748b;
+         --accent:#1d6fb8; --high:#b91c1c; --low:#1d4ed8; --res:#64748b; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--text);font-size:14px}
+  header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);
+         position:sticky;top:0;z-index:20;flex-wrap:wrap}
+  .brand{font-weight:750;font-size:16px}
+  .brand .sub{font-weight:500;font-size:12px;color:var(--muted);margin-left:6px}
+  .tools{display:flex;gap:8px;align-items:center;margin-left:auto;flex-wrap:wrap}
+  input[type=text]{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;width:220px}
+  button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px 12px;font-size:13px;cursor:pointer;color:var(--text)}
+  button:hover{background:#f1f5f9}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  button.on{background:#e0f2fe;border-color:#7dd3fc;color:#0369a1;font-weight:650}
+  a{text-decoration:none;color:inherit}
+  main{padding:14px;max-width:1280px;margin:0 auto}
+  .summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px}
+  .stat b{font-size:18px;margin-right:4px}
+  .tabs{display:flex;gap:6px;margin:10px 0 12px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .group{padding:10px 14px 2px;font-weight:750;font-size:13.5px;color:#0f172a;border-top:1px solid #f1f5f9}
+  .group:first-child{border-top:0}
+  .group .n{font-weight:500;color:var(--muted);font-size:12px;margin-left:6px}
+  table{width:100%;border-collapse:collapse;font-size:12.8px}
+  th,td{padding:6px 10px;text-align:left;border-bottom:1px solid #f1f5f9;vertical-align:top}
+  th{background:#fafbfc;color:var(--muted);font-weight:650;font-size:12px;white-space:nowrap}
+  td.mono{font-variant-numeric:tabular-nums;white-space:nowrap}
+  .lv{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;white-space:nowrap}
+  .lv.high{background:#fef2f2;color:var(--high)}
+  .lv.low{background:#eff6ff;color:var(--low)}
+  .lv.res{background:#f1f5f9;color:var(--res)}
+  .arrow{color:#94a3b8;margin:0 4px}
+  .empty{padding:24px;text-align:center;color:var(--muted)}
+  footer{padding:12px 16px;color:#94a3b8;font-size:11.5px;text-align:center}
+
+  /* ---------- 打印 ---------- */
+  @media print{
+    @page{ size:A4 portrait; margin:12mm 10mm; }
+    body{background:#fff;font-size:10.5px}
+    header,.tabs,.noprint{display:none !important}
+    main{padding:0;max-width:none}
+    .summary{margin:0 0 6mm}
+    .stat{border:0;padding:0 10px 0 0;font-size:10.5px}
+    .stat b{font-size:13px}
+    .card{border:0;border-radius:0}
+    .group{font-size:11px;padding:2mm 0 1mm;background:#f6f7f9;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    table{font-size:9.5px}
+    th{background:#eef1f5 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    th,td{padding:1.2mm 1.6mm;border-bottom:1px solid #d7dde5}
+    tr{page-break-inside:avoid}
+    thead{display:table-header-group}
+    .lv{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .print-head{display:block !important}
+    footer{color:#94a3b8}
+  }
+  .print-head{display:none;margin-bottom:4mm}
+  .print-head h1{margin:0;font-size:16px}
+  .print-head .meta{font-size:10px;color:#64748b;margin-top:2mm}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">气路速查表<span class="sub">材 2-607</span></div>
+  <div class="tools">
+    <input type="text" id="q" placeholder="搜索气体 / 设备 / 接头…" />
+    <a href="index.html"><button>← 返回地图</button></a>
+    <button id="btnPrint" class="primary">打印</button>
+  </div>
+</header>
+
+<main>
+  <div class="print-head">
+    <h1>材 2-607 实验室气路速查表</h1>
+    <div class="meta" id="printMeta"></div>
+  </div>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="tabs noprint">
+    <button data-g="gas" class="on">按气体</button>
+    <button data-g="user">按用气设备</button>
+    <button data-g="source">按气源</button>
+  </div>
+
+  <div class="card" id="table"></div>
+</main>
+
+<footer>示意图与清单如有出入，以现场与设备台账为准 · 气路改动后请及时更新</footer>
+
+<script>
+(function () {
+  'use strict';
+  var DATA_URL = 'data.json';
+  var S = { lines: [], q: '', group: 'gas' };
+
+  function $(s, r) { return (r || document).querySelector(s); }
+  function $$(s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function lv(l) {
+    if (l.kind === 'reserved') return '<span class="lv res">备用</span>';
+    return l.level === 'low' ? '<span class="lv low">低压</span>' : '<span class="lv high">高压</span>';
+  }
+
+  function rowsFiltered() {
+    var q = S.q.trim().toLowerCase();
+    return S.lines.filter(function (l) {
+      if (!q) return true;
+      return [l.gas, l.name, l.user.name, l.source.name, l.connector, l.purity, l.inlet, l.outlet, l.note]
+        .join(' ').toLowerCase().indexOf(q) >= 0;
+    });
+  }
+
+  function groupKey(l) {
+    if (S.group === 'user') return l.user.name || '（未命名用户端）';
+    if (S.group === 'source') return l.source.name || '（未命名气源）';
+    return l.gas || '（未命名）';
+  }
+
+  function render() {
+    var rows = rowsFiltered();
+    var gases = {};
+    rows.forEach(function (l) { gases[l.gas] = 1; });
+    var high = rows.filter(function (l) { return l.kind !== 'reserved' && l.level !== 'low'; }).length;
+    var low = rows.filter(function (l) { return l.kind !== 'reserved' && l.level === 'low'; }).length;
+    var users = {};
+    rows.forEach(function (l) { users[l.user.name] = 1; });
+
+    $('#summary').innerHTML =
+      '<div class="stat"><b>' + rows.length + '</b>条气路</div>' +
+      '<div class="stat"><b>' + Object.keys(gases).length + '</b>种气体</div>' +
+      '<div class="stat"><b>' + Object.keys(users).length + '</b>个用气设备</div>' +
+      '<div class="stat">高压 <b>' + high + '</b>　低压 <b>' + low + '</b></div>';
+
+    var now = new Date();
+    $('#printMeta').textContent = '共 ' + rows.length + ' 条气路 · 高压 ' + high + ' / 低压 ' + low +
+      ' · 生成于 ' + now.toLocaleDateString('zh-CN') + ' ' + now.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+
+    if (!rows.length) { $('#table').innerHTML = '<div class="empty">没有匹配的气路</div>'; return; }
+
+    var groups = {};
+    rows.forEach(function (l) {
+      var k = groupKey(l);
+      (groups[k] = groups[k] || []).push(l);
+    });
+
+    var keys = Object.keys(groups).sort(function (a, b) { return a.localeCompare(b, 'zh'); });
+    var html = '';
+    keys.forEach(function (k) {
+      var list = groups[k].sort(function (a, b) {
+        var la = a.level === 'low' ? 1 : 0, lb = b.level === 'low' ? 1 : 0;
+        return la - lb || String(a.user.name).localeCompare(String(b.user.name), 'zh');
+      });
+      html += '<div class="group">' + esc(k) + '<span class="n">' + list.length + ' 条</span></div>' +
+        '<table><thead><tr>' +
+        '<th>气体</th><th>压力</th><th>气源端</th><th>用户端</th>' +
+        '<th>进气</th><th>输出</th><th>纯度</th><th>接头</th><th>备注</th>' +
+        '</tr></thead><tbody>' +
+        list.map(function (l) {
+          return '<tr>' +
+            '<td><b>' + esc(l.gas) + '</b>' + (l.name && l.name !== l.gas ? ' <span style="color:#94a3b8">' + esc(l.name) + '</span>' : '') + '</td>' +
+            '<td>' + lv(l) + '</td>' +
+            '<td>' + esc(l.source.name || '—') + '</td>' +
+            '<td>' + esc(l.user.name || '—') + '</td>' +
+            '<td class="mono">' + esc(l.inlet || '—') + '</td>' +
+            '<td class="mono">' + esc(l.outlet || '—') + '</td>' +
+            '<td class="mono">' + esc(l.purity || '—') + '</td>' +
+            '<td class="mono">' + esc(l.connector || '—') + '</td>' +
+            '<td>' + esc(l.note || '') + '</td>' +
+            '</tr>';
+        }).join('') +
+        '</tbody></table>';
+    });
+    $('#table').innerHTML = html;
+  }
+
+  async function load() {
+    try {
+      var r = await fetch(DATA_URL + '?t=' + Date.now(), { cache: 'no-store' });
+      var j = await r.json();
+      S.lines = Array.isArray(j.lines) ? j.lines : [];
+    } catch (e) {
+      S.lines = [];
+      $('#table').innerHTML = '<div class="empty">读取 data.json 失败：' + esc(e.message) + '</div>';
+      return;
+    }
+    render();
+  }
+
+  function boot() {
+    $('#q').addEventListener('input', function () { S.q = this.value; render(); });
+    $('#btnPrint').addEventListener('click', function () { window.print(); });
+    $$('.tabs button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        $$('.tabs button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        S.group = b.getAttribute('data-g');
+        render();
+      });
+    });
+    load();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
+</body>
+</html>
